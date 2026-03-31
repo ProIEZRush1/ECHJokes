@@ -24,7 +24,7 @@ services:
     volumes:
       - shared-storage:/app/storage
     labels:
-      - "traefik.enable=false"
+      - "traefik.http.services.ws-echjokes.loadbalancer.server.port=8081"
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8081/health"]
       interval: 30s
