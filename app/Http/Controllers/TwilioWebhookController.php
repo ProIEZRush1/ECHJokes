@@ -1,0 +1,138 @@
+<?php
+
+namespace App\Http\Controllers;
+
+use App\Enums\JokeCallStatus;
+use App\Events\JokeCallStatusUpdated;
+use App\Models\JokeCall;
+use Illuminate\Http\Request;
+use Illuminate\Http\Response;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\URL;
+
+class TwilioWebhookController extends Controller
+{
+    /**
+     * Return TwiML — uses Media Streams for bidirectional conversation,
+     * falls back to <Play> if stream server is not configured.
+     */
+    public function voice(JokeCall $jokeCall): Response
+    {
+        $jokeCall->updateStatus(JokeCallStatus::InProgress);
+        broadcast(new JokeCallStatusUpdated($jokeCall));
+
+        $streamPort = env('MEDIA_STREAM_PORT');
+        $appUrl = config('app.url');
+
+        if ($streamPort) {
+            // Phase 2: Bidirectional Media Streams
+            $wsUrl = str_replace(['http://', 'https://'], ['ws://', 'wss://'], $appUrl);
+            $streamUrl = "{$wsUrl}/stream/{$jokeCall->session_id}";
+
+            $twiml = <<<XML
+            <?xml version="1.0" encoding="UTF-8"?>
+            <Response>
+                <Connect>
+                    <Stream url="{$streamUrl}" />
+                </Connect>
+            </Response>
+            XML;
+        } else {
+            // Phase 1 fallback: One-way audio playback
+            $audioUrl = URL::signedRoute('audio.show', ['jokeCall' => $jokeCall->id], now()->addMinutes(10));
+
+            $twiml = <<<XML
+            <?xml version="1.0" encoding="UTF-8"?>
+            <Response>
+                <Play>{$audioUrl}</Play>
+                <Pause length="1"/>
+                <Hangup/>
+            </Response>
+            XML;
+        }
+
+        return response($twiml, 200, ['Content-Type' => 'text/xml']);
+    }
+
+    /**
+     * Handle Twilio recording status callback.
+     */
+    public function recording(Request $request): Response
+    {
+        $recordingUrl = $request->input('RecordingUrl');
+        $recordingSid = $request->input('RecordingSid');
+        $recordingDuration = (int) $request->input('RecordingDuration', 0);
+        $callSid = $request->input('CallSid');
+
+        $jokeCall = JokeCall::where('twilio_call_sid', $callSid)->first();
+
+        if ($jokeCall) {
+            $jokeCall->update([
+                'recording_sid' => $recordingSid,
+                'recording_duration_sec' => $recordingDuration,
+            ]);
+
+            // Download recording with a delay (Twilio needs time to process)
+            \App\Jobs\DownloadRecordingJob::dispatch($jokeCall, $recordingUrl)
+                ->delay(now()->addSeconds(30));
+        }
+
+        return response('OK', 200);
+    }
+
+    /**
+     * Handle Twilio status callback events.
+     */
+    public function status(Request $request): Response
+    {
+        $callSid = $request->input('CallSid');
+        $callStatus = $request->input('CallStatus');
+
+        $jokeCall = JokeCall::where('twilio_call_sid', $callSid)->first();
+
+        if (! $jokeCall) {
+            Log::warning('Twilio status callback: JokeCall not found', ['call_sid' => $callSid]);
+            return response('OK', 200);
+        }
+
+        match ($callStatus) {
+            'in-progress' => $this->handleInProgress($jokeCall),
+            'completed' => $this->handleCompleted($jokeCall, $request),
+            'busy', 'no-answer', 'failed', 'canceled' => $this->handleFailed($jokeCall, $callStatus),
+            default => null,
+        };
+
+        return response('OK', 200);
+    }
+
+    private function handleInProgress(JokeCall $jokeCall): void
+    {
+        $jokeCall->updateStatus(JokeCallStatus::InProgress);
+        broadcast(new JokeCallStatusUpdated($jokeCall));
+    }
+
+    private function handleCompleted(JokeCall $jokeCall, Request $request): void
+    {
+        $jokeCall->update([
+            'status' => JokeCallStatus::Completed,
+            'call_duration_seconds' => (int) $request->input('CallDuration', 0),
+        ]);
+        broadcast(new JokeCallStatusUpdated($jokeCall));
+
+        // Post-call jobs
+        \App\Jobs\ClassifyReactionSentimentJob::dispatch($jokeCall);
+        app(\App\Services\CostTrackingService::class)->updateCost($jokeCall);
+    }
+
+    private function handleFailed(JokeCall $jokeCall, string $reason): void
+    {
+        $jokeCall->update([
+            'status' => JokeCallStatus::Failed,
+            'failure_reason' => "Call status: {$reason}",
+        ]);
+        broadcast(new JokeCallStatusUpdated($jokeCall));
+
+        // Dispatch outcome handler for refunds/retries
+        \App\Jobs\HandleCallOutcomeJob::dispatch($jokeCall, $reason);
+    }
+}
