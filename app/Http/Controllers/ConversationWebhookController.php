@@ -14,8 +14,8 @@ class ConversationWebhookController extends Controller
         $scenario = $request->input('scenario', '');
         $character = $request->input('character', '');
 
-        // Use Media Streams WebSocket through Traefik (Twilio uses HTTP/1.1 for WS)
-        $streamUrl = 'wss://ws.echjokes.overcloud.us/stream/' . urlencode($scenario) . '---' . urlencode($character);
+        // Use Media Streams WebSocket via nginx SSL proxy (port 8443, bypasses Traefik HTTP/2)
+        $streamUrl = 'wss://ws.echjokes.overcloud.us:8443/stream/' . urlencode($scenario) . '---' . urlencode($character);
 
         return $this->twiml(
             '<Connect><Stream url="' . e($streamUrl) . '" /></Connect>'
