@@ -4,6 +4,7 @@ namespace App\Console\Commands;
 
 use App\WebSockets\MediaStreamServer;
 use Illuminate\Console\Command;
+use Ratchet\RFC6455\Handshake\RequestVerifier;
 use Ratchet\RFC6455\Handshake\ServerNegotiator;
 use Ratchet\RFC6455\Messaging\CloseFrameChecker;
 use Ratchet\RFC6455\Messaging\Frame;
@@ -24,7 +25,7 @@ class ServeMediaStreams extends Command
         $this->info("Starting Media Stream server on port {$port}...");
 
         $handler = new MediaStreamServer();
-        $negotiator = new ServerNegotiator();
+        $negotiator = new ServerNegotiator(new RequestVerifier(), new \GuzzleHttp\Psr7\HttpFactory());
 
         $http = new HttpServer(function (\Psr\Http\Message\ServerRequestInterface $request) use ($handler, $negotiator) {
             $path = $request->getUri()->getPath();
