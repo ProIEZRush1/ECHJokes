@@ -14,7 +14,7 @@ class LaunchCall extends Page implements HasForms
 {
     use InteractsWithForms;
 
-    protected static ?string $navigationIcon = 'heroicon-o-phone-arrow-up-right';
+    protected static string | \BackedEnum | null $navigationIcon = 'heroicon-o-phone-arrow-up-right';
     protected static ?string $navigationLabel = 'Launch Call';
     protected static ?int $navigationSort = 0;
 

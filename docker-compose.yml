@@ -8,6 +8,7 @@ services:
       - "8000"
     volumes:
       - shared-storage:/app/storage
+      - db-data:/app/database
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8000/up"]
       interval: 10s
@@ -35,3 +36,4 @@ services:
 
 volumes:
   shared-storage:
+  db-data:
