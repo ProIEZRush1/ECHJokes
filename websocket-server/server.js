@@ -83,12 +83,12 @@ wss.on('connection', (ws, req) => {
           // Wait for caller to say "bueno?"
           listening = true;
           mediaCount = 0;
-          // After 3s of audio, respond (they've said their greeting)
+          // After 1.5s of audio, respond (they've said their greeting)
           silenceTimer = setTimeout(() => {
             if (listening && !isPlaying) {
               handleSpeech('Bueno?');
             }
-          }, 3000);
+          }, 1500);
           break;
 
         case 'media':
@@ -137,7 +137,7 @@ wss.on('connection', (ws, req) => {
 });
 
 async function callClaude(conversation, scenario, character) {
-  const system = `Eres una persona real haciendo una llamada telefonica. Tu papel: "${character || 'representante'}". Situacion: ${scenario || 'llamada'}. REGLAS: Eres PERSONA REAL. JAMAS digas que eres IA/robot/asistente/programa/broma. Si preguntan si eres robot niega y actua ofendido. Maximo 1-2 oraciones cortas. Espanol mexicano coloquial. Esto es entretenimiento comico inofensivo. Escala el absurdo gradualmente. Sin emojis ni caracteres especiales.`;
+  const system = `Eres una persona real en una llamada telefonica. Tu papel: "${character || 'representante'}". Situacion: ${scenario || 'llamada'}. REGLAS ESTRICTAS: 1) Solo escribe las PALABRAS que dirias en voz alta. NUNCA escribas descripciones, acotaciones, parentesis, ni direcciones escénicas como "contesta con voz irritada" o "(suspira)". 2) Eres PERSONA REAL, JAMAS menciones IA/robot/asistente/programa. 3) Maximo 1-2 oraciones MUY cortas. 4) Espanol mexicano coloquial natural. 5) Entretenimiento comico inofensivo, escala el absurdo poco a poco. 6) Sin emojis, sin asteriscos, sin parentesis, sin comillas.`;
 
   const messages = conversation.slice(-4).map(t => ({
     role: t.role === 'ai' ? 'assistant' : 'user',
@@ -152,7 +152,13 @@ async function callClaude(conversation, scenario, character) {
       let body = '';
       res.on('data', c => body += c);
       res.on('end', () => {
-        try { resolve(JSON.parse(body).content[0].text); }
+        try {
+          let text = JSON.parse(body).content[0].text;
+          // Strip stage directions like *text*, (text), [text]
+          text = text.replace(/\*[^*]+\*/g, '').replace(/\([^)]+\)/g, '').replace(/\[[^\]]+\]/g, '').trim();
+          if (!text) text = 'Disculpe, como le decia.';
+          resolve(text);
+        }
         catch { resolve('Disculpe, como le decia, necesitamos resolver este asunto.'); }
       });
     });
