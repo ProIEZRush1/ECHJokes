@@ -1,32 +1,43 @@
-FROM php:8.4-cli-alpine
+# Stage 1: Base image with all PHP extensions (cached after first build)
+FROM php:8.4-cli-alpine AS base
 
 RUN apk add --no-cache \
     git curl zip unzip ffmpeg nodejs npm \
-    libpng-dev libzip-dev oniguruma-dev sqlite-dev icu-dev \
-    && docker-php-ext-install pdo pdo_sqlite pdo_mysql mbstring zip gd pcntl intl
+    libpng-dev libzip-dev oniguruma-dev sqlite-dev icu-dev libpng icu-libs libzip oniguruma \
+    && docker-php-ext-install pdo pdo_sqlite pdo_mysql mbstring zip gd pcntl intl \
+    && curl -sS https://getcomposer.org/installer | php -- --install-dir=/usr/local/bin --filename=composer \
+    && apk del libpng-dev libzip-dev oniguruma-dev sqlite-dev icu-dev
 
-RUN curl -sS https://getcomposer.org/installer | php -- --install-dir=/usr/local/bin --filename=composer
+# Stage 2: Install dependencies
+FROM base AS deps
 
 WORKDIR /app
-
 COPY composer.json composer.lock ./
-RUN composer install --no-dev --no-scripts --no-autoloader
+RUN composer install --no-dev --no-scripts --no-autoloader --prefer-dist
 
 COPY package.json package-lock.json ./
-RUN npm ci
+RUN npm ci --prefer-offline
+
+# Stage 3: Build
+FROM deps AS build
 
 COPY . .
+RUN npm run build \
+    && composer dump-autoload --optimize \
+    && rm -rf node_modules .git tests
 
-RUN npm run build
-RUN composer dump-autoload --optimize
+# Stage 4: Production
+FROM base AS production
 
-# Create SQLite database
-RUN mkdir -p database && touch database/database.sqlite
-RUN php artisan migrate --force || true
-RUN php artisan db:seed --force || true
+WORKDIR /app
+COPY --from=build /app /app
 
-RUN chown -R www-data:www-data storage bootstrap/cache database
-RUN chmod -R 775 storage bootstrap/cache database
+RUN mkdir -p database storage/app storage/framework/cache storage/framework/sessions storage/framework/views storage/logs bootstrap/cache \
+    && touch database/database.sqlite \
+    && php artisan migrate --force 2>/dev/null || true \
+    && php artisan db:seed --force 2>/dev/null || true \
+    && chown -R www-data:www-data storage bootstrap/cache database \
+    && chmod -R 775 storage bootstrap/cache database
 
 EXPOSE 8000
 
