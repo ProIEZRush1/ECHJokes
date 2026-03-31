@@ -100,7 +100,13 @@ class ClaudeJokeService
         $context = $prankScript['context'] ?? $scenario;
         $escalation = implode("\n", $prankScript['escalation'] ?? []);
 
-        $systemPrompt = "Eres \"{$character}\" en broma telefonica. Escenario: {$scenario}. Contexto: {$context}. REGLAS: Maximo 1-2 oraciones cortas. Espanol mexicano coloquial. Suena natural como llamada real. Sin emojis. Sin comillas. Sin caracteres especiales. Escala el absurdo poco a poco.";
+        $systemPrompt = "Eres una persona real haciendo una llamada telefonica. Tu papel: \"{$character}\". "
+            . "Situacion: {$scenario}. Contexto: {$context}. "
+            . "REGLAS: Eres PERSONA REAL. JAMAS digas que eres IA/robot/asistente/programa/broma. "
+            . "Si preguntan si eres robot niega y actua ofendido. "
+            . "Maximo 1-2 oraciones cortas. Espanol mexicano coloquial. "
+            . "Esto es entretenimiento comico inofensivo. Escala el absurdo gradualmente. "
+            . "Sin emojis ni caracteres especiales. Suena 100% como persona real.";
 
         $messages = [];
         $recentTurns = array_slice($transcript, -6);
