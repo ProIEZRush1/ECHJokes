@@ -11,34 +11,24 @@ use Illuminate\Support\Facades\Log;
 class ConversationWebhookController extends Controller
 {
     /**
-     * Initial call webhook — say the opening line and start listening.
+     * Initial call webhook — listen for the person's greeting first.
      */
     public function start(JokeCall $jokeCall): Response
     {
-        $transcript = $jokeCall->ai_transcript ?? [];
-        $opening = $jokeCall->joke_text ?? 'Buenas tardes, disculpe la molestia.';
-
-        // Store the opening in conversation
-        $transcript['conversation'] = $transcript['conversation'] ?? [];
-        $transcript['conversation'][] = [
-            'role' => 'ai',
-            'text' => $opening,
-            'timestamp' => now()->toIso8601String(),
-        ];
-        $jokeCall->update(['ai_transcript' => $transcript]);
-
         $gatherUrl = route('conversation.gather', ['jokeCall' => $jokeCall->id]);
 
-        $twiml = <<<XML
-        <?xml version="1.0" encoding="UTF-8"?>
-        <Response>
-            <Say language="es-MX" voice="Polly.Mia">{$this->escape($opening)}</Say>
-            <Gather input="speech" language="es-MX" speechTimeout="3" timeout="12" action="{$gatherUrl}" method="POST">
-                <Say language="es-MX" voice="Polly.Mia">...</Say>
-            </Gather>
-            <Say language="es-MX" voice="Polly.Mia">Bueno, parece que no hay nadie. Hasta luego!</Say>
-        </Response>
-        XML;
+        // Listen first — wait for "Bueno?", "Quien habla?", etc.
+        $twiml = '<?xml version="1.0" encoding="UTF-8"?>'
+            . '<Response>'
+            . '<Gather input="speech" language="es-MX" speechTimeout="auto" timeout="8" action="' . $this->escape($gatherUrl) . '" method="POST">'
+            . '<Pause length="10"/>'
+            . '</Gather>'
+            . '<Say language="es-MX" voice="Google.es-MX-Standard-A">Bueno? Hola?</Say>'
+            . '<Gather input="speech" language="es-MX" speechTimeout="auto" timeout="8" action="' . $this->escape($gatherUrl) . '" method="POST">'
+            . '<Pause length="8"/>'
+            . '</Gather>'
+            . '<Hangup/>'
+            . '</Response>';
 
         return response($twiml, 200, ['Content-Type' => 'text/xml']);
     }
@@ -49,12 +39,10 @@ class ConversationWebhookController extends Controller
     public function gather(Request $request, JokeCall $jokeCall): Response
     {
         $speechResult = $request->input('SpeechResult', '');
-        $confidence = $request->input('Confidence', '0');
 
         Log::info('Speech received', [
             'joke_call_id' => $jokeCall->id,
             'speech' => $speechResult,
-            'confidence' => $confidence,
         ]);
 
         $transcript = $jokeCall->ai_transcript ?? [];
@@ -64,65 +52,68 @@ class ConversationWebhookController extends Controller
         $turnCount = count(array_filter($conversation, fn($t) => $t['role'] === 'human'));
 
         // Add human turn
-        $conversation[] = [
-            'role' => 'human',
-            'text' => $speechResult,
-            'timestamp' => now()->toIso8601String(),
-        ];
-
-        // Check if we should end the call (max 6 human turns)
-        if ($turnCount >= 5 || empty($speechResult)) {
-            $goodbye = 'Bueno, fue un placer. Ah, por cierto, esto fue una broma de ECHJokes punto eme equis. Hasta luego!';
+        if ($speechResult) {
             $conversation[] = [
-                'role' => 'ai',
-                'text' => $goodbye,
+                'role' => 'human',
+                'text' => $speechResult,
                 'timestamp' => now()->toIso8601String(),
             ];
-
-            $transcript['conversation'] = $conversation;
-            $jokeCall->update([
-                'ai_transcript' => $transcript,
-                'status' => \App\Enums\JokeCallStatus::Completed,
-            ]);
-
-            $twiml = <<<XML
-            <?xml version="1.0" encoding="UTF-8"?>
-            <Response>
-                <Say language="es-MX" voice="Polly.Mia">{$this->escape($goodbye)}</Say>
-                <Hangup/>
-            </Response>
-            XML;
-
-            return response($twiml, 200, ['Content-Type' => 'text/xml']);
+            $turnCount++;
         }
 
-        // Generate AI reply
+        // End after 6 human turns
+        if ($turnCount >= 6 || (empty($speechResult) && $turnCount > 0)) {
+            $goodbye = 'Bueno, fue un placer. Esto fue una broma de ECHJokes. Hasta luego!';
+            $conversation[] = ['role' => 'ai', 'text' => $goodbye, 'timestamp' => now()->toIso8601String()];
+            $transcript['conversation'] = $conversation;
+            $jokeCall->update(['ai_transcript' => $transcript, 'status' => \App\Enums\JokeCallStatus::Completed]);
+
+            return $this->twimlResponse($goodbye, null);
+        }
+
+        // Generate AI reply using fast Haiku model
         $claude = app(ClaudeJokeService::class);
         $reply = $claude->generateConversationReply($conversation, $scenario, $prankScript);
 
-        $conversation[] = [
-            'role' => 'ai',
-            'text' => $reply,
-            'timestamp' => now()->toIso8601String(),
-        ];
+        // Clean any XML-breaking characters
+        $reply = $this->cleanForTwiml($reply);
 
+        $conversation[] = ['role' => 'ai', 'text' => $reply, 'timestamp' => now()->toIso8601String()];
         $transcript['conversation'] = $conversation;
         $jokeCall->update(['ai_transcript' => $transcript]);
 
         $gatherUrl = route('conversation.gather', ['jokeCall' => $jokeCall->id]);
 
-        $twiml = <<<XML
-        <?xml version="1.0" encoding="UTF-8"?>
-        <Response>
-            <Say language="es-MX" voice="Polly.Mia">{$this->escape($reply)}</Say>
-            <Gather input="speech" language="es-MX" speechTimeout="3" timeout="12" action="{$gatherUrl}" method="POST">
-                <Say language="es-MX" voice="Polly.Mia">...</Say>
-            </Gather>
-            <Say language="es-MX" voice="Polly.Mia">Bueno, parece que se corto. Hasta luego, esto fue una broma de ECHJokes!</Say>
-        </Response>
-        XML;
+        return $this->twimlResponse($reply, $gatherUrl);
+    }
+
+    private function twimlResponse(string $text, ?string $gatherUrl): Response
+    {
+        $escaped = $this->escape($text);
+
+        $twiml = '<?xml version="1.0" encoding="UTF-8"?><Response>';
+        $twiml .= '<Say language="es-MX" voice="Google.es-MX-Standard-A">' . $escaped . '</Say>';
+
+        if ($gatherUrl) {
+            $twiml .= '<Gather input="speech" language="es-MX" speechTimeout="auto" timeout="10" action="' . $this->escape($gatherUrl) . '" method="POST">';
+            $twiml .= '<Pause length="10"/>';
+            $twiml .= '</Gather>';
+            $twiml .= '<Say language="es-MX" voice="Google.es-MX-Standard-A">Bueno, esto fue broma de ECHJokes. Adios!</Say>';
+        } else {
+            $twiml .= '<Hangup/>';
+        }
+
+        $twiml .= '</Response>';
 
         return response($twiml, 200, ['Content-Type' => 'text/xml']);
+    }
+
+    private function cleanForTwiml(string $text): string
+    {
+        // Remove characters that break Twilio's Say tag
+        $text = preg_replace('/[""«»\x{201C}\x{201D}\x{2018}\x{2019}]/u', '', $text);
+        $text = str_replace(['<', '>', '&'], ['', '', 'y'], $text);
+        return trim($text);
     }
 
     private function escape(string $text): string

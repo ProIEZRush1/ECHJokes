@@ -100,27 +100,7 @@ class ClaudeJokeService
         $context = $prankScript['context'] ?? $scenario;
         $escalation = implode("\n", $prankScript['escalation'] ?? []);
 
-        $systemPrompt = <<<PROMPT
-        Eres un personaje en una broma telefonica. Tu personaje es: "{$character}".
-
-        ESCENARIO: {$scenario}
-
-        CONTEXTO DEL PERSONAJE: {$context}
-
-        PUNTOS DE ESCALACION COMICA (usa si la conversacion se alarga):
-        {$escalation}
-
-        REGLAS:
-        - Mantente EN PERSONAJE todo el tiempo
-        - Responde de forma natural y convincente, como una llamada real
-        - Maximo 2-3 oraciones por respuesta
-        - Habla en espanol mexicano coloquial
-        - Si te preguntan si es broma, niega al principio pero si insisten mucho, revelalo de forma graciosa
-        - Escala el absurdo gradualmente, no todo de golpe
-        - Si la persona se molesta de verdad, suaviza y revela que es broma
-        - No uses emojis
-        - Responde como si estuvieras hablando por telefono
-        PROMPT;
+        $systemPrompt = "Eres \"{$character}\" en broma telefonica. Escenario: {$scenario}. Contexto: {$context}. REGLAS: Maximo 1-2 oraciones cortas. Espanol mexicano coloquial. Suena natural como llamada real. Sin emojis. Sin comillas. Sin caracteres especiales. Escala el absurdo poco a poco.";
 
         $messages = [];
         $recentTurns = array_slice($transcript, -6);
@@ -139,10 +119,10 @@ class ClaudeJokeService
             $response = Http::withHeaders([
                 'x-api-key' => $this->apiKey,
                 'anthropic-version' => '2023-06-01',
-            ])->post('https://api.anthropic.com/v1/messages', [
-                'model' => 'claude-sonnet-4-20250514',
-                'max_tokens' => 200,
-                'temperature' => 0.9,
+            ])->timeout(8)->post('https://api.anthropic.com/v1/messages', [
+                'model' => 'claude-3-haiku-20240307',
+                'max_tokens' => 80,
+                'temperature' => 0.8,
                 'system' => $systemPrompt,
                 'messages' => $messages,
             ]);
