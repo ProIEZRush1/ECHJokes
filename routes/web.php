@@ -49,6 +49,7 @@ Route::prefix('webhooks/twilio')->middleware(VerifyTwilioSignature::class)->grou
 });
 
 // Conversation webhooks (Twilio Gather-based real-time AI conversation)
-// No DB dependency — scenario/character passed via query params
+// Conversation webhooks — no DB dependency, state via query params
 Route::post('/conversation/start', [\App\Http\Controllers\ConversationWebhookController::class, 'start'])->name('conversation.start');
 Route::post('/conversation/gather', [\App\Http\Controllers\ConversationWebhookController::class, 'gather'])->name('conversation.gather');
+Route::get('/conversation/audio/{filename}', [\App\Http\Controllers\ConversationWebhookController::class, 'audio'])->name('conversation.audio');

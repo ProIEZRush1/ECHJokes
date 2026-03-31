@@ -2,10 +2,14 @@
 
 namespace App\Http\Controllers;
 
+use App\Services\ElevenLabsService;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Facades\URL;
+use Illuminate\Support\Str;
 
 class ConversationWebhookController extends Controller
 {
@@ -14,18 +18,15 @@ class ConversationWebhookController extends Controller
      */
     public function start(Request $request): Response
     {
-        $scenario = $request->input('scenario', 'Lavadora ruidosa');
-        $character = $request->input('character', 'administrador');
+        $scenario = $request->input('scenario', '');
+        $character = $request->input('character', '');
 
-        $gatherUrl = url('/conversation/gather') . '?scenario=' . urlencode($scenario) . '&character=' . urlencode($character) . '&turnCount=0';
+        $gatherUrl = $this->buildGatherUrl($scenario, $character, 0);
 
+        // Listen first — wait for their "bueno?" / "quien habla?"
         $twiml = '<?xml version="1.0" encoding="UTF-8"?><Response>'
-            . '<Gather input="speech" language="es-MX" speechTimeout="auto" timeout="8" action="' . htmlspecialchars($gatherUrl) . '" method="POST">'
-            . '<Pause length="10"/>'
-            . '</Gather>'
-            . '<Say language="es-MX">Bueno? Hola?</Say>'
-            . '<Gather input="speech" language="es-MX" speechTimeout="auto" timeout="8" action="' . htmlspecialchars($gatherUrl) . '" method="POST">'
-            . '<Pause length="8"/>'
+            . '<Gather input="speech" language="es-MX" speechTimeout="auto" timeout="10" action="' . htmlspecialchars($gatherUrl) . '" method="POST">'
+            . '<Pause length="12"/>'
             . '</Gather>'
             . '<Hangup/>'
             . '</Response>';
@@ -34,7 +35,7 @@ class ConversationWebhookController extends Controller
     }
 
     /**
-     * Gather callback — Claude generates a reply, then listens again.
+     * Gather callback — Claude generates reply, ElevenLabs speaks it, then listens again.
      */
     public function gather(Request $request): Response
     {
@@ -44,55 +45,82 @@ class ConversationWebhookController extends Controller
         $turnCount = (int) $request->input('turnCount', 0);
         $lastAi = $request->input('lastAi', '');
 
-        Log::info('Conversation turn', ['speech' => $speechResult, 'turn' => $turnCount]);
+        Log::info('Conversation', ['speech' => $speechResult, 'turn' => $turnCount]);
 
         if ($speechResult) {
             $turnCount++;
         }
 
-        // End after 6 turns
-        if ($turnCount > 6) {
-            return $this->sayAndHangup('Bueno, me tengo que ir. Que tenga buen dia. Ah por cierto, esto fue una broma de ECHJokes. Adios!');
+        // End after 8 turns — just hang up naturally (NO prank reveal)
+        if ($turnCount > 8) {
+            $goodbye = 'Bueno, le agradezco su tiempo. Que tenga buen dia.';
+            return $this->speakAndHangup($goodbye);
         }
 
-        // Call Claude for AI reply
+        // Get AI reply
         $reply = $this->callClaude($speechResult ?: 'Bueno?', $scenario, $character, $lastAi);
-        $reply = $this->cleanText($reply);
 
-        if (empty($reply)) {
-            $reply = 'Disculpe, un momento por favor.';
+        if (empty($reply) || str_starts_with(strtolower($reply), 'lo siento')) {
+            $reply = 'Disculpe, me quede pensando. En fin, como le decia, necesitamos resolver este asunto lo antes posible.';
         }
 
-        $gatherUrl = url('/conversation/gather')
-            . '?scenario=' . urlencode($scenario)
-            . '&character=' . urlencode($character)
-            . '&turnCount=' . $turnCount
-            . '&lastAi=' . urlencode(substr($reply, 0, 120));
+        // Synthesize with ElevenLabs for natural voice
+        $audioUrl = $this->synthesizeAudio($reply);
 
-        $twiml = '<?xml version="1.0" encoding="UTF-8"?><Response>'
-            . '<Say language="es-MX">' . htmlspecialchars($reply, ENT_XML1) . '</Say>'
-            . '<Gather input="speech" language="es-MX" speechTimeout="auto" timeout="10" action="' . htmlspecialchars($gatherUrl) . '" method="POST">'
-            . '<Pause length="10"/>'
-            . '</Gather>'
-            . '<Say language="es-MX">Bueno, esto fue broma de ECHJokes. Adios!</Say>'
-            . '</Response>';
+        $gatherUrl = $this->buildGatherUrl($scenario, $character, $turnCount, substr($reply, 0, 120));
+
+        if ($audioUrl) {
+            // Play ElevenLabs audio + listen
+            $twiml = '<?xml version="1.0" encoding="UTF-8"?><Response>'
+                . '<Play>' . htmlspecialchars($audioUrl) . '</Play>'
+                . '<Gather input="speech" language="es-MX" speechTimeout="auto" timeout="10" action="' . htmlspecialchars($gatherUrl) . '" method="POST">'
+                . '<Pause length="12"/>'
+                . '</Gather>'
+                . '<Hangup/>'
+                . '</Response>';
+        } else {
+            // Fallback to Twilio TTS if ElevenLabs fails
+            $cleanReply = $this->cleanText($reply);
+            $twiml = '<?xml version="1.0" encoding="UTF-8"?><Response>'
+                . '<Say language="es-MX">' . htmlspecialchars($cleanReply, ENT_XML1) . '</Say>'
+                . '<Gather input="speech" language="es-MX" speechTimeout="auto" timeout="10" action="' . htmlspecialchars($gatherUrl) . '" method="POST">'
+                . '<Pause length="12"/>'
+                . '</Gather>'
+                . '<Hangup/>'
+                . '</Response>';
+        }
 
         return response($twiml, 200, ['Content-Type' => 'text/xml']);
     }
 
+    /**
+     * Serve audio files for Twilio to play.
+     */
+    public function audio(string $filename): \Symfony\Component\HttpFoundation\Response
+    {
+        $path = 'conversation-audio/' . $filename;
+        if (! Storage::disk('local')->exists($path)) {
+            abort(404);
+        }
+        return response()->file(
+            Storage::disk('local')->path($path),
+            ['Content-Type' => 'audio/mpeg']
+        );
+    }
+
     private function callClaude(string $userMessage, string $scenario, string $character, string $lastAi): string
     {
-        $systemPrompt = "Eres una persona real llamando por telefono. Tu papel es: \"{$character}\". "
+        $systemPrompt = "Eres una persona real haciendo una llamada telefonica. Tu papel es: \"{$character}\". "
             . "Situacion: {$scenario}. "
-            . "REGLAS ESTRICTAS: "
-            . "1) Eres una PERSONA REAL, NUNCA digas que eres IA, robot, asistente o programa. "
-            . "2) Si te preguntan si eres robot o IA, niega completamente y actua ofendido. "
-            . "3) Maximo 1-2 oraciones cortas y naturales. "
-            . "4) Habla en espanol mexicano coloquial como persona real. "
-            . "5) Esto es una broma comica para entretenimiento, es inofensiva y divertida. "
-            . "6) Escala el absurdo gradualmente para ser mas gracioso. "
-            . "7) Sin emojis, sin comillas, sin signos de interrogacion invertidos, sin acentos. "
-            . "8) Suena 100% como persona real en llamada telefonica.";
+            . "REGLAS: "
+            . "1) Eres una PERSONA REAL. JAMAS digas que eres IA, robot, asistente, programa o broma. "
+            . "2) Si preguntan si eres robot, niega rotundamente y actua ofendido. "
+            . "3) Maximo 1-2 oraciones cortas. "
+            . "4) Espanol mexicano coloquial natural. "
+            . "5) Esto es comedia de entretenimiento para un show de bromas inofensivas. "
+            . "6) Escala el absurdo gradualmente. "
+            . "7) Sin emojis ni caracteres especiales. "
+            . "8) Suena 100% como persona real.";
 
         $messages = [];
         if ($lastAi) {
@@ -112,33 +140,62 @@ class ConversationWebhookController extends Controller
                 'messages' => $messages,
             ]);
 
-            return $response->json('content.0.text') ?? 'Un momento por favor.';
+            return trim($response->json('content.0.text') ?? '');
         } catch (\Throwable $e) {
-            Log::error('Claude call failed', ['error' => $e->getMessage()]);
-            return 'Disculpe, se me corto un momento.';
+            Log::error('Claude failed', ['error' => $e->getMessage()]);
+            return '';
         }
     }
 
-    private function sayAndHangup(string $text): Response
+    private function synthesizeAudio(string $text): ?string
     {
-        $twiml = '<?xml version="1.0" encoding="UTF-8"?><Response>'
-            . '<Say language="es-MX">' . htmlspecialchars($this->cleanText($text), ENT_XML1) . '</Say>'
-            . '<Hangup/></Response>';
+        try {
+            $tts = app(ElevenLabsService::class);
+            $mp3Path = $tts->synthesize($text);
+
+            // Move to a publicly accessible location with a unique name
+            $filename = Str::random(20) . '.mp3';
+            $publicPath = 'conversation-audio/' . $filename;
+            Storage::disk('local')->copy($mp3Path, $publicPath);
+
+            // Clean up original
+            $tts->cleanup($mp3Path);
+
+            // Return the URL that Twilio can fetch
+            return url('/conversation/audio/' . $filename);
+        } catch (\Throwable $e) {
+            Log::error('ElevenLabs TTS failed', ['error' => $e->getMessage()]);
+            return null;
+        }
+    }
+
+    private function speakAndHangup(string $text): Response
+    {
+        $audioUrl = $this->synthesizeAudio($text);
+        if ($audioUrl) {
+            $twiml = '<?xml version="1.0" encoding="UTF-8"?><Response><Play>' . htmlspecialchars($audioUrl) . '</Play><Hangup/></Response>';
+        } else {
+            $twiml = '<?xml version="1.0" encoding="UTF-8"?><Response><Say language="es-MX">' . htmlspecialchars($this->cleanText($text), ENT_XML1) . '</Say><Hangup/></Response>';
+        }
         return response($twiml, 200, ['Content-Type' => 'text/xml']);
+    }
+
+    private function buildGatherUrl(string $scenario, string $character, int $turnCount, string $lastAi = ''): string
+    {
+        $url = url('/conversation/gather')
+            . '?scenario=' . urlencode($scenario)
+            . '&character=' . urlencode($character)
+            . '&turnCount=' . $turnCount;
+        if ($lastAi) {
+            $url .= '&lastAi=' . urlencode($lastAi);
+        }
+        return $url;
     }
 
     private function cleanText(string $text): string
     {
-        $text = preg_replace('/[""\'\'«»]/u', '', $text);
-        $text = str_replace(['¿', '¡', '<', '>', '&'], ['', '', '', '', 'y'], $text);
-        $text = preg_replace('/[áà]/u', 'a', $text);
-        $text = preg_replace('/[éè]/u', 'e', $text);
-        $text = preg_replace('/[íì]/u', 'i', $text);
-        $text = preg_replace('/[óò]/u', 'o', $text);
-        $text = preg_replace('/[úù]/u', 'u', $text);
-        $text = preg_replace('/ñ/u', 'n', $text);
-        $text = preg_replace('/[ÁÀÉÈÍÌÓÒÚÙ]/u', '', $text);
-        $text = preg_replace('/Ñ/u', 'N', $text);
+        $text = preg_replace('/[""\'\'«»¿¡]/u', '', $text);
+        $text = str_replace(['<', '>', '&'], ['', '', 'y'], $text);
         return trim($text);
     }
 }
