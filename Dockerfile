@@ -23,8 +23,8 @@ RUN npm run build \
     && composer dump-autoload --optimize \
     && rm -rf node_modules .git tests
 
-# Stage 4a: Production App (Laravel via artisan serve)
-FROM base AS production-app
+# Stage 4: Final image (used by both app and websocket services)
+FROM base
 WORKDIR /app
 COPY --from=build /app /app
 RUN mkdir -p database storage/app/audio storage/app/conversation-audio \
@@ -35,17 +35,4 @@ RUN mkdir -p database storage/app/audio storage/app/conversation-audio \
     && php artisan db:seed --force 2>/dev/null || true \
     && chown -R www-data:www-data storage bootstrap/cache database \
     && chmod -R 775 storage bootstrap/cache database
-EXPOSE 8000
-CMD ["php", "artisan", "serve", "--host=0.0.0.0", "--port=8000"]
-
-# Stage 4b: Production WebSocket server
-FROM base AS production-ws
-WORKDIR /app
-COPY --from=build /app /app
-RUN mkdir -p database storage/app/audio storage/framework/cache storage/framework/sessions \
-    storage/framework/views storage/logs bootstrap/cache \
-    && touch database/database.sqlite \
-    && chown -R www-data:www-data storage bootstrap/cache database \
-    && chmod -R 775 storage bootstrap/cache database
-EXPOSE 8081
-CMD ["php", "artisan", "echjokes:stream-server", "--port=8081"]
+EXPOSE 8000 8081
