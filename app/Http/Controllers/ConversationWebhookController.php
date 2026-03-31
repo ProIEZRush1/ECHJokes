@@ -14,8 +14,8 @@ class ConversationWebhookController extends Controller
         $scenario = $request->input('scenario', '');
         $character = $request->input('character', '');
 
-        // Always use Media Streams WebSocket for ElevenLabs voice
-        $streamUrl = 'wss://echjokes.overcloud.us/stream/' . urlencode($scenario) . '---' . urlencode($character);
+        // Use Media Streams WebSocket via dedicated WS service
+        $streamUrl = 'wss://ws.echjokes.overcloud.us/stream/' . urlencode($scenario) . '---' . urlencode($character);
 
         return $this->twiml(
             '<Connect><Stream url="' . e($streamUrl) . '" /></Connect>'
