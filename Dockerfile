@@ -20,7 +20,7 @@ RUN npm ci --prefer-offline
 FROM deps AS build
 COPY . .
 RUN npm run build \
-    && composer dump-autoload --optimize \
+    && composer dump-autoload --optimize --no-scripts \
     && rm -rf node_modules .git tests
 
 # Stage 4: Final image (used by both app and websocket services)
