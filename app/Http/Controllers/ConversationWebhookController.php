@@ -13,8 +13,21 @@ class ConversationWebhookController extends Controller
     {
         $scenario = $request->input('scenario', '');
         $character = $request->input('character', '');
-        $gatherUrl = $this->gatherUrl($scenario, $character, 0);
 
+        // Check if Media Streams WebSocket is available
+        $streamPort = env('MEDIA_STREAM_PORT');
+        if ($streamPort) {
+            // Use bidirectional Media Streams for ElevenLabs voice
+            $wsUrl = str_replace(['http://', 'https://'], ['ws://', 'wss://'], config('app.url'));
+            $streamUrl = "{$wsUrl}/stream/{$scenario}---{$character}";
+
+            return $this->twiml(
+                '<Connect><Stream url="' . e($streamUrl) . '" /></Connect>'
+            );
+        }
+
+        // Fallback: Gather-based approach with <Say>
+        $gatherUrl = $this->gatherUrl($scenario, $character, 0);
         return $this->twiml(
             '<Gather input="speech" language="es-MX" speechTimeout="auto" timeout="10" action="' . e($gatherUrl) . '" method="POST">'
             . '<Pause length="12"/>'
