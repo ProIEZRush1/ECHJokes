@@ -2,8 +2,8 @@ FROM php:8.4-cli-alpine
 
 RUN apk add --no-cache \
     git curl zip unzip ffmpeg nodejs npm \
-    libpng-dev libzip-dev oniguruma-dev sqlite-dev \
-    && docker-php-ext-install pdo pdo_sqlite pdo_mysql mbstring zip gd pcntl
+    libpng-dev libzip-dev oniguruma-dev sqlite-dev icu-dev \
+    && docker-php-ext-install pdo pdo_sqlite pdo_mysql mbstring zip gd pcntl intl
 
 RUN curl -sS https://getcomposer.org/installer | php -- --install-dir=/usr/local/bin --filename=composer
 
