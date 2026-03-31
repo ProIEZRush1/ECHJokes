@@ -18,7 +18,7 @@ class LaunchCall extends Page implements HasForms
     protected static ?string $navigationLabel = 'Launch Call';
     protected static ?int $navigationSort = 0;
 
-    protected static string $view = 'filament.pages.launch-call';
+    protected string $view = 'filament.pages.launch-call';
 
     public string $phone_number = '';
     public string $scenario = '';
