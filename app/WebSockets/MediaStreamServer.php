@@ -5,42 +5,42 @@ namespace App\WebSockets;
 use App\Services\ClaudeJokeService;
 use App\Services\ElevenLabsService;
 use Illuminate\Support\Facades\Log;
-use Ratchet\RFC6455\Messaging\Frame;
-use React\Stream\ThroughStream;
+use React\Socket\ConnectionInterface;
 
 class MediaStreamServer
 {
     private array $sessions = [];
 
-    public function onOpen(string $connId, ThroughStream $stream, string $path): void
+    public function onOpen(string $connId, ConnectionInterface $conn, string $path): void
     {
-        // Parse scenario---character from path
         $parts = explode('/', trim($path, '/'));
         $encoded = end($parts);
         $split = explode('---', urldecode($encoded), 2);
 
         $this->sessions[$connId] = [
-            'stream' => $stream,
+            'conn' => $conn,
             'streamSid' => null,
             'scenario' => $split[0] ?? '',
             'character' => $split[1] ?? '',
             'conversation' => [],
             'turnCount' => 0,
             'isPlaying' => false,
+            'firstMediaReceived' => false,
         ];
 
-        Log::info('WS opened', ['connId' => $connId, 'scenario' => $split[0] ?? '']);
+        Log::info('WS open', ['connId' => $connId, 'scenario' => $split[0] ?? '']);
     }
 
     public function onTextMessage(string $connId, string $raw): void
     {
-        $session = &$this->sessions[$connId] ?? null;
+        $session = &$this->sessions[$connId];
         if (!$session) return;
 
         $data = json_decode($raw, true);
         if (!$data) return;
 
         $event = $data['event'] ?? '';
+        Log::info('WS event', ['connId' => $connId, 'event' => $event]);
 
         switch ($event) {
             case 'connected':
@@ -50,23 +50,20 @@ class MediaStreamServer
             case 'start':
                 $session['streamSid'] = $data['start']['streamSid'] ?? null;
                 Log::info('Stream started', ['connId' => $connId, 'sid' => $session['streamSid']]);
-                // Don't speak first — wait for caller's greeting
                 break;
 
             case 'media':
                 if ($session['isPlaying']) break;
-                // For now we don't have Deepgram STT, so we use a timer-based approach
-                // After the stream starts, wait a few seconds then respond
-                if (!isset($session['firstMediaReceived'])) {
+                // On first audio received, wait a moment then respond
+                if (!$session['firstMediaReceived']) {
                     $session['firstMediaReceived'] = true;
-                    // Use a simple approach: respond after receiving first audio
-                    $this->respondToSpeech($connId, 'Bueno?');
+                    // Respond to the caller's greeting
+                    $this->respondToSpeech($connId, 'Bueno');
                 }
                 break;
 
             case 'mark':
                 $session['isPlaying'] = false;
-                // After AI finishes speaking, listen for more
                 break;
 
             case 'stop':
@@ -90,7 +87,6 @@ class MediaStreamServer
             return;
         }
 
-        // Get AI reply
         $claude = app(ClaudeJokeService::class);
         $reply = $claude->generateConversationReply(
             $session['conversation'],
@@ -113,39 +109,45 @@ class MediaStreamServer
 
         $session['isPlaying'] = true;
         $streamSid = $session['streamSid'];
-        $stream = $session['stream'];
+        $conn = $session['conn'];
 
         try {
             $tts = app(ElevenLabsService::class);
             $base64Audio = $tts->synthesizeForTwilio($text);
             $chunks = ElevenLabsService::chunkMulawAudio($base64Audio);
 
+            Log::info('Speaking', ['connId' => $connId, 'chunks' => count($chunks), 'text' => substr($text, 0, 50)]);
+
             foreach ($chunks as $chunk) {
-                $this->sendWsJson($stream, [
+                $this->sendWsText($conn, json_encode([
                     'event' => 'media',
                     'streamSid' => $streamSid,
                     'media' => ['payload' => $chunk],
-                ]);
+                ]));
             }
 
-            $this->sendWsJson($stream, [
+            $this->sendWsText($conn, json_encode([
                 'event' => 'mark',
                 'streamSid' => $streamSid,
                 'mark' => ['name' => 'speech_done'],
-            ]);
-
-            Log::info('Spoke', ['connId' => $connId, 'text' => substr($text, 0, 50)]);
+            ]));
         } catch (\Throwable $e) {
             Log::error('TTS failed', ['error' => $e->getMessage()]);
             $session['isPlaying'] = false;
         }
     }
 
-    private function sendWsJson(ThroughStream $stream, array $data): void
+    private function sendWsText(ConnectionInterface $conn, string $text): void
     {
-        $json = json_encode($data);
-        $frame = new Frame($json, true, Frame::OP_TEXT);
-        $stream->write($frame->getContents());
+        $len = strlen($text);
+        if ($len < 126) {
+            $header = chr(0x81) . chr($len);
+        } elseif ($len < 65536) {
+            $header = chr(0x81) . chr(126) . pack('n', $len);
+        } else {
+            $header = chr(0x81) . chr(127) . pack('J', $len);
+        }
+        $conn->write($header . $text);
     }
 
     public function onConnectionClose(string $connId): void
