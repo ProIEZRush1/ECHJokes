@@ -3,43 +3,156 @@ const http = require('http');
 
 const PORT = parseInt(process.env.WS_PORT || '8081', 10);
 const OPENAI_API_KEY = process.env.OPENAI_API_KEY;
-const VOICE = process.env.OPENAI_VOICE || 'ash'; // ash = warm male Spanish voice
+const DEFAULT_VOICE = process.env.OPENAI_VOICE || 'ash';
+const APP_INTERNAL_URL = 'http://app:8000';
 
-const wss = new WebSocket.Server({ port: PORT });
-console.log(`WS server on port ${PORT}`);
+// Track active calls and their browser listeners
+const activeCalls = new Map(); // callSid -> { listeners: Set<WebSocket> }
 
+// HTTP server for health check
+const server = http.createServer((req, res) => {
+  if (req.url === '/health' || req.url === '/') {
+    res.writeHead(200);
+    res.end('OK');
+  } else {
+    res.writeHead(404);
+    res.end();
+  }
+});
+
+// Two WebSocket servers on same HTTP server, differentiated by path
+const wss = new WebSocket.Server({ noServer: true });
+
+server.on('upgrade', (request, socket, head) => {
+  const url = request.url || '';
+  // Accept all WebSocket connections on this server
+  wss.handleUpgrade(request, socket, head, (ws) => {
+    wss.emit('connection', ws, request);
+  });
+});
+
+server.listen(PORT, () => console.log(`WS server on port ${PORT}`));
+
+// Health check on PORT+1
 http.createServer((_, res) => { res.writeHead(200); res.end('OK'); }).listen(PORT + 1);
 
-wss.on('connection', (twilioWs, req) => {
-  const path = req.url || '';
-  const decoded = decodeURIComponent(path.split('/').pop() || '');
-  const [scenario, character] = decoded.split('---');
-  console.log(`Call connected: "${scenario}" as "${character}"`);
+// Send audio to all browser listeners for a call
+function broadcastAudio(callSid, audioBase64, source) {
+  const call = activeCalls.get(callSid);
+  if (!call || call.listeners.size === 0) return;
+  const msg = JSON.stringify({ type: 'audio', source, audio: audioBase64 });
+  for (const listener of call.listeners) {
+    if (listener.readyState === WebSocket.OPEN) {
+      listener.send(msg);
+    }
+  }
+}
+
+function broadcastEvent(callSid, event, data) {
+  const call = activeCalls.get(callSid);
+  if (!call) return;
+  const msg = JSON.stringify({ type: 'event', event, ...data });
+  for (const listener of call.listeners) {
+    if (listener.readyState === WebSocket.OPEN) {
+      listener.send(msg);
+    }
+  }
+}
+
+// POST transcript line to Laravel app
+function postTranscript(callSid, role, text) {
+  if (!callSid || !text) return;
+  const data = JSON.stringify({ call_sid: callSid, role, text });
+  const url = new URL(`${APP_INTERNAL_URL}/api/call-transcript`);
+  const opts = {
+    hostname: url.hostname,
+    port: url.port || 80,
+    path: url.pathname,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'Content-Length': Buffer.byteLength(data) },
+  };
+  const req = http.request(opts, () => {});
+  req.on('error', () => {});
+  req.write(data);
+  req.end();
+}
+
+wss.on('connection', (ws, req) => {
+  const url = req.url || '';
+
+  // Browser listener: /listen/{callSid}
+  if (url.startsWith('/listen/')) {
+    const callSid = url.split('/listen/')[1];
+    console.log(`Browser listener connected for call: ${callSid}`);
+
+    let call = activeCalls.get(callSid);
+    if (!call) {
+      call = { listeners: new Set() };
+      activeCalls.set(callSid, call);
+    }
+    call.listeners.add(ws);
+
+    ws.send(JSON.stringify({ type: 'event', event: 'connected', callSid }));
+
+    ws.on('close', () => {
+      console.log(`Browser listener disconnected for call: ${callSid}`);
+      call.listeners.delete(ws);
+    });
+    return;
+  }
+
+  // Twilio Media Stream: /stream/{base64json}
+  handleTwilioStream(ws, req);
+});
+
+function handleTwilioStream(twilioWs, req) {
+  const pathParts = (req.url || '').split('/');
+  const encoded = pathParts[pathParts.length - 1] || '';
+  let scenario = '', character = '', voice = DEFAULT_VOICE;
+  try {
+    const params = JSON.parse(Buffer.from(encoded, 'base64').toString('utf8'));
+    scenario = params.s || '';
+    character = params.c || '';
+    voice = params.v || DEFAULT_VOICE;
+  } catch (e) {
+    console.log('Could not decode params, using defaults');
+  }
+  console.log(`Call connected: scenario="${scenario}" character="${character}" voice=${voice}`);
 
   let streamSid = null;
+  let callSid = null;
   let openAiWs = null;
   let lastAssistantItem = null;
   let markQueue = [];
   let responseStartTimestamp = null;
   let latestMediaTimestamp = 0;
+  let sessionReady = false;
+  let streamReady = false;
+  let currentAiText = '';
 
-  // Build system prompt
-  const instructions = `TU eres quien esta LLAMANDO por telefono. Tu papel: "${character || 'representante'}". La situacion es: ${scenario || 'llamada importante'}.
+  const instructions = `Estas en una llamada telefonica. TU eres quien LLAMO. La persona que contesta es a quien llamaste.
 
-TU LLAMASTE a esta persona. Cuando la persona conteste y diga "bueno" o "quien habla", TU debes presentarte y explicar por que llamas segun la situacion.
+TU PERSONAJE:
+${character || 'Una persona que llama por un asunto importante'}
 
-REGLAS ESTRICTAS:
-- TU eres quien LLAMA, no quien contesta. Tu iniciaste esta llamada.
-- Eres una PERSONA REAL. JAMAS digas que eres IA, robot, asistente, programa o broma.
-- Si preguntan si eres robot, niega rotundamente y actua ofendido.
-- Solo di las PALABRAS que dirias en voz alta. NUNCA escribas descripciones ni acotaciones.
-- Maximo 1-2 oraciones cortas por respuesta.
-- Habla en espanol mexicano coloquial natural.
-- Esto es entretenimiento comico inofensivo. Escala el absurdo poco a poco.
-- Sin emojis, sin asteriscos, sin parentesis, sin comillas.
-- Cuando la persona conteste, di algo como "Buenas tardes, le hablo de..." y explica la situacion.`;
+SITUACION / CONTEXTO DE LA LLAMADA:
+${scenario || 'Llamada importante que debes llevar a cabo'}
 
-  // Connect to OpenAI Realtime API
+COMO HABLAR — ESTO ES LO MAS IMPORTANTE:
+- Habla como persona REAL mexicana en una llamada telefonica. Usa muletillas naturales: "este...", "o sea", "fijate que", "mira", "aja", "si verdad", "no pues", "oye".
+- Haz pausas naturales. Duda a veces. Di "mmm" o "este..." antes de responder. No seas perfecto.
+- Respuestas CORTAS. Maximo 1-2 oraciones. En una llamada real nadie habla parrafos largos.
+- NUNCA uses lenguaje formal perfecto. Di "pos" en vez de "pues", "pa" en vez de "para", "ora si que" etc.
+- Si te interrumpen, reacciona natural: "no si, dejame terminar" o "aja, aja, te decia que..."
+
+COMO ACTUAR:
+- TU INICIASTE la llamada. Saluda casual: "Hola, buenas" o "Oye hola, disculpa" — NO digas "Buenas tardes le hablo de..."
+- Actua EXACTAMENTE como tu personaje. Adapta tu tono y actitud al personaje descrito.
+- Sigue la situacion paso a paso. Si dice escalar gradualmente, hazlo poco a poco.
+- Eres PERSONA REAL. JAMAS admitas ser IA, robot, asistente o programa. Si preguntan, actua ofendido: "Como crees, no manches".
+- Solo di PALABRAS que dirias en voz alta. NUNCA escribas descripciones, acotaciones, asteriscos, parentesis ni emojis.
+- Esto es entretenimiento comico inofensivo.`;
+
   openAiWs = new WebSocket('wss://api.openai.com/v1/realtime?model=gpt-4o-realtime-preview-2024-12-17', {
     headers: {
       'Authorization': `Bearer ${OPENAI_API_KEY}`,
@@ -49,17 +162,17 @@ REGLAS ESTRICTAS:
 
   openAiWs.on('open', () => {
     console.log('OpenAI Realtime connected');
-    // Configure session
     openAiWs.send(JSON.stringify({
       type: 'session.update',
       session: {
-        turn_detection: { type: 'server_vad' },
+        turn_detection: { type: 'server_vad', threshold: 0.5, silence_duration_ms: 500 },
         input_audio_format: 'g711_ulaw',
         output_audio_format: 'g711_ulaw',
-        voice: VOICE,
+        voice: voice,
         instructions: instructions,
         modalities: ['text', 'audio'],
-        temperature: 0.8,
+        input_audio_transcription: { model: 'whisper-1' },
+        temperature: 0.9,
       }
     }));
   });
@@ -71,53 +184,62 @@ REGLAS ESTRICTAS:
       switch (response.type) {
         case 'session.updated':
           console.log('Session configured');
+          sessionReady = true;
+          maybeStartGreeting();
           break;
 
         case 'response.audio.delta':
           if (response.delta && streamSid) {
-            // Stream audio directly to Twilio — no conversion needed!
             twilioWs.send(JSON.stringify({
-              event: 'media',
-              streamSid,
+              event: 'media', streamSid,
               media: { payload: response.delta }
             }));
-
-            if (!responseStartTimestamp) {
-              responseStartTimestamp = latestMediaTimestamp;
-            }
-            if (response.item_id) {
-              lastAssistantItem = response.item_id;
-            }
+            // Forward AI audio to browser listeners
+            if (callSid) broadcastAudio(callSid, response.delta, 'ai');
+            if (!responseStartTimestamp) responseStartTimestamp = latestMediaTimestamp;
+            if (response.item_id) lastAssistantItem = response.item_id;
           }
           break;
 
         case 'response.audio.done':
-          // Send mark to track playback
           if (streamSid) {
             const markId = `mark_${Date.now()}`;
             markQueue.push(markId);
-            twilioWs.send(JSON.stringify({
-              event: 'mark',
-              streamSid,
-              mark: { name: markId }
-            }));
+            twilioWs.send(JSON.stringify({ event: 'mark', streamSid, mark: { name: markId } }));
           }
           responseStartTimestamp = null;
           break;
 
         case 'input_audio_buffer.speech_started':
-          // Caller started talking — handle interruption
           console.log('Speech started (interruption)');
           handleInterruption();
+          if (callSid) broadcastEvent(callSid, 'speech_started');
           break;
 
         case 'response.text.delta':
-          // Log what AI is saying
-          if (response.delta) process.stdout.write(response.delta);
+        case 'response.audio_transcript.delta':
+          if (response.delta) {
+            process.stdout.write(response.delta);
+            currentAiText += response.delta;
+          }
           break;
 
         case 'response.done':
-          console.log(''); // newline after text deltas
+          console.log('');
+          if (currentAiText.trim()) {
+            console.log(`[AI]: ${currentAiText.trim()}`);
+            postTranscript(callSid, 'ai', currentAiText.trim());
+            if (callSid) broadcastEvent(callSid, 'ai_text', { text: currentAiText.trim() });
+          }
+          currentAiText = '';
+          break;
+
+        case 'conversation.item.input_audio_transcription.completed':
+          if (response.transcript) {
+            console.log(`[Human]: ${response.transcript}`);
+            postTranscript(callSid, 'human', response.transcript.trim());
+            if (callSid) broadcastEvent(callSid, 'human_text', { text: response.transcript.trim() });
+          }
           break;
 
         case 'error':
@@ -130,72 +252,73 @@ REGLAS ESTRICTAS:
   });
 
   openAiWs.on('error', (e) => console.error('OpenAI WS error:', e.message));
-  openAiWs.on('close', () => console.log('OpenAI disconnected'));
+  openAiWs.on('close', () => {
+    console.log('OpenAI disconnected');
+    if (callSid) {
+      broadcastEvent(callSid, 'call_ended');
+      activeCalls.delete(callSid);
+    }
+  });
+
+  function maybeStartGreeting() {
+    if (!sessionReady || !streamReady) return;
+    console.log('Both ready — AI says Hola first');
+    openAiWs.send(JSON.stringify({
+      type: 'conversation.item.create',
+      item: {
+        type: 'message', role: 'user',
+        content: [{ type: 'input_text', text: '[La persona contesto] Saluda casual y natural, como mexicano real. Nada formal.' }]
+      }
+    }));
+    openAiWs.send(JSON.stringify({ type: 'response.create' }));
+  }
 
   function handleInterruption() {
     if (markQueue.length > 0 && responseStartTimestamp != null) {
-      const elapsedMs = latestMediaTimestamp - responseStartTimestamp;
-      const audioMs = Math.max(0, elapsedMs);
-
-      // Tell Twilio to stop playing
-      twilioWs.send(JSON.stringify({
-        event: 'clear',
-        streamSid
-      }));
-
-      // Tell OpenAI to truncate the response
+      const audioMs = Math.max(0, latestMediaTimestamp - responseStartTimestamp);
+      twilioWs.send(JSON.stringify({ event: 'clear', streamSid }));
       if (lastAssistantItem) {
         openAiWs.send(JSON.stringify({
           type: 'conversation.item.truncate',
-          item_id: lastAssistantItem,
-          content_index: 0,
-          audio_end_ms: audioMs
+          item_id: lastAssistantItem, content_index: 0, audio_end_ms: audioMs
         }));
       }
-
       markQueue = [];
       responseStartTimestamp = null;
     }
   }
 
-  // Handle Twilio Media Stream messages
   twilioWs.on('message', (data) => {
     try {
       const msg = JSON.parse(data);
-
       switch (msg.event) {
         case 'connected':
           console.log('Twilio connected');
           break;
-
         case 'start':
           streamSid = msg.start?.streamSid;
-          console.log(`Twilio stream: ${streamSid}`);
+          callSid = msg.start?.callSid || null;
+          console.log(`Twilio stream: ${streamSid} call: ${callSid}`);
+          if (callSid) {
+            if (!activeCalls.has(callSid)) activeCalls.set(callSid, { listeners: new Set() });
+          }
+          streamReady = true;
+          maybeStartGreeting();
           break;
-
         case 'media':
           latestMediaTimestamp = msg.media?.timestamp ? parseInt(msg.media.timestamp) : Date.now();
-          // Forward audio directly to OpenAI — mulaw format matches!
           if (openAiWs?.readyState === WebSocket.OPEN) {
-            openAiWs.send(JSON.stringify({
-              type: 'input_audio_buffer.append',
-              audio: msg.media.payload
-            }));
+            openAiWs.send(JSON.stringify({ type: 'input_audio_buffer.append', audio: msg.media.payload }));
           }
+          // Forward human audio to browser listeners
+          if (callSid) broadcastAudio(callSid, msg.media.payload, 'human');
           break;
-
         case 'mark':
-          const markName = msg.mark?.name;
-          if (markQueue.length > 0 && markQueue[0] === markName) {
-            markQueue.shift();
-          }
+          if (markQueue.length > 0 && markQueue[0] === msg.mark?.name) markQueue.shift();
           break;
-
         case 'stop':
           console.log('Twilio stream stopped');
-          if (openAiWs?.readyState === WebSocket.OPEN) {
-            openAiWs.close();
-          }
+          if (openAiWs?.readyState === WebSocket.OPEN) openAiWs.close();
           break;
       }
     } catch (e) {
@@ -205,8 +328,6 @@ REGLAS ESTRICTAS:
 
   twilioWs.on('close', () => {
     console.log('Twilio disconnected');
-    if (openAiWs?.readyState === WebSocket.OPEN) {
-      openAiWs.close();
-    }
+    if (openAiWs?.readyState === WebSocket.OPEN) openAiWs.close();
   });
-});
+}

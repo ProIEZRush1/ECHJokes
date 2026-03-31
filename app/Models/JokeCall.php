@@ -36,6 +36,7 @@ class JokeCall extends Model
         'recording_duration_sec',
         'estimated_cost_usd',
         'failure_reason',
+        'live_transcript',
         'retry_of',
         'ip_address',
         'phone_type',

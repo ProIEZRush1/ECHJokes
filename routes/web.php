@@ -53,3 +53,25 @@ Route::prefix('webhooks/twilio')->middleware(VerifyTwilioSignature::class)->grou
 Route::post('/conversation/start', [\App\Http\Controllers\ConversationWebhookController::class, 'start'])->name('conversation.start');
 Route::post('/conversation/gather', [\App\Http\Controllers\ConversationWebhookController::class, 'gather'])->name('conversation.gather');
 Route::get('/conversation/audio/{filename}', [\App\Http\Controllers\ConversationWebhookController::class, 'audio'])->name('conversation.audio');
+
+// Live transcript API (called by websocket server)
+Route::post('/api/call-transcript', function (\Illuminate\Http\Request $request) {
+    $callSid = $request->input('call_sid');
+    $role = $request->input('role'); // 'ai' or 'human'
+    $text = $request->input('text');
+
+    if (!$callSid || !$text) return response('OK');
+
+    $jokeCall = \App\Models\JokeCall::where('twilio_call_sid', $callSid)->first();
+    if (!$jokeCall) return response('OK');
+
+    $transcript = $jokeCall->live_transcript ? json_decode($jokeCall->live_transcript, true) : [];
+    $transcript[] = [
+        'role' => $role,
+        'text' => $text,
+        'at' => now()->format('H:i:s'),
+    ];
+    $jokeCall->update(['live_transcript' => json_encode($transcript)]);
+
+    return response('OK');
+})->name('call.transcript');

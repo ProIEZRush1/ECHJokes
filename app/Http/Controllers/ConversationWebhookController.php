@@ -11,11 +11,33 @@ class ConversationWebhookController extends Controller
 {
     public function start(Request $request): Response
     {
+        $answeredBy = $request->input('AnsweredBy', 'human');
+        $callSid = $request->input('CallSid', '');
+
+        // Detect voicemail / answering machine — hang up immediately
+        if (in_array($answeredBy, ['machine_start', 'machine_end_beep', 'machine_end_silence', 'machine_end_other', 'fax'])) {
+            Log::info('Voicemail detected, hanging up', ['call_sid' => $callSid, 'answered_by' => $answeredBy]);
+
+            // Update the JokeCall status to voicemail
+            if ($callSid) {
+                \App\Models\JokeCall::where('twilio_call_sid', $callSid)
+                    ->update(['status' => \App\Enums\JokeCallStatus::Voicemail, 'failure_reason' => 'Buzon de voz']);
+            }
+
+            return $this->twiml('<Hangup/>');
+        }
+
         $scenario = $request->input('scenario', '');
         $character = $request->input('character', '');
+        $voice = $request->input('voice', 'ash');
 
-        // Use Media Streams WebSocket via nginx SSL proxy (port 8443, bypasses Traefik HTTP/2)
-        $streamUrl = 'wss://ws.echjokes.overcloud.us:8443/stream/' . urlencode($scenario) . '---' . urlencode($character);
+        // Encode params as base64 JSON in the path (Twilio strips query params from Stream URLs)
+        $payload = base64_encode(json_encode([
+            's' => $scenario,
+            'c' => $character,
+            'v' => $voice,
+        ]));
+        $streamUrl = 'wss://ws.echjokes.overcloud.us:8443/stream/' . $payload;
 
         return $this->twiml(
             '<Connect><Stream url="' . e($streamUrl) . '" /></Connect>'

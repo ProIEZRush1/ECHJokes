@@ -70,11 +70,8 @@ class TwilioWebhookController extends Controller
             $jokeCall->update([
                 'recording_sid' => $recordingSid,
                 'recording_duration_sec' => $recordingDuration,
+                'recording_url' => $recordingUrl ? $recordingUrl . '.mp3' : null,
             ]);
-
-            // Download recording with a delay (Twilio needs time to process)
-            \App\Jobs\DownloadRecordingJob::dispatch($jokeCall, $recordingUrl)
-                ->delay(now()->addSeconds(30));
         }
 
         return response('OK', 200);
@@ -92,6 +89,25 @@ class TwilioWebhookController extends Controller
 
         if (! $jokeCall) {
             Log::warning('Twilio status callback: JokeCall not found', ['call_sid' => $callSid]);
+            return response('OK', 200);
+        }
+
+        // Handle async AMD (machine detection) result
+        $answeredBy = $request->input('AnsweredBy');
+        if ($answeredBy && in_array($answeredBy, ['machine_start', 'machine_end_beep', 'machine_end_silence', 'machine_end_other', 'fax'])) {
+            $jokeCall->update(['status' => JokeCallStatus::Voicemail, 'failure_reason' => 'Buzon de voz']);
+            // Hang up the call
+            try {
+                $twilio = new \Twilio\Rest\Client(config('services.twilio.sid'), config('services.twilio.auth_token'));
+                $twilio->calls($callSid)->update(['status' => 'completed']);
+            } catch (\Throwable $e) {
+                Log::warning('Could not hang up voicemail call', ['error' => $e->getMessage()]);
+            }
+            return response('OK', 200);
+        }
+
+        // Don't overwrite terminal statuses (voicemail, etc.)
+        if ($jokeCall->status->isTerminal()) {
             return response('OK', 200);
         }
 

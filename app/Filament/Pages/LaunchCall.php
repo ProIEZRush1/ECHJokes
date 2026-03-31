@@ -23,6 +23,7 @@ class LaunchCall extends Page implements HasForms
     public string $phone_number = '';
     public string $scenario = '';
     public string $character = 'administrador del condominio';
+    public string $voice = 'ash';
     public string $result = '';
 
     public function launchCall(): void
@@ -50,10 +51,19 @@ class LaunchCall extends Page implements HasForms
             );
 
             $call = $twilio->calls->create($phone, config('services.twilio.phone_number'), [
-                'url' => url('/conversation/start') . '?scenario=' . urlencode($this->scenario) . '&character=' . urlencode($this->character),
+                'url' => url('/conversation/start') . '?scenario=' . urlencode($this->scenario) . '&character=' . urlencode($this->character) . '&voice=' . urlencode($this->voice),
                 'method' => 'POST',
+                'statusCallback' => route('twilio.status'),
+                'statusCallbackEvent' => ['initiated', 'ringing', 'answered', 'completed'],
+                'statusCallbackMethod' => 'POST',
+                'machineDetection' => 'Enable',
+                'asyncAmd' => 'true',
+                'asyncAmdStatusCallback' => route('twilio.status'),
+                'asyncAmdStatusCallbackMethod' => 'POST',
                 'timeout' => 45,
                 'record' => true,
+                'recordingStatusCallback' => route('twilio.recording'),
+                'recordingStatusCallbackEvent' => ['completed'],
             ]);
 
             $jokeCall->update(['twilio_call_sid' => $call->sid]);

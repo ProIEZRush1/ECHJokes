@@ -4,10 +4,14 @@ namespace App\Filament\Resources;
 
 use App\Enums\JokeCallStatus;
 use App\Models\JokeCall;
+use Filament\Forms\Components\Textarea;
+use Filament\Forms\Components\TextInput;
+use Filament\Infolists\Components\TextEntry;
+use Filament\Infolists\Components\ViewEntry;
 use Filament\Resources\Resource;
+use Filament\Schemas\Components\Grid;
+use Filament\Schemas\Components\Section;
 use Filament\Schemas\Schema;
-use Filament\Schemas\Components\TextInput;
-use Filament\Schemas\Components\Textarea;
 use Filament\Tables;
 use Filament\Tables\Table;
 
@@ -26,9 +30,75 @@ class JokeCallResource extends Resource
             TextInput::make('custom_joke_prompt')->label('Scenario'),
             TextInput::make('status')->disabled(),
             TextInput::make('twilio_call_sid')->label('Call SID')->disabled(),
-            TextInput::make('recording_url')->label('Recording URL')->disabled(),
-            Textarea::make('joke_text')->label('Opening Line')->rows(3),
             Textarea::make('failure_reason')->rows(2),
+        ]);
+    }
+
+    public static function infolist(Schema $schema): Schema
+    {
+        return $schema->components([
+            Section::make('Call Details')
+                ->icon('heroicon-o-phone')
+                ->components([
+                    Grid::make(3)->components([
+                        TextEntry::make('phone_number')
+                            ->label('Phone')
+                            ->icon('heroicon-o-phone'),
+                        TextEntry::make('status')
+                            ->badge()
+                            ->color(fn(JokeCallStatus $state) => match (true) {
+                                $state === JokeCallStatus::Completed => 'success',
+                                $state === JokeCallStatus::Failed => 'danger',
+                                default => 'info',
+                            }),
+                        TextEntry::make('created_at')
+                            ->label('Date')
+                            ->dateTime('M j, Y H:i')
+                            ->icon('heroicon-o-clock'),
+                    ]),
+                    Grid::make(3)->components([
+                        TextEntry::make('call_duration_seconds')
+                            ->label('Duration')
+                            ->formatStateUsing(fn($state) => $state ? gmdate('i:s', (int) $state) : '-')
+                            ->icon('heroicon-o-clock'),
+                        TextEntry::make('twilio_call_sid')
+                            ->label('Call SID')
+                            ->copyable()
+                            ->icon('heroicon-o-finger-print'),
+                        TextEntry::make('session_id')
+                            ->label('Session')
+                            ->copyable()
+                            ->icon('heroicon-o-hashtag'),
+                    ]),
+                ]),
+
+            Section::make('Scenario')
+                ->icon('heroicon-o-chat-bubble-left-right')
+                ->components([
+                    TextEntry::make('custom_joke_prompt')
+                        ->label('')
+                        ->columnSpanFull(),
+                ]),
+
+            Section::make('Recording')
+                ->icon('heroicon-o-microphone')
+                ->visible(fn($record) => !empty($record->recording_url))
+                ->components([
+                    ViewEntry::make('recording_player')
+                        ->label('')
+                        ->view('filament.components.audio-player')
+                        ->columnSpanFull(),
+                ]),
+
+            Section::make('Error')
+                ->icon('heroicon-o-exclamation-triangle')
+                ->visible(fn($record) => !empty($record->failure_reason))
+                ->components([
+                    TextEntry::make('failure_reason')
+                        ->label('')
+                        ->color('danger')
+                        ->columnSpanFull(),
+                ]),
         ]);
     }
 
@@ -48,9 +118,12 @@ class JokeCallResource extends Resource
                     ->color(fn(JokeCallStatus $state) => match (true) {
                         $state === JokeCallStatus::Completed => 'success',
                         $state === JokeCallStatus::Failed => 'danger',
+                        $state === JokeCallStatus::Voicemail => 'warning',
                         default => 'info',
                     }),
-                Tables\Columns\TextColumn::make('call_duration_seconds')->label('Duration')->suffix('s'),
+                Tables\Columns\TextColumn::make('call_duration_seconds')
+                    ->label('Duration')
+                    ->formatStateUsing(fn($state) => $state ? gmdate('i:s', (int) $state) : '-'),
                 Tables\Columns\IconColumn::make('recording_url')
                     ->label('Rec')
                     ->boolean()

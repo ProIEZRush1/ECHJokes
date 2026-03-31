@@ -13,11 +13,12 @@ enum JokeCallStatus: string
     case InProgress = 'in_progress';
     case Completed = 'completed';
     case Failed = 'failed';
+    case Voicemail = 'voicemail';
     case Refunded = 'refunded';
 
     public function isTerminal(): bool
     {
-        return in_array($this, [self::Completed, self::Failed, self::Refunded]);
+        return in_array($this, [self::Completed, self::Failed, self::Voicemail, self::Refunded]);
     }
 
     public function label(): string
@@ -32,6 +33,7 @@ enum JokeCallStatus: string
             self::InProgress => 'En llamada',
             self::Completed => 'Completado',
             self::Failed => 'Fallido',
+            self::Voicemail => 'Buzon de voz',
             self::Refunded => 'Reembolsado',
         };
     }
