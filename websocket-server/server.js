@@ -1,7 +1,7 @@
 const WebSocket = require('ws');
 const https = require('https');
 
-const PORT = process.env.WS_PORT || 8081;
+const PORT = parseInt(process.env.WS_PORT || '8081', 10);
 const ANTHROPIC_KEY = process.env.ANTHROPIC_API_KEY;
 const ELEVENLABS_KEY = process.env.ELEVENLABS_API_KEY;
 const ELEVENLABS_VOICE = process.env.ELEVENLABS_VOICE_ID || 'iP95p4xoKVk53GoZ742B';
