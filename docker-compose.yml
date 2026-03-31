@@ -19,14 +19,12 @@ services:
       context: .
       dockerfile: Dockerfile
     command: ["php", "artisan", "echjokes:stream-server", "--port=8081"]
-    expose:
-      - "8081"
+    ports:
+      - "8081:8081"
     volumes:
       - shared-storage:/app/storage
     labels:
-      - "traefik.http.services.websocket-echjokes.loadbalancer.server.port=8081"
-      - "traefik.http.routers.https-0-xgva4qabltr239ps61jqjsd2-websocket.service=websocket-echjokes"
-      - "traefik.http.routers.http-0-xgva4qabltr239ps61jqjsd2-websocket.service=websocket-echjokes"
+      - "traefik.enable=false"
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8081/health"]
       interval: 30s
