@@ -1,74 +1,162 @@
 const WebSocket = require('ws');
-const https = require('https');
-const { execSync } = require('child_process');
-const fs = require('fs');
+const http = require('http');
 
 const PORT = parseInt(process.env.WS_PORT || '8081', 10);
-const ANTHROPIC_KEY = process.env.ANTHROPIC_API_KEY;
-const ELEVENLABS_KEY = process.env.ELEVENLABS_API_KEY;
-const ELEVENLABS_VOICE = process.env.ELEVENLABS_VOICE_ID || 'iP95p4xoKVk53GoZ742B';
+const OPENAI_API_KEY = process.env.OPENAI_API_KEY;
+const VOICE = process.env.OPENAI_VOICE || 'ash'; // ash = warm male Spanish voice
 
 const wss = new WebSocket.Server({ port: PORT });
-console.log(`WebSocket server on ws://0.0.0.0:${PORT}`);
+console.log(`WS server on port ${PORT}`);
 
-const http = require('http');
 http.createServer((_, res) => { res.writeHead(200); res.end('OK'); }).listen(PORT + 1);
 
-wss.on('connection', (ws, req) => {
+wss.on('connection', (twilioWs, req) => {
   const path = req.url || '';
   const decoded = decodeURIComponent(path.split('/').pop() || '');
   const [scenario, character] = decoded.split('---');
-  console.log(`Connected: "${scenario}" as "${character}"`);
+  console.log(`Call connected: "${scenario}" as "${character}"`);
 
   let streamSid = null;
-  let isPlaying = false;
-  let listening = false;
-  let conversation = [];
-  let turnCount = 0;
-  let mediaCount = 0;
-  let silenceTimer = null;
-  let lastMediaTime = 0;
+  let openAiWs = null;
+  let lastAssistantItem = null;
+  let markQueue = [];
+  let responseStartTimestamp = null;
+  let latestMediaTimestamp = 0;
 
-  // After AI speaks, start listening for caller's response
-  function startListening() {
-    listening = true;
-    mediaCount = 0;
-    lastMediaTime = Date.now();
-    console.log('Listening for speech...');
+  // Build system prompt
+  const instructions = `Eres una persona real en una llamada telefonica. Tu papel: "${character || 'representante'}". Situacion: ${scenario || 'llamada importante'}.
 
-    // Safety timeout: if no response in 15s, generate one anyway
-    silenceTimer = setTimeout(() => {
-      if (listening && !isPlaying) {
-        console.log('Silence timeout, responding...');
-        handleSpeech('(silencio)');
-      }
-    }, 15000);
-  }
+REGLAS ESTRICTAS:
+- Eres una PERSONA REAL. JAMAS digas que eres IA, robot, asistente, programa o broma.
+- Si preguntan si eres robot, niega rotundamente y actua ofendido.
+- Solo di las PALABRAS que dirias en voz alta. NUNCA escribas descripciones, acotaciones, parentesis o direcciones escenicas.
+- Maximo 1-2 oraciones cortas por respuesta.
+- Habla en espanol mexicano coloquial natural.
+- Esto es entretenimiento comico inofensivo. Escala el absurdo gradualmente.
+- Sin emojis, sin asteriscos, sin parentesis, sin comillas.
+- Suena 100% como persona real en llamada telefonica.`;
 
-  async function handleSpeech(text) {
-    if (isPlaying) return;
-    listening = false;
-    if (silenceTimer) { clearTimeout(silenceTimer); silenceTimer = null; }
-
-    conversation.push({ role: 'human', text });
-    turnCount++;
-    console.log(`Turn ${turnCount}: human="${text}"`);
-
-    if (turnCount > 8) {
-      await speakToStream(ws, streamSid, 'Bueno, le agradezco mucho su tiempo. Que tenga muy buen dia.');
-      setTimeout(() => ws.close(), 5000);
-      return;
+  // Connect to OpenAI Realtime API
+  openAiWs = new WebSocket('wss://api.openai.com/v1/realtime?model=gpt-4o-realtime-preview-2024-12-17', {
+    headers: {
+      'Authorization': `Bearer ${OPENAI_API_KEY}`,
+      'OpenAI-Beta': 'realtime=v1',
     }
+  });
 
-    const reply = await callClaude(conversation, scenario, character);
-    conversation.push({ role: 'ai', text: reply });
-    console.log(`AI: ${reply.substring(0, 80)}`);
+  openAiWs.on('open', () => {
+    console.log('OpenAI Realtime connected');
+    // Configure session
+    openAiWs.send(JSON.stringify({
+      type: 'session.update',
+      session: {
+        turn_detection: { type: 'server_vad' },
+        input_audio_format: 'g711_ulaw',
+        output_audio_format: 'g711_ulaw',
+        voice: VOICE,
+        instructions: instructions,
+        modalities: ['text', 'audio'],
+        temperature: 0.8,
+      }
+    }));
+  });
 
-    isPlaying = true;
-    await speakToStream(ws, streamSid, reply);
+  openAiWs.on('message', (data) => {
+    try {
+      const response = JSON.parse(data);
+
+      switch (response.type) {
+        case 'session.updated':
+          console.log('Session configured');
+          break;
+
+        case 'response.audio.delta':
+          if (response.delta && streamSid) {
+            // Stream audio directly to Twilio — no conversion needed!
+            twilioWs.send(JSON.stringify({
+              event: 'media',
+              streamSid,
+              media: { payload: response.delta }
+            }));
+
+            if (!responseStartTimestamp) {
+              responseStartTimestamp = latestMediaTimestamp;
+            }
+            if (response.item_id) {
+              lastAssistantItem = response.item_id;
+            }
+          }
+          break;
+
+        case 'response.audio.done':
+          // Send mark to track playback
+          if (streamSid) {
+            const markId = `mark_${Date.now()}`;
+            markQueue.push(markId);
+            twilioWs.send(JSON.stringify({
+              event: 'mark',
+              streamSid,
+              mark: { name: markId }
+            }));
+          }
+          responseStartTimestamp = null;
+          break;
+
+        case 'input_audio_buffer.speech_started':
+          // Caller started talking — handle interruption
+          console.log('Speech started (interruption)');
+          handleInterruption();
+          break;
+
+        case 'response.text.delta':
+          // Log what AI is saying
+          if (response.delta) process.stdout.write(response.delta);
+          break;
+
+        case 'response.done':
+          console.log(''); // newline after text deltas
+          break;
+
+        case 'error':
+          console.error('OpenAI error:', response.error?.message || JSON.stringify(response));
+          break;
+      }
+    } catch (e) {
+      console.error('Parse error:', e.message);
+    }
+  });
+
+  openAiWs.on('error', (e) => console.error('OpenAI WS error:', e.message));
+  openAiWs.on('close', () => console.log('OpenAI disconnected'));
+
+  function handleInterruption() {
+    if (markQueue.length > 0 && responseStartTimestamp != null) {
+      const elapsedMs = latestMediaTimestamp - responseStartTimestamp;
+      const audioMs = Math.max(0, elapsedMs);
+
+      // Tell Twilio to stop playing
+      twilioWs.send(JSON.stringify({
+        event: 'clear',
+        streamSid
+      }));
+
+      // Tell OpenAI to truncate the response
+      if (lastAssistantItem) {
+        openAiWs.send(JSON.stringify({
+          type: 'conversation.item.truncate',
+          item_id: lastAssistantItem,
+          content_index: 0,
+          audio_end_ms: audioMs
+        }));
+      }
+
+      markQueue = [];
+      responseStartTimestamp = null;
+    }
   }
 
-  ws.on('message', async (data) => {
+  // Handle Twilio Media Stream messages
+  twilioWs.on('message', (data) => {
     try {
       const msg = JSON.parse(data);
 
@@ -79,130 +167,43 @@ wss.on('connection', (ws, req) => {
 
         case 'start':
           streamSid = msg.start?.streamSid;
-          console.log(`Stream: ${streamSid}`);
-          // Wait for caller to say "bueno?"
-          listening = true;
-          mediaCount = 0;
-          // After 1.5s of audio, respond (they've said their greeting)
-          silenceTimer = setTimeout(() => {
-            if (listening && !isPlaying) {
-              handleSpeech('Bueno?');
-            }
-          }, 1500);
+          console.log(`Twilio stream: ${streamSid}`);
           break;
 
         case 'media':
-          mediaCount++;
-          lastMediaTime = Date.now();
-
-          if (listening && !isPlaying && mediaCount > 50) {
-            // We've received ~1 second of audio after AI finished
-            // Set a short timer - if no more audio for 1.5s, assume they stopped talking
-            if (silenceTimer) clearTimeout(silenceTimer);
-            silenceTimer = setTimeout(() => {
-              if (listening && !isPlaying) {
-                // Generate a contextual response based on conversation so far
-                const responses = [
-                  'Ah si?', 'Mmhmm', 'Ya veo', 'Entiendo',
-                  'Ah bueno', 'Claro', 'Si si', 'Pues mire'
-                ];
-                const fakeTranscript = turnCount === 0 ? 'Bueno? Quien habla?' : responses[turnCount % responses.length];
-                handleSpeech(fakeTranscript);
-              }
-            }, 2000);
+          latestMediaTimestamp = msg.media?.timestamp ? parseInt(msg.media.timestamp) : Date.now();
+          // Forward audio directly to OpenAI — mulaw format matches!
+          if (openAiWs?.readyState === WebSocket.OPEN) {
+            openAiWs.send(JSON.stringify({
+              type: 'input_audio_buffer.append',
+              audio: msg.media.payload
+            }));
           }
           break;
 
         case 'mark':
-          isPlaying = false;
-          mediaCount = 0;
-          console.log('Playback done, starting to listen...');
-          startListening();
+          const markName = msg.mark?.name;
+          if (markQueue.length > 0 && markQueue[0] === markName) {
+            markQueue.shift();
+          }
           break;
 
         case 'stop':
-          if (silenceTimer) clearTimeout(silenceTimer);
-          console.log('Stream stopped');
+          console.log('Twilio stream stopped');
+          if (openAiWs?.readyState === WebSocket.OPEN) {
+            openAiWs.close();
+          }
           break;
       }
     } catch (e) {
-      console.error('Error:', e.message);
+      console.error('Twilio parse error:', e.message);
     }
   });
 
-  ws.on('close', () => {
-    if (silenceTimer) clearTimeout(silenceTimer);
-    console.log('Disconnected');
+  twilioWs.on('close', () => {
+    console.log('Twilio disconnected');
+    if (openAiWs?.readyState === WebSocket.OPEN) {
+      openAiWs.close();
+    }
   });
 });
-
-async function callClaude(conversation, scenario, character) {
-  const system = `Eres una persona real en una llamada telefonica. Tu papel: "${character || 'representante'}". Situacion: ${scenario || 'llamada'}. REGLAS ESTRICTAS: 1) Solo escribe las PALABRAS que dirias en voz alta. NUNCA escribas descripciones, acotaciones, parentesis, ni direcciones escénicas como "contesta con voz irritada" o "(suspira)". 2) Eres PERSONA REAL, JAMAS menciones IA/robot/asistente/programa. 3) Maximo 1-2 oraciones MUY cortas. 4) Espanol mexicano coloquial natural. 5) Entretenimiento comico inofensivo, escala el absurdo poco a poco. 6) Sin emojis, sin asteriscos, sin parentesis, sin comillas.`;
-
-  const messages = conversation.slice(-4).map(t => ({
-    role: t.role === 'ai' ? 'assistant' : 'user',
-    content: t.text
-  }));
-
-  return new Promise((resolve) => {
-    const req = https.request({
-      hostname: 'api.anthropic.com', path: '/v1/messages', method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'x-api-key': ANTHROPIC_KEY, 'anthropic-version': '2023-06-01' }
-    }, (res) => {
-      let body = '';
-      res.on('data', c => body += c);
-      res.on('end', () => {
-        try {
-          let text = JSON.parse(body).content[0].text;
-          // Strip stage directions like *text*, (text), [text]
-          text = text.replace(/\*[^*]+\*/g, '').replace(/\([^)]+\)/g, '').replace(/\[[^\]]+\]/g, '').trim();
-          if (!text) text = 'Disculpe, como le decia.';
-          resolve(text);
-        }
-        catch { resolve('Disculpe, como le decia, necesitamos resolver este asunto.'); }
-      });
-    });
-    req.on('error', () => resolve('Disculpe, un momento.'));
-    req.setTimeout(8000, () => { req.destroy(); resolve('Se me corto la senal.'); });
-    req.write(JSON.stringify({ model: 'claude-3-haiku-20240307', max_tokens: 80, temperature: 0.8, system, messages }));
-    req.end();
-  });
-}
-
-async function speakToStream(ws, streamSid, text) {
-  if (!streamSid || ws.readyState !== WebSocket.OPEN) return;
-  try {
-    const audio = await elevenLabsTTS(text);
-    const tmpMp3 = `/tmp/tts_${Date.now()}.mp3`;
-    const tmpRaw = `/tmp/tts_${Date.now()}.raw`;
-    fs.writeFileSync(tmpMp3, audio);
-    execSync(`ffmpeg -i ${tmpMp3} -ar 8000 -ac 1 -f mulaw ${tmpRaw} -y 2>/dev/null`);
-    const mulaw = fs.readFileSync(tmpRaw);
-    fs.unlinkSync(tmpMp3); fs.unlinkSync(tmpRaw);
-
-    for (let i = 0; i < mulaw.length; i += 160) {
-      ws.send(JSON.stringify({ event: 'media', streamSid, media: { payload: mulaw.subarray(i, i + 160).toString('base64') } }));
-    }
-    ws.send(JSON.stringify({ event: 'mark', streamSid, mark: { name: 'done' } }));
-    console.log(`Spoke: ${Math.ceil(mulaw.length / 160)} chunks`);
-  } catch (e) {
-    console.error('TTS error:', e.message);
-  }
-}
-
-function elevenLabsTTS(text) {
-  return new Promise((resolve, reject) => {
-    const req = https.request({
-      hostname: 'api.elevenlabs.io', path: `/v1/text-to-speech/${ELEVENLABS_VOICE}`, method: 'POST',
-      headers: { 'xi-api-key': ELEVENLABS_KEY, 'Accept': 'audio/mpeg', 'Content-Type': 'application/json' }
-    }, (res) => {
-      const chunks = [];
-      res.on('data', c => chunks.push(c));
-      res.on('end', () => resolve(Buffer.concat(chunks)));
-    });
-    req.on('error', reject);
-    req.setTimeout(15000, () => { req.destroy(); reject(new Error('timeout')); });
-    req.write(JSON.stringify({ text, model_id: 'eleven_multilingual_v2', voice_settings: { stability: 0.5, similarity_boost: 0.75, style: 0.3 } }));
-    req.end();
-  });
-}
