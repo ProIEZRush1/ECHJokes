@@ -49,7 +49,6 @@ Route::prefix('webhooks/twilio')->middleware(VerifyTwilioSignature::class)->grou
 });
 
 // Conversation webhooks (Twilio Gather-based real-time AI conversation)
-Route::prefix('conversation')->group(function () {
-    Route::post('/start/{jokeCall}', [\App\Http\Controllers\ConversationWebhookController::class, 'start'])->name('conversation.start');
-    Route::post('/gather/{jokeCall}', [\App\Http\Controllers\ConversationWebhookController::class, 'gather'])->name('conversation.gather');
-});
+// No DB dependency — scenario/character passed via query params
+Route::post('/conversation/start', [\App\Http\Controllers\ConversationWebhookController::class, 'start'])->name('conversation.start');
+Route::post('/conversation/gather', [\App\Http\Controllers\ConversationWebhookController::class, 'gather'])->name('conversation.gather');
