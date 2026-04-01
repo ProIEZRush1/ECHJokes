@@ -60,13 +60,35 @@ function postTranscript(callSid, role, text) {
 }
 
 // ============================================
+// PCM 16-bit signed to G.711 mulaw conversion
+// ============================================
+function pcmToMulaw(pcmBuffer) {
+  const mulaw = Buffer.alloc(pcmBuffer.length / 2);
+  for (let i = 0; i < mulaw.length; i++) {
+    let sample = pcmBuffer.readInt16LE(i * 2);
+    // Clamp
+    const BIAS = 0x84;
+    const MAX = 32635;
+    const sign = (sample >> 8) & 0x80;
+    if (sign) sample = -sample;
+    if (sample > MAX) sample = MAX;
+    sample += BIAS;
+    let exponent = 7;
+    for (let expMask = 0x4000; (sample & expMask) === 0 && exponent > 0; exponent--, expMask >>= 1) {}
+    const mantissa = (sample >> (exponent + 3)) & 0x0F;
+    mulaw[i] = ~(sign | (exponent << 4) | mantissa) & 0xFF;
+  }
+  return mulaw;
+}
+
+// ============================================
 // ElevenLabs TTS: stream text -> mulaw audio
 // ============================================
 function elevenLabsTTS(text, voiceId, callback) {
   const postData = JSON.stringify({
     text: text,
     model_id: 'eleven_turbo_v2_5',
-    output_format: 'ulaw_8000',
+    output_format: 'pcm_8000',
     voice_settings: { stability: 0.5, similarity_boost: 0.75 }
   });
 
@@ -90,26 +112,31 @@ function elevenLabsTTS(text, voiceId, callback) {
       return;
     }
     let totalBytes = 0;
-    let buffer = Buffer.alloc(0);
-    const FRAME_SIZE = 160; // 20ms of mulaw at 8kHz
+    let pcmBuffer = Buffer.alloc(0);
+    const PCM_FRAME = 320; // 320 bytes PCM (160 samples * 2 bytes) = 20ms at 8kHz
+    const MULAW_FRAME = 160; // 160 bytes mulaw = 20ms at 8kHz
 
     res.on('data', (chunk) => {
       totalBytes += chunk.length;
-      buffer = Buffer.concat([buffer, chunk]);
+      pcmBuffer = Buffer.concat([pcmBuffer, chunk]);
 
-      // Send in Twilio-sized frames (160 bytes = 20ms)
-      while (buffer.length >= FRAME_SIZE) {
-        const frame = buffer.subarray(0, FRAME_SIZE);
-        buffer = buffer.subarray(FRAME_SIZE);
-        callback(frame.toString('base64'), false);
+      // Convert PCM chunks to mulaw and send as Twilio frames
+      while (pcmBuffer.length >= PCM_FRAME) {
+        const pcmFrame = pcmBuffer.subarray(0, PCM_FRAME);
+        pcmBuffer = pcmBuffer.subarray(PCM_FRAME);
+        const mulawFrame = pcmToMulaw(pcmFrame);
+        callback(mulawFrame.toString('base64'), false);
       }
     });
     res.on('end', () => {
-      // Send remaining buffer
-      if (buffer.length > 0) {
-        callback(buffer.toString('base64'), false);
+      // Convert and send remaining PCM
+      if (pcmBuffer.length >= 2) {
+        // Pad to even length
+        if (pcmBuffer.length % 2 !== 0) pcmBuffer = pcmBuffer.subarray(0, pcmBuffer.length - 1);
+        const mulawRemain = pcmToMulaw(pcmBuffer);
+        callback(mulawRemain.toString('base64'), false);
       }
-      console.log(`ElevenLabs TTS done: ${totalBytes} bytes`);
+      console.log(`ElevenLabs TTS done: ${totalBytes} PCM bytes -> mulaw`);
       callback(null, true);
     });
   });
