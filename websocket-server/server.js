@@ -470,7 +470,7 @@ COMO ACTUAR:
           maybeStartGreeting();
           // Background noise during silence (only when AI is NOT speaking to avoid buffer conflicts)
           bgNoiseInterval = setInterval(() => {
-            if (streamSid && twilioWs.readyState === WebSocket.OPEN && !isSpeaking) {
+            if (streamSid && twilioWs.readyState === WebSocket.OPEN) {
               const noise = generateBgNoiseFrame();
               try { twilioWs.send(JSON.stringify({ event: 'media', streamSid, media: { payload: noise.toString('base64') } })); } catch(e) {}
             }
