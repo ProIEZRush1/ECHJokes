@@ -450,19 +450,7 @@ COMO ACTUAR:
           if (callSid && !activeCalls.has(callSid)) activeCalls.set(callSid, { listeners: new Set() });
           streamReady = true;
           maybeStartGreeting();
-          // Start background noise
-          console.log('Starting background noise');
-          let noiseFrameCount = 0;
-          bgNoiseInterval = setInterval(() => {
-            noiseFrameCount++;
-            if (noiseFrameCount === 50) console.log('BG noise: 50 frames sent (1 sec)'); // log once
-            if (streamSid && twilioWs.readyState === WebSocket.OPEN) {
-              const noise = generateBgNoiseFrame();
-              try {
-                twilioWs.send(JSON.stringify({ event: 'media', streamSid, media: { payload: noise.toString('base64') } }));
-              } catch(e) {}
-            }
-          }, 20);
+          // Background noise removed — causes audio buffer conflicts with ElevenLabs TTS
           break;
         case 'media':
           latestMediaTimestamp = msg.media?.timestamp ? parseInt(msg.media.timestamp) : Date.now();
@@ -477,7 +465,6 @@ COMO ACTUAR:
           break;
         case 'stop':
           console.log('Twilio stream stopped');
-          if (bgNoiseInterval) { clearInterval(bgNoiseInterval); bgNoiseInterval = null; }
           if (openAiWs?.readyState === WebSocket.OPEN) openAiWs.close();
           break;
       }
