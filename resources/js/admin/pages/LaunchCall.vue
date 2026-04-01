@@ -36,7 +36,7 @@
       <!-- Character -->
       <div>
         <label class="block text-xs text-gray-400 uppercase tracking-wider mb-1.5">Character</label>
-        <input v-model="form.character" required placeholder="administrador del condominio"
+        <input v-model="form.character" required placeholder="Ej: Ejecutiva de banco, vecino enojado... (opcional)"
           class="w-full bg-matrix-800 border border-matrix-600 rounded-lg px-3 py-2.5 text-sm text-white
                  placeholder-gray-500 focus:outline-none focus:border-neon/50 transition" />
       </div>
@@ -80,7 +80,7 @@ const voices = [
 
 const form = reactive({
   phone_number: '',
-  character: 'administrador del condominio',
+  character: '',
   voice: 'ash',
   scenario: '',
 })
