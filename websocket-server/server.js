@@ -138,7 +138,7 @@ function elevenLabsTTS(text, voiceId, callback) {
 
   const options = {
     hostname: 'api.elevenlabs.io',
-    path: `/v1/text-to-speech/${voiceId}/stream?output_format=pcm_8000`,
+    path: `/v1/text-to-speech/${voiceId}/stream?output_format=ulaw_8000`,
     method: 'POST',
     headers: {
       'xi-api-key': ELEVENLABS_API_KEY,
@@ -156,43 +156,21 @@ function elevenLabsTTS(text, voiceId, callback) {
       return;
     }
     let totalBytes = 0;
-    let pcmBuf = Buffer.alloc(0);
-    const PCM_FRAME = 320; // 320 bytes PCM = 160 samples * 2 bytes = 20ms at 8kHz
+    let buffer = Buffer.alloc(0);
+    const FRAME_SIZE = 160;
 
     res.on('data', (chunk) => {
       totalBytes += chunk.length;
-      pcmBuf = Buffer.concat([pcmBuf, chunk]);
-
-      // Process PCM frames: add noise, convert to mulaw, send
-      while (pcmBuf.length >= PCM_FRAME) {
-        const pcmFrame = pcmBuf.subarray(0, PCM_FRAME);
-        pcmBuf = pcmBuf.subarray(PCM_FRAME);
-        // Convert PCM to mulaw with noise mixed in
-        const mulaw = Buffer.alloc(160);
-        for (let i = 0; i < 160; i++) {
-          let sample = pcmFrame.readInt16LE(i * 2);
-          // Add subtle background noise (amplitude ~300)
-          sample += Math.round((Math.random() - 0.5) * 600);
-          sample = Math.max(-32767, Math.min(32767, sample));
-          mulaw[i] = linearToMulaw(sample);
-        }
-        callback(mulaw.toString('base64'), false);
+      buffer = Buffer.concat([buffer, chunk]);
+      while (buffer.length >= FRAME_SIZE) {
+        const frame = buffer.subarray(0, FRAME_SIZE);
+        buffer = buffer.subarray(FRAME_SIZE);
+        callback(frame.toString('base64'), false);
       }
     });
     res.on('end', () => {
-      // Process remaining PCM
-      if (pcmBuf.length >= 2) {
-        if (pcmBuf.length % 2 !== 0) pcmBuf = pcmBuf.subarray(0, pcmBuf.length - 1);
-        const mulaw = Buffer.alloc(pcmBuf.length / 2);
-        for (let i = 0; i < mulaw.length; i++) {
-          let sample = pcmBuf.readInt16LE(i * 2);
-          sample += Math.round((Math.random() - 0.5) * 600);
-          sample = Math.max(-32767, Math.min(32767, sample));
-          mulaw[i] = linearToMulaw(sample);
-        }
-        callback(mulaw.toString('base64'), false);
-      }
-      console.log(`ElevenLabs TTS done: ${totalBytes} PCM bytes -> mulaw+noise`);
+      if (buffer.length > 0) callback(buffer.toString('base64'), false);
+      console.log(`ElevenLabs TTS done: ${totalBytes} bytes`);
       callback(null, true);
     });
   });
@@ -242,7 +220,6 @@ function handleTwilioStream(twilioWs, req) {
   let streamSid = null;
   let callSid = null;
   let openAiWs = null;
-  let bgNoiseInterval = null;
 
   let lastAssistantItem = null;
   let markQueue = [];
@@ -468,13 +445,6 @@ COMO ACTUAR:
           if (callSid && !activeCalls.has(callSid)) activeCalls.set(callSid, { listeners: new Set() });
           streamReady = true;
           maybeStartGreeting();
-          // Background noise during silence (only when AI is NOT speaking to avoid buffer conflicts)
-          bgNoiseInterval = setInterval(() => {
-            if (streamSid && twilioWs.readyState === WebSocket.OPEN) {
-              const noise = generateBgNoiseFrame();
-              try { twilioWs.send(JSON.stringify({ event: 'media', streamSid, media: { payload: noise.toString('base64') } })); } catch(e) {}
-            }
-          }, 20);
           break;
         case 'media':
           latestMediaTimestamp = msg.media?.timestamp ? parseInt(msg.media.timestamp) : Date.now();
@@ -489,7 +459,6 @@ COMO ACTUAR:
           break;
         case 'stop':
           console.log('Twilio stream stopped');
-          if (bgNoiseInterval) { clearInterval(bgNoiseInterval); bgNoiseInterval = null; }
           if (openAiWs?.readyState === WebSocket.OPEN) openAiWs.close();
           break;
       }
