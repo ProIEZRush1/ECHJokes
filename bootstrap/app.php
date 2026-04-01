@@ -17,6 +17,7 @@ return Application::configure(basePath: dirname(__DIR__))
             'webhooks/*',
             'conversation/*',
             'api/call-transcript',
+            'admin-api/*',
             'test/*',
         ]);
     })

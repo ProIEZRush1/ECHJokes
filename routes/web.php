@@ -54,6 +54,24 @@ Route::post('/conversation/start', [\App\Http\Controllers\ConversationWebhookCon
 Route::post('/conversation/gather', [\App\Http\Controllers\ConversationWebhookController::class, 'gather'])->name('conversation.gather');
 Route::get('/conversation/audio/{filename}', [\App\Http\Controllers\ConversationWebhookController::class, 'audio'])->name('conversation.audio');
 
+// Admin API
+Route::prefix('admin-api')->group(function () {
+    Route::post('/login', [\App\Http\Controllers\AdminApiController::class, 'login']);
+    Route::post('/logout', [\App\Http\Controllers\AdminApiController::class, 'logout']);
+
+    Route::middleware('auth')->group(function () {
+        Route::get('/me', [\App\Http\Controllers\AdminApiController::class, 'me']);
+        Route::get('/stats', [\App\Http\Controllers\AdminApiController::class, 'stats']);
+        Route::get('/calls', [\App\Http\Controllers\AdminApiController::class, 'calls']);
+        Route::get('/calls/{jokeCall}', [\App\Http\Controllers\AdminApiController::class, 'call']);
+        Route::post('/launch-call', [\App\Http\Controllers\AdminApiController::class, 'launchCall']);
+        Route::get('/users', [\App\Http\Controllers\AdminApiController::class, 'users']);
+    });
+});
+
+// Admin SPA catch-all (Vue handles routing)
+Route::get('/panel/{any?}', fn() => view('app'))->where('any', '.*')->name('panel');
+
 // Live transcript API (called by websocket server)
 Route::post('/api/call-transcript', function (\Illuminate\Http\Request $request) {
     $callSid = $request->input('call_sid');
