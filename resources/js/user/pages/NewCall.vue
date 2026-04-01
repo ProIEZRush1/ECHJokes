@@ -42,6 +42,18 @@
           class="w-full bg-matrix-800 border border-matrix-600 rounded-xl px-3 py-2.5 text-white text-sm outline-none focus:border-neon/50 resize-none placeholder:text-gray-600"></textarea>
       </div>
 
+      <div>
+        <label class="block text-xs text-gray-400 uppercase mb-1.5">Estilo de voz (opcional)</label>
+        <div class="flex gap-2">
+          <input v-model="style" placeholder="Ej: Formal y serio, Chistoso, Nervioso..."
+            class="flex-1 bg-matrix-800 border border-matrix-600 rounded-xl px-3 py-2.5 text-white text-sm outline-none focus:border-neon/50 placeholder:text-gray-600" />
+          <button type="button" @click="generateStyle" :disabled="generating || !scenario.trim()"
+            class="px-3 py-2.5 rounded-xl bg-matrix-700 border border-matrix-600 text-xs text-gray-400 hover:text-neon hover:border-neon/30 transition whitespace-nowrap disabled:opacity-30">
+            {{ generating ? '...' : 'Auto IA' }}
+          </button>
+        </div>
+      </div>
+
       <!-- Presets -->
       <div v-if="presets.length">
         <p class="text-xs text-gray-500 mb-2">O elige una idea:</p>
@@ -74,6 +86,8 @@ const router = useRouter()
 const phone = ref('')
 const voice = ref('ash')
 const scenario = ref('')
+const style = ref('')
+const generating = ref(false)
 const credits = ref(null)
 const loading = ref(false)
 const error = ref('')
@@ -91,6 +105,15 @@ onMounted(async () => {
   } catch {}
 })
 
+async function generateStyle() {
+  if (!scenario.value.trim() || generating.value) return
+  generating.value = true
+  try {
+    const { data } = await axios.post('/api/generate-style', { scenario: scenario.value.trim() })
+    if (data.style) style.value = data.style
+  } catch {} finally { generating.value = false }
+}
+
 function usePreset(p) {
   scenario.value = p.scenario
   if (p.voice) voice.value = p.voice
@@ -104,6 +127,7 @@ async function launch() {
     const { data } = await axios.post('/user-api/make-call', {
       phone_number: phone.value,
       scenario: scenario.value,
+      character: style.value,
       voice: voice.value,
     })
     router.push(data.redirect)

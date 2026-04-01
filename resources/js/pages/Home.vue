@@ -89,6 +89,20 @@
                     <p v-if="errors.scenario" class="mt-1 text-sm text-red-400">{{ errors.scenario }}</p>
                 </div>
 
+                <!-- Style -->
+                <div class="mb-4">
+                    <label class="block text-sm font-medium text-gray-400 mb-2">Estilo de voz (opcional)</label>
+                    <div class="flex gap-2">
+                        <input v-model="style" placeholder="Ej: Formal y serio, Chistoso, Nervioso..."
+                            class="flex-1 bg-matrix-700 border border-matrix-600 rounded-xl px-3 md:px-4 py-2.5 text-white text-sm outline-none focus:border-neon/50 transition-colors placeholder:text-gray-600" />
+                        <button type="button" @click="generateStyle" :disabled="generating || !scenario.trim()"
+                            class="px-3 py-2.5 rounded-xl bg-matrix-700 border border-matrix-600 text-xs text-gray-400 hover:text-neon hover:border-neon/30 transition whitespace-nowrap disabled:opacity-30"
+                            title="Generar estilo con IA">
+                            {{ generating ? '...' : 'Auto IA' }}
+                        </button>
+                    </div>
+                </div>
+
                 <!-- Presets -->
                 <div class="mb-5" v-if="presets.length">
                     <p class="text-xs text-gray-500 mb-2">O elige una idea:</p>
@@ -151,6 +165,8 @@ const router = useRouter();
 const phone = ref('');
 const scenario = ref('');
 const voice = ref('ash');
+const style = ref('');
+const generating = ref(false);
 const loading = ref(false);
 const trialUsed = ref(false);
 const activePreset = ref(null);
@@ -173,6 +189,15 @@ function usePreset(p) {
     scenario.value = p.scenario;
     if (p.voice) voice.value = p.voice;
     activePreset.value = p.id;
+}
+
+async function generateStyle() {
+    if (!scenario.value.trim() || generating.value) return;
+    generating.value = true;
+    try {
+        const { data } = await axios.post('/api/generate-style', { scenario: scenario.value.trim() });
+        if (data.style) style.value = data.style;
+    } catch {} finally { generating.value = false; }
 }
 
 function formatPhone(e) { phone.value = e.target.value.replace(/\D/g, '').slice(0, 10); }
@@ -198,6 +223,7 @@ async function handleSubmit() {
         const { data } = await axios.post(endpoint, {
             phone_number: digits,
             scenario: scenario.value.trim(),
+            character: style.value,
             voice: voice.value,
         });
         router.push(data.redirect);

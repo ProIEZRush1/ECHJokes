@@ -34,8 +34,14 @@
       <!-- Style -->
       <div>
         <label class="block text-xs text-gray-400 uppercase tracking-wider mb-1.5">Speaking Style (optional)</label>
-        <input v-model="form.character" placeholder="Ej: Formal y serio, Chistoso y sarcastico, Nervioso..."
-          class="w-full bg-matrix-800 border border-matrix-600 rounded-lg px-3 py-2.5 text-sm text-white placeholder-gray-500 focus:outline-none focus:border-neon/50 transition" />
+        <div class="flex gap-2">
+          <input v-model="form.character" placeholder="Ej: Formal y serio, Chistoso y sarcastico, Nervioso..."
+            class="flex-1 bg-matrix-800 border border-matrix-600 rounded-lg px-3 py-2.5 text-sm text-white placeholder-gray-500 focus:outline-none focus:border-neon/50 transition" />
+          <button type="button" @click="generateStyle" :disabled="generating || !form.scenario.trim()"
+            class="px-3 py-2.5 rounded-lg bg-matrix-700 border border-matrix-600 text-xs text-gray-400 hover:text-neon hover:border-neon/30 transition whitespace-nowrap disabled:opacity-30">
+            {{ generating ? '...' : 'Auto IA' }}
+          </button>
+        </div>
       </div>
 
       <!-- Presets -->
@@ -70,6 +76,16 @@ import axios from 'axios'
 
 const presets = ref([])
 const activePreset = ref(null)
+const generating = ref(false)
+
+async function generateStyle() {
+  if (!form.scenario.trim() || generating.value) return
+  generating.value = true
+  try {
+    const { data } = await axios.post('/api/generate-style', { scenario: form.scenario.trim() })
+    if (data.style) form.character = data.style
+  } catch {} finally { generating.value = false }
+}
 const voices = [
   { id: 'ash', emoji: '\uD83D\uDC68', label: 'Male' },
   { id: 'coral', emoji: '\uD83D\uDC69', label: 'Female' },

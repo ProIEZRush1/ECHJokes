@@ -36,6 +36,28 @@ Route::get('/api/presets', fn() => response()->json(
     \App\Models\Preset::where('is_active', true)->orderBy('sort_order')->get(['id', 'label', 'emoji', 'scenario', 'character', 'voice', 'category'])
 ));
 
+Route::post('/api/generate-style', function (\Illuminate\Http\Request $request) {
+    $request->validate(['scenario' => 'required|string|min:10|max:500']);
+    $scenario = strip_tags($request->input('scenario'));
+
+    try {
+        $r = \Illuminate\Support\Facades\Http::withHeaders([
+            'x-api-key' => config('services.anthropic.api_key'),
+            'anthropic-version' => '2023-06-01',
+        ])->timeout(8)->post('https://api.anthropic.com/v1/messages', [
+            'model' => 'claude-3-haiku-20240307',
+            'max_tokens' => 60,
+            'temperature' => 0.7,
+            'system' => 'Genera un estilo de voz corto (maximo 15 palabras) para un personaje de broma telefonica basado en el escenario. Solo responde con el estilo, nada mas. Ejemplo: "Formal y serio con tono de autoridad" o "Nerviosa e indecisa, habla rapido".',
+            'messages' => [['role' => 'user', 'content' => $scenario]],
+        ]);
+        $style = trim($r->json('content.0.text') ?? '');
+        return response()->json(['style' => $style]);
+    } catch (\Throwable $e) {
+        return response()->json(['style' => ''], 200);
+    }
+})->middleware('throttle:10,1')->name('generate.style');
+
 Route::post('/trial', [ECHJokesController::class, 'trialCall'])
     ->middleware('throttle:3,60')
     ->name('trial');
