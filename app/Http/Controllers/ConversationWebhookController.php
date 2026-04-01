@@ -30,12 +30,14 @@ class ConversationWebhookController extends Controller
         $scenario = $request->input('scenario', '');
         $character = $request->input('character', '');
         $voice = $request->input('voice', 'ash');
+        $victimName = $request->input('victim_name', '');
 
         // Encode params as base64 JSON in the path (Twilio strips query params from Stream URLs)
         $payload = base64_encode(json_encode([
             's' => $scenario,
             'c' => $character,
             'v' => $voice,
+            'n' => $victimName,
         ]));
         $streamUrl = 'wss://ws.echjokes.overcloud.us:8443/stream/' . $payload;
 

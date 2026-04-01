@@ -20,6 +20,13 @@
       </div>
 
       <div>
+        <label class="block text-xs text-gray-400 uppercase mb-1.5">Nombre de quien recibe</label>
+        <input v-model="victimName" placeholder="Ej: Juan, Maria... (opcional)"
+          class="w-full bg-matrix-800 border border-matrix-600 rounded-xl px-3 py-2.5 text-white text-sm outline-none focus:border-neon/50 placeholder:text-gray-600" />
+        <p class="text-[10px] text-gray-500 mt-1">La broma sera mucho mas realista con el nombre</p>
+      </div>
+
+      <div>
         <label class="block text-xs text-gray-400 uppercase mb-1.5">Voz</label>
         <div class="grid grid-cols-4 gap-1.5">
           <button v-for="v in voiceOptions" :key="v.id" type="button" @click="voice = v.id"
@@ -89,6 +96,7 @@ const voiceOptions = [
   { id: 'shimmer', emoji: '\uD83D\uDC83', label: 'Alegre' },
 ]
 const phone = ref('')
+const victimName = ref('')
 const voice = ref('ash')
 const scenario = ref('')
 const style = ref('')
@@ -136,6 +144,7 @@ async function launch() {
       scenario: scenario.value,
       character: style.value,
       voice: voice.value,
+      victim_name: victimName.value.trim(),
     })
     router.push(data.redirect)
   } catch (e) {

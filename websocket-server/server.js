@@ -164,12 +164,13 @@ wss.on('connection', (ws, req) => {
 function handleTwilioStream(twilioWs, req) {
   const pathParts = (req.url || '').split('/');
   const encoded = pathParts[pathParts.length - 1] || '';
-  let scenario = '', character = '', voice = DEFAULT_VOICE;
+  let scenario = '', character = '', voice = DEFAULT_VOICE, victimName = '';
   try {
     const params = JSON.parse(Buffer.from(encoded, 'base64').toString('utf8'));
     scenario = params.s || '';
     character = params.c || '';
     voice = params.v || DEFAULT_VOICE;
+    victimName = params.n || '';
   } catch (e) {
     console.log('Could not decode params, using defaults');
   }
@@ -191,6 +192,9 @@ function handleTwilioStream(twilioWs, req) {
 
 TU PERSONAJE:
 ${character || 'Una persona que llama por un asunto importante'}
+
+PERSONA A QUIEN LLAMAS:
+${victimName ? `Se llama ${victimName}. Usa su nombre cuando le hables.` : 'No sabes su nombre, pregunta por "el encargado" o "la persona responsable".'}
 
 SITUACION / CONTEXTO DE LA LLAMADA:
 ${scenario || 'Llamada importante que debes llevar a cabo'}
@@ -354,7 +358,7 @@ COMO ACTUAR:
     openAiWs.send(JSON.stringify({
       type: 'conversation.item.create',
       item: { type: 'message', role: 'user',
-        content: [{ type: 'input_text', text: '[La persona contesto el telefono y dijo "bueno"]. Responde con "Bueno, buenas tardes" o "Bueno, hola" y pregunta si se encuentra la persona o presentate segun tu personaje. Sigue el protocolo mexicano de llamada telefonica.' }] }
+        content: [{ type: 'input_text', text: `[La persona contesto el telefono y dijo "bueno"]. Responde con "Bueno, buenas tardes"${victimName ? ` y pregunta "se encuentra ${victimName}?"` : ' y presentate segun tu personaje'}. Sigue el protocolo mexicano de llamada telefonica.` }] }
     }));
     openAiWs.send(JSON.stringify({ type: 'response.create' }));
   }

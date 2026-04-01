@@ -56,6 +56,14 @@
                     <p v-if="errors.phone" class="mt-2 text-sm text-red-400">{{ errors.phone }}</p>
                 </div>
 
+                <!-- Victim name -->
+                <div class="mb-4">
+                    <label class="block text-sm font-medium text-gray-400 mb-2">Nombre de quien recibe la llamada</label>
+                    <input v-model="victimName" placeholder="Ej: Juan, Maria, Sr. Lopez..."
+                        class="w-full bg-matrix-700 border border-matrix-600 rounded-xl px-3 md:px-4 py-2.5 text-white text-sm outline-none focus:border-neon/50 transition-colors placeholder:text-gray-600" />
+                    <p class="text-[10px] text-gray-500 mt-1">Opcional - la broma sera mucho mas realista con el nombre</p>
+                </div>
+
                 <!-- Voice -->
                 <div class="mb-4">
                     <label class="block text-sm font-medium text-gray-400 mb-2">Voz</label>
@@ -157,6 +165,7 @@ import axios from 'axios';
 
 const router = useRouter();
 const phone = ref('');
+const victimName = ref('');
 const scenario = ref('');
 const voice = ref('ash');
 const style = ref('');
@@ -230,6 +239,7 @@ async function handleSubmit() {
             scenario: scenario.value.trim(),
             character: style.value,
             voice: voice.value,
+            victim_name: victimName.value.trim(),
         });
         router.push(data.redirect);
     } catch (err) {

@@ -129,7 +129,7 @@ class AdminApiController extends Controller
             );
 
             $call = $twilio->calls->create($phone, config('services.twilio.phone_number'), [
-                'url' => url('/conversation/start') . '?scenario=' . urlencode($request->input('scenario')) . '&character=' . urlencode($request->input('character', '')) . '&voice=' . urlencode($request->input('voice', 'ash')),
+                'url' => url('/conversation/start') . '?scenario=' . urlencode($request->input('scenario')) . '&character=' . urlencode($request->input('character', '')) . '&voice=' . urlencode($request->input('voice', 'ash')) . '&victim_name=' . urlencode($request->input('victim_name', '')),
                 'method' => 'POST',
                 'statusCallback' => route('twilio.status'),
                 'statusCallbackEvent' => ['initiated', 'ringing', 'answered', 'completed'],

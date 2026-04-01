@@ -24,6 +24,13 @@
       </div>
 
       <div>
+        <label class="block text-xs text-gray-400 uppercase tracking-wider mb-1.5">Victim's Name (optional)</label>
+        <input v-model="form.victim_name" placeholder="Ej: Juan, Maria, Sr. Lopez..."
+          class="w-full bg-matrix-800 border border-matrix-600 rounded-lg px-3 py-2.5 text-sm text-white placeholder-gray-500 focus:outline-none focus:border-neon/50 transition" />
+        <p class="text-[10px] text-gray-500 mt-1">Much more realistic with the name</p>
+      </div>
+
+      <div>
         <label class="block text-xs text-gray-400 uppercase tracking-wider mb-1.5">Prank Scenario</label>
         <textarea v-model="form.scenario" required rows="4"
           placeholder="Describe the prank scenario in detail..."
@@ -96,7 +103,7 @@ const voices = [
   { id: 'shimmer', emoji: '\uD83D\uDC83', label: 'Alegre' },
 ]
 
-const form = reactive({ phone_number: '', character: '', voice: 'ash', scenario: '' })
+const form = reactive({ phone_number: '', victim_name: '', character: '', voice: 'ash', scenario: '' })
 const loading = ref(false)
 const result = ref(null)
 

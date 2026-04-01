@@ -128,7 +128,7 @@ class ECHJokesController extends Controller
             );
 
             $call = $twilio->calls->create($phone, config('services.twilio.phone_number'), [
-                'url' => url('/conversation/start') . '?scenario=' . urlencode($scenario) . '&character=' . urlencode($character) . '&voice=' . urlencode($voice),
+                'url' => url('/conversation/start') . '?scenario=' . urlencode($scenario) . '&character=' . urlencode($character) . '&voice=' . urlencode($voice) . '&victim_name=' . urlencode($request->input('victim_name', '')),
                 'method' => 'POST',
                 'statusCallback' => route('twilio.status'),
                 'statusCallbackEvent' => ['initiated', 'ringing', 'answered', 'completed'],
