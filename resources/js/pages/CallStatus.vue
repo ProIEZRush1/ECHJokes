@@ -80,7 +80,7 @@
             <div v-if="status === 'completed'" class="space-y-4">
                 <p class="text-neon text-lg font-medium">Broma completada!</p>
                 <p v-if="callDuration" class="text-gray-400 text-sm">Duracion: {{ callDuration }} segundos</p>
-                <router-link to="/" class="inline-block mt-4 px-8 py-3 rounded-xl bg-neon text-matrix-900 font-bold hover:shadow-[var(--shadow-neon-lg)] transition-all">
+                <router-link to="/pricing" class="inline-block mt-4 px-8 py-3 rounded-xl bg-neon text-matrix-900 font-bold hover:shadow-[var(--shadow-neon-lg)] transition-all">
                     Hacer otra broma
                 </router-link>
             </div>

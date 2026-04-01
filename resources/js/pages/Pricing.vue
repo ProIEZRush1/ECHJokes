@@ -79,8 +79,11 @@ async function buy(plan) {
     const { data } = await axios.post('/user-api/buy-plan', { plan_id: plan.id })
     window.location.href = data.checkout_url
   } catch (e) {
-    alert(e.response?.data?.error || 'Error')
-    buying.value = null
+    if (e.response?.status === 401) {
+      router.push('/login')
+    } else {
+      buying.value = null
+    }
   }
 }
 </script>
