@@ -30,8 +30,14 @@
         <!-- Form -->
         <div class="w-full max-w-md bg-matrix-800 border border-matrix-600 rounded-2xl p-5 md:p-8 shadow-lg">
             <div class="text-center mb-5">
-                <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-neon/20 text-neon border border-neon/30">
-                    &#x1F381; Prueba gratis - 1 llamada de hasta 3 min
+                <span v-if="user && user.credits > 0" class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-neon/20 text-neon border border-neon/30">
+                    {{ user.credits }} credito{{ user.credits > 1 ? 's' : '' }} disponible{{ user.credits > 1 ? 's' : '' }}
+                </span>
+                <span v-else-if="user" class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-yellow-500/20 text-yellow-400 border border-yellow-500/30">
+                    Sin creditos - <router-link to="/pricing" class="underline ml-1">comprar plan</router-link>
+                </span>
+                <span v-else class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-neon/20 text-neon border border-neon/30">
+                    Prueba gratis - 1 llamada de hasta 3 min
                 </span>
             </div>
 
@@ -104,7 +110,9 @@
                         <svg class="animate-spin h-5 w-5" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" fill="none" /><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" /></svg>
                         Iniciando llamada...
                     </span>
-                    <span v-else>&#x1F4DE; Hacer llamada de prueba gratis</span>
+                    <span v-else-if="user && user.credits > 0">Hacer llamada ({{ user.credits }} cr)</span>
+                    <span v-else-if="user">Sin creditos</span>
+                    <span v-else>Hacer llamada de prueba gratis</span>
                 </button>
 
                 <p v-if="errors.general" class="mt-4 text-sm text-red-400 text-center">{{ errors.general }}</p>
@@ -115,7 +123,7 @@
                 </div>
             </form>
 
-            <p class="mt-5 text-[10px] md:text-xs text-gray-600 text-center">Prueba gratuita: 1 llamada de hasta 3 minutos. Sin tarjeta.</p>
+            <p v-if="!user" class="mt-5 text-[10px] md:text-xs text-gray-600 text-center">Prueba gratuita: 1 llamada de hasta 3 minutos. Sin tarjeta.</p>
         </div>
 
         <!-- Example -->
@@ -177,14 +185,28 @@ async function handleSubmit() {
     if (digits.length !== 10) { errors.phone = 'El numero debe tener 10 digitos.'; return; }
     if (!scenario.value.trim() || scenario.value.trim().length < 10) { errors.scenario = 'Describe la situacion (minimo 10 caracteres).'; return; }
 
+    // If user has no credits, redirect to pricing
+    if (user.value && user.value.credits <= 0) {
+        router.push('/pricing');
+        return;
+    }
+
     loading.value = true;
     try {
-        const { data } = await axios.post('/trial', { phone_number: digits, scenario: scenario.value.trim(), voice: voice.value });
+        // Use paid API if logged in with credits, trial otherwise
+        const endpoint = user.value ? '/user-api/make-call' : '/trial';
+        const { data } = await axios.post(endpoint, {
+            phone_number: digits,
+            scenario: scenario.value.trim(),
+            voice: voice.value,
+        });
         router.push(data.redirect);
     } catch (err) {
         if (err.response?.status === 429 && err.response?.data?.show_plans) {
             trialUsed.value = true;
             errors.general = err.response.data.error;
+        } else if (err.response?.status === 402) {
+            router.push('/pricing');
         } else {
             errors.general = err.response?.data?.error || 'Algo salio mal.';
         }

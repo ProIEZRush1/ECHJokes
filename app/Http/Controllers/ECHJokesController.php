@@ -94,7 +94,7 @@ class ECHJokesController extends Controller
         // Check if this IP already used their free trial
         $existing = JokeCall::where('ip_address', $ip)
             ->where('joke_source', 'trial')
-            ->whereNotIn('status', [JokeCallStatus::Failed])
+            ->whereNotIn('status', [JokeCallStatus::Failed, JokeCallStatus::Voicemail])
             ->count();
 
         if ($existing >= 1) {

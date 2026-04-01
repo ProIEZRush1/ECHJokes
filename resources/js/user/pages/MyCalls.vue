@@ -71,7 +71,7 @@ onMounted(async () => {
   } catch {} finally { loading.value = false }
 })
 
-function statusEmoji(s) { return { completed: '&#x2705;', failed: '&#x274C;', voicemail: '&#x1F4E8;', calling: '&#x1F4DE;', in_progress: '&#x1F5E3;' }[s] || '&#x23F3;' }
+function statusEmoji(s) { return { completed: '\u2705', failed: '\u274C', voicemail: '\uD83D\uDCE8', calling: '\uD83D\uDCDE', in_progress: '\uD83D\uDDE3' }[s] || '\u23F3' }
 function statusBg(s) { return { completed: 'bg-green-500/20', failed: 'bg-red-500/20', voicemail: 'bg-yellow-500/20' }[s] || 'bg-blue-500/20' }
 function statusClass(s) { return { completed: 'bg-green-500/20 text-green-400', failed: 'bg-red-500/20 text-red-400', voicemail: 'bg-yellow-500/20 text-yellow-400' }[s] || 'bg-blue-500/20 text-blue-400' }
 function statusLabel(s) { return { completed: 'Completada', failed: 'Fallida', voicemail: 'Buzon', calling: 'Llamando', in_progress: 'En curso' }[s] || s }
