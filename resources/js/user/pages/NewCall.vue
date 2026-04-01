@@ -43,7 +43,7 @@
       </div>
 
       <div>
-        <label class="block text-xs text-gray-400 uppercase mb-1.5">Estilo de voz (opcional)</label>
+        <label class="block text-xs text-gray-400 uppercase mb-1.5">Estilo de voz <span class="text-red-400">*</span></label>
         <div class="flex gap-2">
           <input v-model="style" placeholder="Ej: Formal y serio, Chistoso, Nervioso..."
             class="flex-1 bg-matrix-800 border border-matrix-600 rounded-xl px-3 py-2.5 text-white text-sm outline-none focus:border-neon/50 placeholder:text-gray-600" />
@@ -67,7 +67,7 @@
         </div>
       </div>
 
-      <button type="submit" :disabled="loading || credits === 0"
+      <button type="submit" :disabled="loading || credits === 0 || phone.length < 10 || !scenario.trim() || !style.trim()"
         class="w-full py-3 rounded-xl bg-neon text-matrix-900 font-bold hover:shadow-neon transition disabled:opacity-50">
         {{ loading ? 'Iniciando...' : 'Hacer Llamada' }}
       </button>

@@ -33,7 +33,7 @@
 
       <!-- Style -->
       <div>
-        <label class="block text-xs text-gray-400 uppercase tracking-wider mb-1.5">Speaking Style (optional)</label>
+        <label class="block text-xs text-gray-400 uppercase tracking-wider mb-1.5">Speaking Style <span class="text-red-400">*</span></label>
         <div class="flex gap-2">
           <input v-model="form.character" placeholder="Ej: Formal y serio, Chistoso y sarcastico, Nervioso..."
             class="flex-1 bg-matrix-800 border border-matrix-600 rounded-lg px-3 py-2.5 text-sm text-white placeholder-gray-500 focus:outline-none focus:border-neon/50 transition" />
@@ -57,7 +57,7 @@
         </div>
       </div>
 
-      <button type="submit" :disabled="loading"
+      <button type="submit" :disabled="loading || !form.character.trim()"
         class="w-full py-3 rounded-xl bg-neon text-matrix-900 font-bold text-base hover:shadow-neon transition disabled:opacity-50">
         {{ loading ? 'Launching...' : 'Launch Call' }}
       </button>

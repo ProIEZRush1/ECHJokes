@@ -91,7 +91,7 @@
 
                 <!-- Style -->
                 <div class="mb-4">
-                    <label class="block text-sm font-medium text-gray-400 mb-2">Estilo de voz (opcional)</label>
+                    <label class="block text-sm font-medium text-gray-400 mb-2">Estilo de voz <span class="text-red-400">*</span></label>
                     <div class="flex gap-2">
                         <input v-model="style" placeholder="Ej: Formal y serio, Chistoso, Nervioso..."
                             class="flex-1 bg-matrix-700 border border-matrix-600 rounded-xl px-3 md:px-4 py-2.5 text-white text-sm outline-none focus:border-neon/50 transition-colors placeholder:text-gray-600" />
@@ -118,7 +118,7 @@
                 </div>
 
                 <!-- Submit -->
-                <button type="submit" :disabled="loading"
+                <button type="submit" :disabled="loading || phone.length < 10 || !scenario.trim() || !style.trim()"
                     class="w-full py-3.5 md:py-4 rounded-xl bg-neon text-matrix-900 font-bold text-base md:text-lg shadow-[var(--shadow-neon)] hover:shadow-[var(--shadow-neon-lg)] transition-all disabled:opacity-50 disabled:cursor-not-allowed">
                     <span v-if="loading" class="flex items-center justify-center gap-2">
                         <svg class="animate-spin h-5 w-5" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" fill="none" /><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" /></svg>
