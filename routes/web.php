@@ -70,7 +70,7 @@ Route::prefix('admin-api')->group(function () {
 });
 
 // Admin SPA catch-all (Vue handles routing)
-Route::get('/panel/{any?}', fn() => view('app'))->where('any', '.*')->name('panel');
+Route::get('/admin/{any?}', fn() => view('app'))->where('any', '.*')->name('admin');
 
 // Live transcript API (called by websocket server)
 Route::post('/api/call-transcript', function (\Illuminate\Http\Request $request) {

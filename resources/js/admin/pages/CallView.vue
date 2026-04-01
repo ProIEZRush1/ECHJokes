@@ -2,7 +2,7 @@
   <div class="p-6 space-y-6" v-if="call">
     <!-- Header -->
     <div class="flex items-center gap-4">
-      <router-link to="/panel/calls" class="text-gray-400 hover:text-white transition">
+      <router-link to="/admin/calls" class="text-gray-400 hover:text-white transition">
         <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/></svg>
       </router-link>
       <h1 class="text-2xl font-bold font-mono">Call Details</h1>

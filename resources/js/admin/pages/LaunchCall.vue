@@ -60,7 +60,7 @@
       <!-- Result -->
       <div v-if="result" class="p-4 rounded-xl text-sm" :class="result.ok ? 'bg-green-500/10 border border-green-500/20 text-green-400' : 'bg-red-500/10 border border-red-500/20 text-red-400'">
         <p>{{ result.message }}</p>
-        <router-link v-if="result.callId" :to="'/panel/calls/' + result.callId"
+        <router-link v-if="result.callId" :to="'/admin/calls/' + result.callId"
           class="inline-block mt-2 text-neon text-xs hover:underline">
           View call &rarr;
         </router-link>

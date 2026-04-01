@@ -39,9 +39,9 @@ const router = createRouter({
         { path: '/dashboard', name: 'dashboard', component: Dashboard },
 
         // Admin panel
-        { path: '/panel/login', name: 'admin.login', component: AdminLogin },
+        { path: '/admin/login', name: 'admin.login', component: AdminLogin },
         {
-            path: '/panel',
+            path: '/admin',
             component: AdminLayout,
             children: [
                 { path: '', name: 'admin.dashboard', component: AdminDashboard },

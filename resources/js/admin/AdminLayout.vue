@@ -51,10 +51,10 @@ const router = useRouter()
 const user = ref(null)
 
 const nav = [
-  { to: '/panel', icon: '📊', label: 'Dashboard' },
-  { to: '/panel/calls', icon: '📞', label: 'Calls' },
-  { to: '/panel/launch', icon: '🚀', label: 'Launch Call' },
-  { to: '/panel/users', icon: '👥', label: 'Users' },
+  { to: '/admin', icon: '📊', label: 'Dashboard' },
+  { to: '/admin/calls', icon: '📞', label: 'Calls' },
+  { to: '/admin/launch', icon: '🚀', label: 'Launch Call' },
+  { to: '/admin/users', icon: '👥', label: 'Users' },
 ]
 
 onMounted(async () => {
@@ -62,12 +62,12 @@ onMounted(async () => {
     const { data } = await axios.get('/admin-api/me')
     user.value = data.user
   } catch {
-    router.push('/panel/login')
+    router.push('/admin/login')
   }
 })
 
 async function logout() {
   await axios.post('/admin-api/logout')
-  router.push('/panel/login')
+  router.push('/admin/login')
 }
 </script>

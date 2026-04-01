@@ -13,5 +13,5 @@ import { useRoute } from 'vue-router';
 import MatrixBackground from './components/MatrixBackground.vue';
 
 const route = useRoute();
-const isAdmin = computed(() => route.path.startsWith('/panel'));
+const isAdmin = computed(() => route.path.startsWith('/admin'));
 </script>

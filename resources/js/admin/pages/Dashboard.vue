@@ -15,7 +15,7 @@
     <div class="bg-matrix-800 border border-matrix-600 rounded-xl">
       <div class="p-4 border-b border-matrix-600 flex items-center justify-between">
         <h2 class="font-semibold">Recent Calls</h2>
-        <router-link to="/panel/calls" class="text-neon text-sm hover:underline">View all</router-link>
+        <router-link to="/admin/calls" class="text-neon text-sm hover:underline">View all</router-link>
       </div>
       <div class="overflow-x-auto">
         <table class="w-full text-sm">
@@ -30,7 +30,7 @@
           </thead>
           <tbody>
             <tr v-for="call in recentCalls" :key="call.id"
-              @click="$router.push('/panel/calls/' + call.id)"
+              @click="$router.push('/admin/calls/' + call.id)"
               class="border-b border-matrix-700 hover:bg-matrix-700 cursor-pointer transition">
               <td class="p-3 font-mono text-xs">{{ maskPhone(call.phone_number) }}</td>
               <td class="p-3 max-w-xs truncate">{{ call.custom_joke_prompt || '-' }}</td>

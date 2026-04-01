@@ -2,7 +2,7 @@
   <div class="p-6 space-y-4">
     <div class="flex items-center justify-between">
       <h1 class="text-2xl font-bold font-mono">Calls</h1>
-      <router-link to="/panel/launch"
+      <router-link to="/admin/launch"
         class="px-4 py-2 bg-neon text-matrix-900 rounded-lg font-bold text-sm hover:shadow-neon transition">
         + New Call
       </router-link>
@@ -37,7 +37,7 @@
           </thead>
           <tbody>
             <tr v-for="call in calls" :key="call.id"
-              @click="$router.push('/panel/calls/' + call.id)"
+              @click="$router.push('/admin/calls/' + call.id)"
               class="border-b border-matrix-700 hover:bg-matrix-700 cursor-pointer transition">
               <td class="p-3 font-mono text-xs">{{ maskPhone(call.phone_number) }}</td>
               <td class="p-3 max-w-sm truncate text-gray-300">{{ call.custom_joke_prompt || '-' }}</td>

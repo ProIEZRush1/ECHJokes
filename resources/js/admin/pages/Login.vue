@@ -52,7 +52,7 @@ async function login() {
   try {
     await axios.get('/sanctum/csrf-cookie')
     await axios.post('/admin-api/login', { email: email.value, password: password.value })
-    router.push('/panel')
+    router.push('/admin')
   } catch (e) {
     error.value = e.response?.data?.error || 'Login failed'
   } finally {
