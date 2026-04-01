@@ -101,7 +101,7 @@ onMounted(async () => {
 
 function usePreset(p) {
   form.scenario = p.scenario
-  form.character = p.character || ''
+  form.character = p.style || p.character || ''
   form.voice = p.voice || 'ash'
   activePreset.value = p.id
 }

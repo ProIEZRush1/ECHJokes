@@ -33,7 +33,7 @@ Route::post('/checkout', [ECHJokesController::class, 'createCheckout'])
     ->name('checkout');
 
 Route::get('/api/presets', fn() => response()->json(
-    \App\Models\Preset::where('is_active', true)->orderBy('sort_order')->get(['id', 'label', 'emoji', 'scenario', 'character', 'voice', 'category'])
+    \App\Models\Preset::where('is_active', true)->orderBy('sort_order')->get(['id', 'label', 'emoji', 'scenario', 'character', 'voice', 'style', 'category'])
 ));
 
 Route::post('/api/generate-style', function (\Illuminate\Http\Request $request) {

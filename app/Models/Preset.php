@@ -12,6 +12,7 @@ class Preset extends Model
         'scenario',
         'character',
         'voice',
+        'style',
         'category',
         'is_active',
         'sort_order',

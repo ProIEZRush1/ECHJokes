@@ -117,6 +117,7 @@ async function generateStyle() {
 function usePreset(p) {
   scenario.value = p.scenario
   if (p.voice) voice.value = p.voice
+  if (p.style) style.value = p.style
   activePreset.value = p.id
 }
 

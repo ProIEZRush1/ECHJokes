@@ -74,6 +74,12 @@
             </div>
           </div>
 
+          <div>
+            <label class="block text-xs text-gray-400 uppercase mb-1">Style</label>
+            <input v-model="form.style" placeholder="Ej: Formal y serio, Chistoso, Nervioso..."
+              class="w-full bg-matrix-700 border border-matrix-600 rounded-lg px-3 py-2 text-sm text-white" />
+          </div>
+
           <div class="flex items-center gap-4">
             <div class="flex gap-2">
               <button type="button" @click="form.voice = 'ash'"
@@ -119,7 +125,7 @@ async function fetch() { const { data } = await axios.get('/admin-api/presets');
 
 function openCreate() {
   editing.value = null
-  form.value = { label: '', emoji: '🎭', scenario: '', character: '', voice: 'ash', category: 'general', is_active: true, sort_order: 0 }
+  form.value = { label: '', emoji: '🎭', scenario: '', character: '', voice: 'ash', style: '', category: 'general', is_active: true, sort_order: 0 }
   showModal.value = true
 }
 
