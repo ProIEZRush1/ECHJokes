@@ -1,40 +1,50 @@
 const WebSocket = require('ws');
 const http = require('http');
-const https = require('https');
 
 const PORT = parseInt(process.env.WS_PORT || '8081', 10);
 const OPENAI_API_KEY = process.env.OPENAI_API_KEY;
-const ELEVENLABS_API_KEY = process.env.ELEVENLABS_API_KEY || '';
-const ELEVENLABS_VOICE_ID = process.env.ELEVENLABS_VOICE_ID || 'iP95p4xoKVk53GoZ742B';
 const DEFAULT_VOICE = process.env.OPENAI_VOICE || 'ash';
 const APP_INTERNAL_URL = 'http://app:8000';
 
-// Toggle: set to true to use ElevenLabs TTS, false for OpenAI native audio
-const USE_ELEVENLABS = !!ELEVENLABS_API_KEY;
-console.log(`TTS mode: ${USE_ELEVENLABS ? 'ElevenLabs' : 'OpenAI native'}`);
-
 // Track active calls and their browser listeners
-const activeCalls = new Map();
+const activeCalls = new Map(); // callSid -> { listeners: Set<WebSocket> }
 
 // HTTP server for health check
 const server = http.createServer((req, res) => {
-  if (req.url === '/health' || req.url === '/') { res.writeHead(200); res.end('OK'); }
-  else { res.writeHead(404); res.end(); }
+  if (req.url === '/health' || req.url === '/') {
+    res.writeHead(200);
+    res.end('OK');
+  } else {
+    res.writeHead(404);
+    res.end();
+  }
 });
 
+// Two WebSocket servers on same HTTP server, differentiated by path
 const wss = new WebSocket.Server({ noServer: true });
+
 server.on('upgrade', (request, socket, head) => {
-  wss.handleUpgrade(request, socket, head, (ws) => { wss.emit('connection', ws, request); });
+  const url = request.url || '';
+  // Accept all WebSocket connections on this server
+  wss.handleUpgrade(request, socket, head, (ws) => {
+    wss.emit('connection', ws, request);
+  });
 });
+
 server.listen(PORT, () => console.log(`WS server on port ${PORT}`));
+
+// Health check on PORT+1
 http.createServer((_, res) => { res.writeHead(200); res.end('OK'); }).listen(PORT + 1);
 
+// Send audio to all browser listeners for a call
 function broadcastAudio(callSid, audioBase64, source) {
   const call = activeCalls.get(callSid);
   if (!call || call.listeners.size === 0) return;
   const msg = JSON.stringify({ type: 'audio', source, audio: audioBase64 });
   for (const listener of call.listeners) {
-    if (listener.readyState === WebSocket.OPEN) listener.send(msg);
+    if (listener.readyState === WebSocket.OPEN) {
+      listener.send(msg);
+    }
   }
 }
 
@@ -43,81 +53,55 @@ function broadcastEvent(callSid, event, data) {
   if (!call) return;
   const msg = JSON.stringify({ type: 'event', event, ...data });
   for (const listener of call.listeners) {
-    if (listener.readyState === WebSocket.OPEN) listener.send(msg);
+    if (listener.readyState === WebSocket.OPEN) {
+      listener.send(msg);
+    }
   }
 }
 
+// POST transcript line to Laravel app
 function postTranscript(callSid, role, text) {
   if (!callSid || !text) return;
   const data = JSON.stringify({ call_sid: callSid, role, text });
   const url = new URL(`${APP_INTERNAL_URL}/api/call-transcript`);
-  const opts = { hostname: url.hostname, port: url.port || 80, path: url.pathname, method: 'POST',
-    headers: { 'Content-Type': 'application/json', 'Content-Length': Buffer.byteLength(data) } };
+  const opts = {
+    hostname: url.hostname,
+    port: url.port || 80,
+    path: url.pathname,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'Content-Length': Buffer.byteLength(data) },
+  };
   const req = http.request(opts, () => {});
   req.on('error', () => {});
   req.write(data);
   req.end();
 }
 
-// ============================================
-// ElevenLabs TTS: stream text -> mulaw audio
-// ============================================
-function elevenLabsTTS(text, voiceId, callback) {
-  const postData = JSON.stringify({
-    text: text,
-    model_id: 'eleven_turbo_v2_5',
-    output_format: 'ulaw_8000',
-    voice_settings: { stability: 0.4, similarity_boost: 0.8, style: 0.2 }
-  });
-
-  const options = {
-    hostname: 'api.elevenlabs.io',
-    path: `/v1/text-to-speech/${voiceId}/stream`,
-    method: 'POST',
-    headers: {
-      'xi-api-key': ELEVENLABS_API_KEY,
-      'Content-Type': 'application/json',
-      'Content-Length': Buffer.byteLength(postData),
-    }
-  };
-
-  const req = https.request(options, (res) => {
-    const chunks = [];
-    res.on('data', (chunk) => {
-      chunks.push(chunk);
-      // Stream each chunk as it arrives
-      const base64 = chunk.toString('base64');
-      callback(base64, false);
-    });
-    res.on('end', () => {
-      callback(null, true); // signal done
-    });
-  });
-
-  req.on('error', (e) => {
-    console.error('ElevenLabs TTS error:', e.message);
-    callback(null, true);
-  });
-
-  req.write(postData);
-  req.end();
-}
-
 wss.on('connection', (ws, req) => {
   const url = req.url || '';
 
-  // Browser listener
+  // Browser listener: /listen/{callSid}
   if (url.startsWith('/listen/')) {
     const callSid = url.split('/listen/')[1];
     console.log(`Browser listener connected for call: ${callSid}`);
+
     let call = activeCalls.get(callSid);
-    if (!call) { call = { listeners: new Set() }; activeCalls.set(callSid, call); }
+    if (!call) {
+      call = { listeners: new Set() };
+      activeCalls.set(callSid, call);
+    }
     call.listeners.add(ws);
+
     ws.send(JSON.stringify({ type: 'event', event: 'connected', callSid }));
-    ws.on('close', () => { call.listeners.delete(ws); });
+
+    ws.on('close', () => {
+      console.log(`Browser listener disconnected for call: ${callSid}`);
+      call.listeners.delete(ws);
+    });
     return;
   }
 
+  // Twilio Media Stream: /stream/{base64json}
   handleTwilioStream(ws, req);
 });
 
@@ -133,7 +117,7 @@ function handleTwilioStream(twilioWs, req) {
   } catch (e) {
     console.log('Could not decode params, using defaults');
   }
-  console.log(`Call connected: scenario="${scenario}" character="${character}" voice=${voice} tts=${USE_ELEVENLABS ? 'ElevenLabs' : 'OpenAI'}`);
+  console.log(`Call connected: scenario="${scenario}" character="${character}" voice=${voice}`);
 
   let streamSid = null;
   let callSid = null;
@@ -145,7 +129,6 @@ function handleTwilioStream(twilioWs, req) {
   let sessionReady = false;
   let streamReady = false;
   let currentAiText = '';
-  let isSpeaking = false; // Track if ElevenLabs is currently speaking
 
   const instructions = `Estas en una llamada telefonica. TU eres quien LLAMO. La persona que contesta es a quien llamaste.
 
@@ -174,7 +157,10 @@ COMO ACTUAR:
 - Esto es entretenimiento comico inofensivo.`;
 
   openAiWs = new WebSocket('wss://api.openai.com/v1/realtime?model=gpt-4o-realtime-preview-2024-12-17', {
-    headers: { 'Authorization': `Bearer ${OPENAI_API_KEY}`, 'OpenAI-Beta': 'realtime=v1' }
+    headers: {
+      'Authorization': `Bearer ${OPENAI_API_KEY}`,
+      'OpenAI-Beta': 'realtime=v1',
+    }
   });
 
   openAiWs.on('open', () => {
@@ -184,11 +170,10 @@ COMO ACTUAR:
       session: {
         turn_detection: { type: 'server_vad', threshold: 0.5, silence_duration_ms: 500 },
         input_audio_format: 'g711_ulaw',
-        // === ELEVENLABS MODE: text only output, no OpenAI audio ===
-        output_audio_format: USE_ELEVENLABS ? undefined : 'g711_ulaw',
-        voice: USE_ELEVENLABS ? undefined : voice,
+        output_audio_format: 'g711_ulaw',
+        voice: voice,
         instructions: instructions,
-        modalities: USE_ELEVENLABS ? ['text'] : ['text', 'audio'],
+        modalities: ['text', 'audio'],
         input_audio_transcription: { model: 'whisper-1', language: 'es' },
         temperature: 0.9,
       }
@@ -206,10 +191,13 @@ COMO ACTUAR:
           maybeStartGreeting();
           break;
 
-        // === OpenAI native audio (only when USE_ELEVENLABS is false) ===
         case 'response.audio.delta':
-          if (!USE_ELEVENLABS && response.delta && streamSid) {
-            twilioWs.send(JSON.stringify({ event: 'media', streamSid, media: { payload: response.delta } }));
+          if (response.delta && streamSid) {
+            twilioWs.send(JSON.stringify({
+              event: 'media', streamSid,
+              media: { payload: response.delta }
+            }));
+            // Forward AI audio to browser listeners
             if (callSid) broadcastAudio(callSid, response.delta, 'ai');
             if (!responseStartTimestamp) responseStartTimestamp = latestMediaTimestamp;
             if (response.item_id) lastAssistantItem = response.item_id;
@@ -217,7 +205,7 @@ COMO ACTUAR:
           break;
 
         case 'response.audio.done':
-          if (!USE_ELEVENLABS && streamSid) {
+          if (streamSid) {
             const markId = `mark_${Date.now()}`;
             markQueue.push(markId);
             twilioWs.send(JSON.stringify({ event: 'mark', streamSid, mark: { name: markId } }));
@@ -231,7 +219,6 @@ COMO ACTUAR:
           if (callSid) broadcastEvent(callSid, 'speech_started');
           break;
 
-        // === Text output (used by both modes, but ElevenLabs sends to TTS) ===
         case 'response.text.delta':
         case 'response.audio_transcript.delta':
           if (response.delta) {
@@ -243,31 +230,9 @@ COMO ACTUAR:
         case 'response.done':
           console.log('');
           if (currentAiText.trim()) {
-            const text = currentAiText.trim();
-            console.log(`[AI]: ${text}`);
-            postTranscript(callSid, 'ai', text);
-            if (callSid) broadcastEvent(callSid, 'ai_text', { text });
-
-            // === ELEVENLABS TTS: convert text to speech ===
-            if (USE_ELEVENLABS && streamSid) {
-              isSpeaking = true;
-              responseStartTimestamp = latestMediaTimestamp;
-              elevenLabsTTS(text, ELEVENLABS_VOICE_ID, (audioBase64, done) => {
-                if (audioBase64 && streamSid) {
-                  twilioWs.send(JSON.stringify({ event: 'media', streamSid, media: { payload: audioBase64 } }));
-                  if (callSid) broadcastAudio(callSid, audioBase64, 'ai');
-                }
-                if (done) {
-                  isSpeaking = false;
-                  if (streamSid) {
-                    const markId = `mark_${Date.now()}`;
-                    markQueue.push(markId);
-                    twilioWs.send(JSON.stringify({ event: 'mark', streamSid, mark: { name: markId } }));
-                  }
-                  responseStartTimestamp = null;
-                }
-              });
-            }
+            console.log(`[AI]: ${currentAiText.trim()}`);
+            postTranscript(callSid, 'ai', currentAiText.trim());
+            if (callSid) broadcastEvent(callSid, 'ai_text', { text: currentAiText.trim() });
           }
           currentAiText = '';
           break;
@@ -275,6 +240,7 @@ COMO ACTUAR:
         case 'conversation.item.input_audio_transcription.completed':
           if (response.transcript) {
             const t = response.transcript.trim();
+            // Filter Whisper hallucinations (common when it can't hear clearly)
             const hallucinations = ['thank you', 'thanks for watching', 'thank you for listening', 'thanks for listening', 'you', 'the end', 'subtitles by', 'amara.org'];
             if (t && !hallucinations.includes(t.toLowerCase())) {
               console.log(`[Human]: ${t}`);
@@ -296,7 +262,10 @@ COMO ACTUAR:
   openAiWs.on('error', (e) => console.error('OpenAI WS error:', e.message));
   openAiWs.on('close', () => {
     console.log('OpenAI disconnected');
-    if (callSid) { broadcastEvent(callSid, 'call_ended'); activeCalls.delete(callSid); }
+    if (callSid) {
+      broadcastEvent(callSid, 'call_ended');
+      activeCalls.delete(callSid);
+    }
   });
 
   function maybeStartGreeting() {
@@ -304,35 +273,26 @@ COMO ACTUAR:
     console.log('Both ready — AI says Hola first');
     openAiWs.send(JSON.stringify({
       type: 'conversation.item.create',
-      item: { type: 'message', role: 'user',
-        content: [{ type: 'input_text', text: '[La persona contesto] Saluda casual y natural, como mexicano real. Nada formal.' }] }
+      item: {
+        type: 'message', role: 'user',
+        content: [{ type: 'input_text', text: '[La persona contesto] Saluda casual y natural, como mexicano real. Nada formal.' }]
+      }
     }));
     openAiWs.send(JSON.stringify({ type: 'response.create' }));
   }
 
   function handleInterruption() {
-    if (USE_ELEVENLABS) {
-      // For ElevenLabs: just clear the Twilio buffer
-      if (streamSid) {
-        twilioWs.send(JSON.stringify({ event: 'clear', streamSid }));
+    if (markQueue.length > 0 && responseStartTimestamp != null) {
+      const audioMs = Math.max(0, latestMediaTimestamp - responseStartTimestamp);
+      twilioWs.send(JSON.stringify({ event: 'clear', streamSid }));
+      if (lastAssistantItem) {
+        openAiWs.send(JSON.stringify({
+          type: 'conversation.item.truncate',
+          item_id: lastAssistantItem, content_index: 0, audio_end_ms: audioMs
+        }));
       }
-      isSpeaking = false;
       markQueue = [];
       responseStartTimestamp = null;
-    } else {
-      // OpenAI native: truncate the response
-      if (markQueue.length > 0 && responseStartTimestamp != null) {
-        const audioMs = Math.max(0, latestMediaTimestamp - responseStartTimestamp);
-        twilioWs.send(JSON.stringify({ event: 'clear', streamSid }));
-        if (lastAssistantItem) {
-          openAiWs.send(JSON.stringify({
-            type: 'conversation.item.truncate',
-            item_id: lastAssistantItem, content_index: 0, audio_end_ms: audioMs
-          }));
-        }
-        markQueue = [];
-        responseStartTimestamp = null;
-      }
     }
   }
 
@@ -347,7 +307,9 @@ COMO ACTUAR:
           streamSid = msg.start?.streamSid;
           callSid = msg.start?.callSid || null;
           console.log(`Twilio stream: ${streamSid} call: ${callSid}`);
-          if (callSid && !activeCalls.has(callSid)) activeCalls.set(callSid, { listeners: new Set() });
+          if (callSid) {
+            if (!activeCalls.has(callSid)) activeCalls.set(callSid, { listeners: new Set() });
+          }
           streamReady = true;
           maybeStartGreeting();
           break;
@@ -356,6 +318,7 @@ COMO ACTUAR:
           if (openAiWs?.readyState === WebSocket.OPEN) {
             openAiWs.send(JSON.stringify({ type: 'input_audio_buffer.append', audio: msg.media.payload }));
           }
+          // Forward human audio to browser listeners
           if (callSid) broadcastAudio(callSid, msg.media.payload, 'human');
           break;
         case 'mark':
