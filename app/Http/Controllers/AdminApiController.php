@@ -317,6 +317,82 @@ class AdminApiController extends Controller
         ]);
     }
 
+    public function userDetail(User $user): JsonResponse
+    {
+        $credit = \App\Models\UserCredit::where('user_id', $user->id)->first();
+        $calls = JokeCall::where('user_id', $user->id)->latest()->take(20)->get();
+        $trialCalls = JokeCall::where('ip_address', request()->ip()) // approximate
+            ->where('joke_source', 'trial')->count();
+
+        // Stripe customer info
+        $stripeInfo = null;
+        if ($user->stripe_customer_id && config('services.stripe.secret')) {
+            try {
+                \Stripe\Stripe::setApiKey(config('services.stripe.secret'));
+                $customer = \Stripe\Customer::retrieve($user->stripe_customer_id);
+                $paymentMethods = \Stripe\PaymentMethod::all([
+                    'customer' => $user->stripe_customer_id,
+                    'type' => 'card',
+                ]);
+                $cards = [];
+                foreach ($paymentMethods->data as $pm) {
+                    $cards[] = [
+                        'brand' => $pm->card->brand,
+                        'last4' => $pm->card->last4,
+                        'exp_month' => $pm->card->exp_month,
+                        'exp_year' => $pm->card->exp_year,
+                    ];
+                }
+                $stripeInfo = [
+                    'customer_id' => $customer->id,
+                    'email' => $customer->email,
+                    'cards' => $cards,
+                ];
+            } catch (\Throwable $e) {
+                $stripeInfo = ['error' => $e->getMessage()];
+            }
+        }
+
+        return response()->json([
+            'user' => $user,
+            'credits' => $credit?->credits_remaining ?? 0,
+            'calls' => $calls,
+            'call_stats' => [
+                'total' => JokeCall::where('user_id', $user->id)->count(),
+                'completed' => JokeCall::where('user_id', $user->id)->where('status', JokeCallStatus::Completed)->count(),
+                'paid' => JokeCall::where('user_id', $user->id)->where('joke_source', 'paid')->count(),
+            ],
+            'stripe' => $stripeInfo,
+        ]);
+    }
+
+    public function updateUser(Request $request, User $user): JsonResponse
+    {
+        $data = $request->validate([
+            'credits' => 'nullable|integer|min:0',
+            'subscription_plan' => 'nullable|string',
+            'is_admin' => 'nullable|boolean',
+        ]);
+
+        if (isset($data['credits'])) {
+            $credit = \App\Models\UserCredit::firstOrCreate(
+                ['user_id' => $user->id],
+                ['credits_remaining' => 0]
+            );
+            $credit->update(['credits_remaining' => $data['credits']]);
+        }
+
+        if (array_key_exists('subscription_plan', $data)) {
+            $user->update(['subscription_plan' => $data['subscription_plan']]);
+        }
+
+        if (isset($data['is_admin'])) {
+            $user->update(['is_admin' => $data['is_admin']]);
+        }
+
+        return response()->json(['ok' => true]);
+    }
+
     public function presets(): JsonResponse
     {
         return response()->json(Preset::orderBy('sort_order')->get());

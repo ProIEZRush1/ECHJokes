@@ -114,6 +114,8 @@ Route::prefix('admin-api')->group(function () {
         Route::get('/calls/{jokeCall}', [\App\Http\Controllers\AdminApiController::class, 'call']);
         Route::post('/launch-call', [\App\Http\Controllers\AdminApiController::class, 'launchCall']);
         Route::get('/users', [\App\Http\Controllers\AdminApiController::class, 'users']);
+        Route::get('/users/{user}', [\App\Http\Controllers\AdminApiController::class, 'userDetail']);
+        Route::put('/users/{user}', [\App\Http\Controllers\AdminApiController::class, 'updateUser']);
         Route::get('/billing', [\App\Http\Controllers\AdminApiController::class, 'billing']);
         Route::get('/presets', [\App\Http\Controllers\AdminApiController::class, 'presets']);
         Route::post('/presets', [\App\Http\Controllers\AdminApiController::class, 'createPreset']);

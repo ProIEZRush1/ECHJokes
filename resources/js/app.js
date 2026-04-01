@@ -26,6 +26,7 @@ import AdminLaunchCall from './admin/pages/LaunchCall.vue';
 import AdminUsers from './admin/pages/Users.vue';
 import AdminPlans from './admin/pages/Plans.vue';
 import AdminBilling from './admin/pages/Billing.vue';
+import AdminUserDetail from './admin/pages/UserDetail.vue';
 import AdminPresets from './admin/pages/Presets.vue';
 
 // Axios defaults
@@ -66,6 +67,7 @@ const router = createRouter({
                 { path: 'calls/:id', name: 'admin.call', component: AdminCallView },
                 { path: 'launch', name: 'admin.launch', component: AdminLaunchCall },
                 { path: 'users', name: 'admin.users', component: AdminUsers },
+                { path: 'users/:id', name: 'admin.user', component: AdminUserDetail },
                 { path: 'plans', name: 'admin.plans', component: AdminPlans },
                 { path: 'billing', name: 'admin.billing', component: AdminBilling },
                 { path: 'presets', name: 'admin.presets', component: AdminPresets },
