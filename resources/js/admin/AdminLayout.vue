@@ -55,6 +55,7 @@ const nav = [
   { to: '/admin/calls', icon: '📞', label: 'Calls' },
   { to: '/admin/launch', icon: '🚀', label: 'Launch Call' },
   { to: '/admin/users', icon: '👥', label: 'Users' },
+  { to: '/admin/plans', icon: '💰', label: 'Plans' },
 ]
 
 onMounted(async () => {

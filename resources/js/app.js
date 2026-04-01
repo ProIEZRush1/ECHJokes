@@ -18,6 +18,7 @@ import AdminCalls from './admin/pages/Calls.vue';
 import AdminCallView from './admin/pages/CallView.vue';
 import AdminLaunchCall from './admin/pages/LaunchCall.vue';
 import AdminUsers from './admin/pages/Users.vue';
+import AdminPlans from './admin/pages/Plans.vue';
 
 // Axios defaults
 axios.defaults.headers.common['X-Requested-With'] = 'XMLHttpRequest';
@@ -49,6 +50,7 @@ const router = createRouter({
                 { path: 'calls/:id', name: 'admin.call', component: AdminCallView },
                 { path: 'launch', name: 'admin.launch', component: AdminLaunchCall },
                 { path: 'users', name: 'admin.users', component: AdminUsers },
+                { path: 'plans', name: 'admin.plans', component: AdminPlans },
             ],
         },
     ],

@@ -66,6 +66,10 @@ Route::prefix('admin-api')->group(function () {
         Route::get('/calls/{jokeCall}', [\App\Http\Controllers\AdminApiController::class, 'call']);
         Route::post('/launch-call', [\App\Http\Controllers\AdminApiController::class, 'launchCall']);
         Route::get('/users', [\App\Http\Controllers\AdminApiController::class, 'users']);
+        Route::get('/plans', [\App\Http\Controllers\AdminApiController::class, 'plans']);
+        Route::post('/plans', [\App\Http\Controllers\AdminApiController::class, 'createPlan']);
+        Route::put('/plans/{plan}', [\App\Http\Controllers\AdminApiController::class, 'updatePlan']);
+        Route::delete('/plans/{plan}', [\App\Http\Controllers\AdminApiController::class, 'deletePlan']);
     });
 });
 

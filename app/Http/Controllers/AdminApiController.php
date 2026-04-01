@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Enums\JokeCallStatus;
 use App\Models\JokeCall;
+use App\Models\Plan;
 use App\Models\User;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -172,5 +173,53 @@ class AdminApiController extends Controller
         $users = $query->withCount('jokeCalls')->paginate(20);
 
         return response()->json($users);
+    }
+
+    public function plans(): JsonResponse
+    {
+        return response()->json(Plan::orderBy('sort_order')->get());
+    }
+
+    public function createPlan(Request $request): JsonResponse
+    {
+        $data = $request->validate([
+            'name' => 'required|string|max:100',
+            'slug' => 'required|string|max:50|unique:plans,slug',
+            'description' => 'nullable|string',
+            'price_mxn' => 'required|numeric|min:0',
+            'calls_included' => 'required|integer|min:1',
+            'max_duration_minutes' => 'required|integer|min:1',
+            'features' => 'nullable|array',
+            'is_popular' => 'boolean',
+            'is_active' => 'boolean',
+            'sort_order' => 'integer',
+        ]);
+
+        $plan = Plan::create($data);
+        return response()->json($plan, 201);
+    }
+
+    public function updatePlan(Request $request, Plan $plan): JsonResponse
+    {
+        $data = $request->validate([
+            'name' => 'string|max:100',
+            'description' => 'nullable|string',
+            'price_mxn' => 'numeric|min:0',
+            'calls_included' => 'integer|min:1',
+            'max_duration_minutes' => 'integer|min:1',
+            'features' => 'nullable|array',
+            'is_popular' => 'boolean',
+            'is_active' => 'boolean',
+            'sort_order' => 'integer',
+        ]);
+
+        $plan->update($data);
+        return response()->json($plan);
+    }
+
+    public function deletePlan(Plan $plan): JsonResponse
+    {
+        $plan->delete();
+        return response()->json(['ok' => true]);
     }
 }
