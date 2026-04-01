@@ -48,11 +48,20 @@ Route::post('/api/generate-style', function (\Illuminate\Http\Request $request) 
             'model' => 'claude-3-haiku-20240307',
             'max_tokens' => 60,
             'temperature' => 0.7,
-            'system' => 'Genera un estilo de voz corto (maximo 15 palabras) para un personaje de broma telefonica basado en el escenario. Solo responde con el estilo, nada mas. Ejemplo: "Formal y serio con tono de autoridad" o "Nerviosa e indecisa, habla rapido".',
+            'system' => 'Basado en el escenario de broma telefonica, genera:
+1. Un estilo de voz corto (max 15 palabras)
+2. La voz ideal de esta lista: ash (hombre casual), ballad (hombre autoritario), coral (mujer amigable), sage (mujer profesional), shimmer (mujer energetica), verse (hombre versatil), echo (hombre joven)
+
+Responde EXACTAMENTE en este formato JSON:
+{"style":"Formal y serio con tono de autoridad","voice":"ballad","gender":"hombre"}',
             'messages' => [['role' => 'user', 'content' => $scenario]],
         ]);
-        $style = trim($r->json('content.0.text') ?? '');
-        return response()->json(['style' => $style]);
+        $text = trim($r->json('content.0.text') ?? '{}');
+        $parsed = json_decode($text, true);
+        if ($parsed && isset($parsed['style'])) {
+            return response()->json($parsed);
+        }
+        return response()->json(['style' => $text, 'voice' => 'ash', 'gender' => 'hombre']);
     } catch (\Throwable $e) {
         return response()->json(['style' => ''], 200);
     }

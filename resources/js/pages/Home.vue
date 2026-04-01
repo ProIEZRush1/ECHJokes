@@ -58,19 +58,13 @@
 
                 <!-- Voice -->
                 <div class="mb-4">
-                    <label class="block text-sm font-medium text-gray-400 mb-2">Voz de la IA</label>
-                    <div class="grid grid-cols-2 gap-2">
-                        <button type="button" @click="voice = 'ash'"
-                            :class="['flex items-center gap-2 p-2.5 md:p-3 rounded-xl border transition-all text-sm',
-                                voice === 'ash' ? 'border-neon bg-neon/10 text-white' : 'border-matrix-600 text-gray-400']">
-                            <span class="text-xl">&#x1F468;</span>
-                            <div class="text-left"><p class="font-semibold">Hombre</p><p class="text-[10px] opacity-60">Voz natural</p></div>
-                        </button>
-                        <button type="button" @click="voice = 'coral'"
-                            :class="['flex items-center gap-2 p-2.5 md:p-3 rounded-xl border transition-all text-sm',
-                                voice === 'coral' ? 'border-neon bg-neon/10 text-white' : 'border-matrix-600 text-gray-400']">
-                            <span class="text-xl">&#x1F469;</span>
-                            <div class="text-left"><p class="font-semibold">Mujer</p><p class="text-[10px] opacity-60">Voz natural</p></div>
+                    <label class="block text-sm font-medium text-gray-400 mb-2">Voz</label>
+                    <div class="grid grid-cols-3 sm:grid-cols-4 gap-1.5">
+                        <button v-for="v in voices" :key="v.id" type="button" @click="voice = v.id"
+                            :class="['flex flex-col items-center p-2 rounded-xl border transition-all text-[11px]',
+                                voice === v.id ? 'border-neon bg-neon/10 text-white' : 'border-matrix-600 text-gray-500']">
+                            <span class="text-base mb-0.5">{{ v.emoji }}</span>
+                            <span class="font-medium">{{ v.label }}</span>
                         </button>
                     </div>
                 </div>
@@ -170,6 +164,15 @@ const generating = ref(false);
 const loading = ref(false);
 const trialUsed = ref(false);
 const activePreset = ref(null);
+const voices = [
+    { id: 'ash', emoji: '\uD83D\uDC68', label: 'Casual' },
+    { id: 'ballad', emoji: '\uD83D\uDC54', label: 'Serio' },
+    { id: 'verse', emoji: '\uD83D\uDC64', label: 'Neutro' },
+    { id: 'echo', emoji: '\uD83E\uDDD2', label: 'Joven' },
+    { id: 'coral', emoji: '\uD83D\uDC69', label: 'Amable' },
+    { id: 'sage', emoji: '\uD83D\uDC69\u200D\uD83D\uDCBC', label: 'Pro' },
+    { id: 'shimmer', emoji: '\uD83D\uDC83', label: 'Alegre' },
+];
 const presets = ref([]);
 const user = ref(null);
 const errors = reactive({ phone: '', scenario: '', general: '' });
@@ -198,6 +201,7 @@ async function generateStyle() {
     try {
         const { data } = await axios.post('/api/generate-style', { scenario: scenario.value.trim() });
         if (data.style) style.value = data.style;
+        if (data.voice) voice.value = data.voice;
     } catch {} finally { generating.value = false; }
 }
 

@@ -84,6 +84,7 @@ async function generateStyle() {
   try {
     const { data } = await axios.post('/api/generate-style', { scenario: form.scenario.trim() })
     if (data.style) form.character = data.style
+    if (data.voice) form.voice = data.voice
   } catch {} finally { generating.value = false }
 }
 const voices = [
