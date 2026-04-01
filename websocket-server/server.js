@@ -90,12 +90,25 @@ function elevenLabsTTS(text, voiceId, callback) {
       return;
     }
     let totalBytes = 0;
+    let buffer = Buffer.alloc(0);
+    const FRAME_SIZE = 160; // 20ms of mulaw at 8kHz
+
     res.on('data', (chunk) => {
       totalBytes += chunk.length;
-      const base64 = chunk.toString('base64');
-      callback(base64, false);
+      buffer = Buffer.concat([buffer, chunk]);
+
+      // Send in Twilio-sized frames (160 bytes = 20ms)
+      while (buffer.length >= FRAME_SIZE) {
+        const frame = buffer.subarray(0, FRAME_SIZE);
+        buffer = buffer.subarray(FRAME_SIZE);
+        callback(frame.toString('base64'), false);
+      }
     });
     res.on('end', () => {
+      // Send remaining buffer
+      if (buffer.length > 0) {
+        callback(buffer.toString('base64'), false);
+      }
       console.log(`ElevenLabs TTS done: ${totalBytes} bytes`);
       callback(null, true);
     });
