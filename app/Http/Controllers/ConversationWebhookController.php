@@ -15,7 +15,7 @@ class ConversationWebhookController extends Controller
         $callSid = $request->input('CallSid', '');
 
         // Detect voicemail / answering machine — hang up immediately
-        if (in_array($answeredBy, ['machine_start', 'machine_end_beep', 'machine_end_silence', 'machine_end_other', 'fax'])) {
+        if (in_array($answeredBy, ['machine_end_beep', 'fax'])) {
             Log::info('Voicemail detected, hanging up', ['call_sid' => $callSid, 'answered_by' => $answeredBy]);
 
             // Update the JokeCall status to voicemail

@@ -94,7 +94,8 @@ class TwilioWebhookController extends Controller
 
         // Handle async AMD (machine detection) result
         $answeredBy = $request->input('AnsweredBy');
-        if ($answeredBy && in_array($answeredBy, ['machine_start', 'machine_end_beep', 'machine_end_silence', 'machine_end_other', 'fax'])) {
+        // Only detect voicemail on definitive signals (beep/fax), not machine_start which is unreliable
+        if ($answeredBy && in_array($answeredBy, ['machine_end_beep', 'fax'])) {
             $jokeCall->update(['status' => JokeCallStatus::Voicemail, 'failure_reason' => 'Buzon de voz']);
             // Refund credit for voicemail
             $this->refundCredit($jokeCall);
