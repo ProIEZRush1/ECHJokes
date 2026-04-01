@@ -30,6 +30,7 @@
               <th class="text-left p-3">Phone</th>
               <th class="text-left p-3">Scenario</th>
               <th class="text-left p-3">Status</th>
+              <th class="text-left p-3">Source</th>
               <th class="text-left p-3">Duration</th>
               <th class="text-left p-3">Rec</th>
               <th class="text-left p-3">Date</th>
@@ -46,6 +47,11 @@
                   {{ call.status }}
                 </span>
               </td>
+              <td class="p-3">
+                <span class="px-1.5 py-0.5 rounded text-[10px] font-medium" :class="sourceClass(call.joke_source)">
+                  {{ sourceLabel(call.joke_source) }}
+                </span>
+              </td>
               <td class="p-3 font-mono text-xs">{{ formatDuration(call.call_duration_seconds) }}</td>
               <td class="p-3">
                 <span v-if="call.recording_url" class="text-neon text-xs">&#9679;</span>
@@ -54,7 +60,7 @@
               <td class="p-3 text-gray-400 text-xs whitespace-nowrap">{{ formatDate(call.created_at) }}</td>
             </tr>
             <tr v-if="!calls.length && !loading">
-              <td colspan="6" class="p-8 text-center text-gray-500">No calls found</td>
+              <td colspan="7" class="p-8 text-center text-gray-500">No calls found</td>
             </tr>
           </tbody>
         </table>
@@ -118,6 +124,12 @@ function statusClass(status) {
   return map[status] || 'bg-gray-500/20 text-gray-400'
 }
 
+function sourceClass(s) {
+  return { trial: 'bg-blue-500/20 text-blue-400', paid: 'bg-neon/20 text-neon', custom: 'bg-purple-500/20 text-purple-400' }[s] || 'bg-gray-500/20 text-gray-400'
+}
+function sourceLabel(s) {
+  return { trial: 'Trial', paid: 'Paid', custom: 'Admin', prank: 'Admin' }[s] || s || '-'
+}
 function maskPhone(p) { return p && p.length > 6 ? p.slice(0, 6) + '****' + p.slice(-2) : p }
 function formatDuration(s) { return s ? `${String(Math.floor(s/60)).padStart(2,'0')}:${String(s%60).padStart(2,'0')}` : '-' }
 function formatDate(d) { return d ? new Date(d).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }) : '' }
