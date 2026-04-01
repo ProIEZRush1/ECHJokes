@@ -222,4 +222,76 @@ class AdminApiController extends Controller
         $plan->delete();
         return response()->json(['ok' => true]);
     }
+
+    public function billing(): JsonResponse
+    {
+        // Twilio balance
+        $twilioBalance = null;
+        try {
+            $twilio = new \Twilio\Rest\Client(config('services.twilio.sid'), config('services.twilio.auth_token'));
+            $account = $twilio->api->v2010->accounts(config('services.twilio.sid'))->fetch();
+            // Get balance via API
+            $balance = $twilio->balance->fetch();
+            $twilioBalance = [
+                'balance' => $balance->balance,
+                'currency' => $balance->currency,
+            ];
+        } catch (\Throwable $e) {
+            $twilioBalance = ['error' => $e->getMessage()];
+        }
+
+        // Call stats
+        $today = now()->startOfDay();
+        $thisMonth = now()->startOfMonth();
+
+        $totalCalls = JokeCall::count();
+        $adminCalls = JokeCall::where('joke_source', 'custom')->count();
+        $trialCalls = JokeCall::where('joke_source', 'trial')->count();
+        $paidCalls = JokeCall::whereNotIn('joke_source', ['custom', 'trial'])->count();
+
+        $callsToday = JokeCall::where('created_at', '>=', $today)->count();
+        $callsThisMonth = JokeCall::where('created_at', '>=', $thisMonth)->count();
+
+        $completedToday = JokeCall::where('created_at', '>=', $today)->where('status', JokeCallStatus::Completed)->count();
+        $completedMonth = JokeCall::where('created_at', '>=', $thisMonth)->where('status', JokeCallStatus::Completed)->count();
+
+        // Duration stats
+        $totalMinutes = JokeCall::where('status', JokeCallStatus::Completed)->sum('call_duration_seconds') / 60;
+        $monthMinutes = JokeCall::where('status', JokeCallStatus::Completed)->where('created_at', '>=', $thisMonth)->sum('call_duration_seconds') / 60;
+
+        // Estimated costs (rough: $0.35/min for Twilio+OpenAI)
+        $costPerMinute = 0.35;
+        $estimatedCostMonth = round($monthMinutes * $costPerMinute, 2);
+        $estimatedCostTotal = round($totalMinutes * $costPerMinute, 2);
+
+        // Revenue (from Stripe — count paid calls * avg price)
+        // For now, estimate from completed paid calls
+        $revenue = JokeCall::where('status', JokeCallStatus::Completed)
+            ->whereNotNull('stripe_payment_intent_id')
+            ->sum('estimated_cost_usd');
+
+        return response()->json([
+            'twilio' => $twilioBalance,
+            'calls' => [
+                'total' => $totalCalls,
+                'admin' => $adminCalls,
+                'trial' => $trialCalls,
+                'paid' => $paidCalls,
+                'today' => $callsToday,
+                'this_month' => $callsThisMonth,
+                'completed_today' => $completedToday,
+                'completed_month' => $completedMonth,
+            ],
+            'minutes' => [
+                'total' => round($totalMinutes, 1),
+                'this_month' => round($monthMinutes, 1),
+            ],
+            'costs' => [
+                'estimated_month_usd' => $estimatedCostMonth,
+                'estimated_total_usd' => $estimatedCostTotal,
+                'cost_per_minute_usd' => $costPerMinute,
+            ],
+            'revenue_usd' => $revenue,
+        ]);
+    }
 }

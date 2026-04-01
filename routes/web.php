@@ -19,7 +19,7 @@ Route::get('/share/{sessionId}', [ShareController::class, 'show'])->name('share.
 // SPA catch-all routes (Vue Router handles these)
 Route::get('/pricing', fn() => view('app'))->name('pricing');
 Route::get('/login', fn() => view('app'))->name('login');
-Route::get('/dashboard', fn() => view('app'))->name('dashboard');
+Route::get('/dashboard/{any?}', fn() => view('app'))->where('any', '.*')->name('dashboard');
 
 // Auth (magic link)
 Route::post('/auth/magic-link', [AuthController::class, 'sendMagicLink'])->name('auth.magic-link');
@@ -58,6 +58,22 @@ Route::post('/conversation/start', [\App\Http\Controllers\ConversationWebhookCon
 Route::post('/conversation/gather', [\App\Http\Controllers\ConversationWebhookController::class, 'gather'])->name('conversation.gather');
 Route::get('/conversation/audio/{filename}', [\App\Http\Controllers\ConversationWebhookController::class, 'audio'])->name('conversation.audio');
 
+// User API
+Route::prefix('user-api')->group(function () {
+    Route::post('/register', [\App\Http\Controllers\UserApiController::class, 'register']);
+    Route::post('/login', [\App\Http\Controllers\UserApiController::class, 'login']);
+    Route::post('/logout', [\App\Http\Controllers\UserApiController::class, 'logout']);
+    Route::get('/plans', [\App\Http\Controllers\UserApiController::class, 'plans']);
+
+    Route::middleware('auth')->group(function () {
+        Route::get('/me', [\App\Http\Controllers\UserApiController::class, 'me']);
+        Route::get('/calls', [\App\Http\Controllers\UserApiController::class, 'myCalls']);
+        Route::get('/calls/{jokeCall}', [\App\Http\Controllers\UserApiController::class, 'myCall']);
+        Route::post('/buy-plan', [\App\Http\Controllers\UserApiController::class, 'buyPlan']);
+        Route::post('/make-call', [\App\Http\Controllers\UserApiController::class, 'makeCall']);
+    });
+});
+
 // Admin API
 Route::prefix('admin-api')->group(function () {
     Route::post('/login', [\App\Http\Controllers\AdminApiController::class, 'login']);
@@ -70,6 +86,7 @@ Route::prefix('admin-api')->group(function () {
         Route::get('/calls/{jokeCall}', [\App\Http\Controllers\AdminApiController::class, 'call']);
         Route::post('/launch-call', [\App\Http\Controllers\AdminApiController::class, 'launchCall']);
         Route::get('/users', [\App\Http\Controllers\AdminApiController::class, 'users']);
+        Route::get('/billing', [\App\Http\Controllers\AdminApiController::class, 'billing']);
         Route::get('/plans', [\App\Http\Controllers\AdminApiController::class, 'plans']);
         Route::post('/plans', [\App\Http\Controllers\AdminApiController::class, 'createPlan']);
         Route::put('/plans/{plan}', [\App\Http\Controllers\AdminApiController::class, 'updatePlan']);

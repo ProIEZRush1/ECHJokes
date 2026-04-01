@@ -28,6 +28,7 @@ class PlanSeeder extends Seeder
             'is_popular' => false,
             'is_active' => true,
             'sort_order' => 1,
+            'stripe_price_id' => 'price_1THCi4IPT6obHC3cizff20qa',
         ]);
 
         Plan::updateOrCreate(['slug' => 'pack-5'], [
@@ -47,6 +48,7 @@ class PlanSeeder extends Seeder
             'is_popular' => true,
             'is_active' => true,
             'sort_order' => 2,
+            'stripe_price_id' => 'price_1THCi5IPT6obHC3c2D3GHcoP',
         ]);
 
         Plan::updateOrCreate(['slug' => 'pack-15'], [
@@ -67,6 +69,7 @@ class PlanSeeder extends Seeder
             'is_popular' => false,
             'is_active' => true,
             'sort_order' => 3,
+            'stripe_price_id' => 'price_1THCi6IPT6obHC3c9xdVjOZB',
         ]);
     }
 }

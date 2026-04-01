@@ -2,13 +2,19 @@ import { createApp } from 'vue';
 import { createRouter, createWebHistory } from 'vue-router';
 import axios from 'axios';
 import App from './App.vue';
+
+// Public pages
 import Home from './pages/Home.vue';
 import CallStatus from './pages/CallStatus.vue';
 import CallComplete from './pages/CallComplete.vue';
 import Share from './pages/Share.vue';
 import Pricing from './pages/Pricing.vue';
 import Login from './pages/Login.vue';
-import Dashboard from './pages/Dashboard.vue';
+
+// User dashboard
+import UserLayout from './user/UserLayout.vue';
+import MyCalls from './user/pages/MyCalls.vue';
+import NewCall from './user/pages/NewCall.vue';
 
 // Admin
 import AdminLayout from './admin/AdminLayout.vue';
@@ -19,6 +25,7 @@ import AdminCallView from './admin/pages/CallView.vue';
 import AdminLaunchCall from './admin/pages/LaunchCall.vue';
 import AdminUsers from './admin/pages/Users.vue';
 import AdminPlans from './admin/pages/Plans.vue';
+import AdminBilling from './admin/pages/Billing.vue';
 
 // Axios defaults
 axios.defaults.headers.common['X-Requested-With'] = 'XMLHttpRequest';
@@ -27,7 +34,6 @@ if (csrfToken) {
     axios.defaults.headers.common['X-CSRF-TOKEN'] = csrfToken.content;
 }
 
-// Router
 const router = createRouter({
     history: createWebHistory(),
     routes: [
@@ -37,7 +43,16 @@ const router = createRouter({
         { path: '/share/:sessionId', name: 'share', component: Share },
         { path: '/pricing', name: 'pricing', component: Pricing },
         { path: '/login', name: 'login', component: Login },
-        { path: '/dashboard', name: 'dashboard', component: Dashboard },
+
+        // User dashboard
+        {
+            path: '/dashboard',
+            component: UserLayout,
+            children: [
+                { path: '', name: 'dashboard', component: MyCalls },
+                { path: 'new', name: 'dashboard.new', component: NewCall },
+            ],
+        },
 
         // Admin panel
         { path: '/admin/login', name: 'admin.login', component: AdminLogin },
@@ -51,6 +66,7 @@ const router = createRouter({
                 { path: 'launch', name: 'admin.launch', component: AdminLaunchCall },
                 { path: 'users', name: 'admin.users', component: AdminUsers },
                 { path: 'plans', name: 'admin.plans', component: AdminPlans },
+                { path: 'billing', name: 'admin.billing', component: AdminBilling },
             ],
         },
     ],

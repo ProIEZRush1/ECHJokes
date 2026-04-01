@@ -18,6 +18,7 @@ return Application::configure(basePath: dirname(__DIR__))
             'conversation/*',
             'api/call-transcript',
             'trial',
+            'user-api/*',
             'admin-api/*',
             'test/*',
         ]);
