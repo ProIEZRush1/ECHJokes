@@ -117,6 +117,7 @@ class AdminApiController extends Controller
             'joke_source' => 'custom',
             'custom_joke_prompt' => $request->input('scenario'),
             'delivery_type' => 'call',
+            'voice' => $request->input('voice', 'ash'),
             'status' => JokeCallStatus::Calling,
             'ip_address' => $request->ip(),
         ]);

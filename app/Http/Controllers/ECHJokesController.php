@@ -116,6 +116,7 @@ class ECHJokesController extends Controller
             'joke_source' => 'trial',
             'custom_joke_prompt' => $scenario,
             'delivery_type' => 'call',
+            'voice' => $voice,
             'status' => JokeCallStatus::Calling,
             'ip_address' => $ip,
         ]);

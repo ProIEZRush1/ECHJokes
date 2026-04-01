@@ -161,7 +161,7 @@ async function retryCall() {
       phone_number: call.value.phone_number,
       scenario: call.value.custom_joke_prompt || '',
       character: '',
-      voice: 'ash',
+      voice: call.value.voice || 'ash',
     })
     // Navigate to the new call
     window.location.href = '/admin/calls/' + data.call_id

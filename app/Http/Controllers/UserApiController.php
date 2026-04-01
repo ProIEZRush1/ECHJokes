@@ -258,6 +258,7 @@ class UserApiController extends Controller
             'joke_source' => 'paid',
             'custom_joke_prompt' => $scenario,
             'delivery_type' => 'call',
+            'voice' => $voice,
             'status' => JokeCallStatus::Calling,
             'ip_address' => $request->ip(),
             'user_id' => $user->id,

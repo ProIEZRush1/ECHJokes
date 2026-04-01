@@ -38,6 +38,7 @@ class JokeCall extends Model
         'failure_reason',
         'live_transcript',
         'retry_of',
+        'voice',
         'ip_address',
         'phone_type',
         'user_id',
