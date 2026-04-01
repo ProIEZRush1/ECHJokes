@@ -88,7 +88,7 @@
             <div v-if="status === 'completed'" class="space-y-4">
                 <p class="text-neon text-lg font-medium">Broma completada!</p>
                 <p v-if="callDuration" class="text-gray-400 text-sm">Duracion: {{ callDuration }} segundos</p>
-                <router-link to="/pricing" class="inline-block mt-4 px-8 py-3 rounded-xl bg-neon text-matrix-900 font-bold hover:shadow-[var(--shadow-neon-lg)] transition-all">
+                <router-link :to="nextCallLink" class="inline-block mt-4 px-8 py-3 rounded-xl bg-neon text-matrix-900 font-bold hover:shadow-[var(--shadow-neon-lg)] transition-all">
                     Hacer otra broma
                 </router-link>
             </div>
@@ -114,7 +114,17 @@ const callDuration = ref(null);
 const failureReason = ref(null);
 const recordingUrl = ref(null);
 const sessionId = ref(null);
+const userCredits = ref(null);
 let echo = null;
+
+// Check if user is logged in to decide where "Hacer otra broma" goes
+axios.get('/user-api/me').then(r => { userCredits.value = r.data.user?.credits ?? 0 }).catch(() => {});
+
+const nextCallLink = computed(() => {
+    if (userCredits.value !== null && userCredits.value > 0) return '/dashboard/new';
+    if (userCredits.value === 0) return '/pricing';
+    return '/'; // not logged in, go to landing (trial)
+});
 
 const steps = [
     { status: 'paid', label: 'Pago' },
