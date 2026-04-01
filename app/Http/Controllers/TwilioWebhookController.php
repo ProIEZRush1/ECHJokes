@@ -96,6 +96,8 @@ class TwilioWebhookController extends Controller
         $answeredBy = $request->input('AnsweredBy');
         if ($answeredBy && in_array($answeredBy, ['machine_start', 'machine_end_beep', 'machine_end_silence', 'machine_end_other', 'fax'])) {
             $jokeCall->update(['status' => JokeCallStatus::Voicemail, 'failure_reason' => 'Buzon de voz']);
+            // Refund credit for voicemail
+            $this->refundCredit($jokeCall);
             // Hang up the call
             try {
                 $twilio = new \Twilio\Rest\Client(config('services.twilio.sid'), config('services.twilio.auth_token'));
@@ -148,7 +150,25 @@ class TwilioWebhookController extends Controller
         ]);
         broadcast(new JokeCallStatusUpdated($jokeCall));
 
+        // Refund credit for paid calls that failed
+        $this->refundCredit($jokeCall);
+
         // Dispatch outcome handler for refunds/retries
         \App\Jobs\HandleCallOutcomeJob::dispatch($jokeCall, $reason);
+    }
+
+    private function refundCredit(JokeCall $jokeCall): void
+    {
+        if ($jokeCall->joke_source !== 'paid' || !$jokeCall->user_id) return;
+
+        $credit = \App\Models\UserCredit::where('user_id', $jokeCall->user_id)->first();
+        if ($credit) {
+            $credit->increment('credits_remaining');
+            Log::info('Credit refunded for failed/voicemail call', [
+                'user_id' => $jokeCall->user_id,
+                'call_id' => $jokeCall->id,
+                'reason' => $jokeCall->failure_reason,
+            ]);
+        }
     }
 }
