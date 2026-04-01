@@ -230,7 +230,21 @@ function handleTwilioStream(twilioWs, req) {
   let currentAiText = '';
   let isSpeaking = false; // Track if ElevenLabs is currently speaking
 
+  // Generate a random Mexican name for the AI caller
+  const maleNames = ['Carlos','Miguel','Roberto','Fernando','Alejandro','Ricardo','Eduardo','Jorge','Luis','Daniel','Raul','Sergio','Arturo','Oscar','Hector','Manuel','Pablo','Diego','Ivan','Andres'];
+  const femaleNames = ['Maria','Sofia','Andrea','Daniela','Valeria','Fernanda','Gabriela','Alejandra','Patricia','Carmen','Laura','Monica','Claudia','Leticia','Veronica','Diana','Karla','Adriana','Lorena','Sandra'];
+  const lastNames = ['Garcia','Hernandez','Lopez','Martinez','Gonzalez','Rodriguez','Perez','Sanchez','Ramirez','Torres','Flores','Rivera','Morales','Cruz','Reyes','Gutierrez','Ortiz','Mendoza','Castillo','Jimenez'];
+  const isFemaleVoice = ['coral','sage','shimmer'].includes(voice);
+  const firstName = isFemaleVoice
+    ? femaleNames[Math.floor(Math.random() * femaleNames.length)]
+    : maleNames[Math.floor(Math.random() * maleNames.length)];
+  const lastName = lastNames[Math.floor(Math.random() * lastNames.length)];
+  const callerName = `${firstName} ${lastName}`;
+  console.log(`AI caller name: ${callerName}`);
+
   const instructions = `Estas en una llamada telefonica. TU eres quien LLAMO. La persona que contesta es a quien llamaste.
+
+TU NOMBRE: Te llamas ${callerName}. Cuando te pregunten "de parte de quien" o te pidan tu nombre, di "${callerName}". SIEMPRE usa este nombre, nunca inventes otro.
 
 TU PERSONAJE:
 ${character || 'Una persona que llama por un asunto importante'}
