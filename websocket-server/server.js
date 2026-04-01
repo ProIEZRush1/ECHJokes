@@ -88,13 +88,12 @@ function elevenLabsTTS(text, voiceId, callback) {
   const postData = JSON.stringify({
     text: text,
     model_id: 'eleven_turbo_v2_5',
-    output_format: 'pcm_8000',
     voice_settings: { stability: 0.5, similarity_boost: 0.75 }
   });
 
   const options = {
     hostname: 'api.elevenlabs.io',
-    path: `/v1/text-to-speech/${voiceId}/stream`,
+    path: `/v1/text-to-speech/${voiceId}/stream?output_format=ulaw_8000`,
     method: 'POST',
     headers: {
       'xi-api-key': ELEVENLABS_API_KEY,
@@ -112,31 +111,25 @@ function elevenLabsTTS(text, voiceId, callback) {
       return;
     }
     let totalBytes = 0;
-    let pcmBuffer = Buffer.alloc(0);
-    const PCM_FRAME = 320; // 320 bytes PCM (160 samples * 2 bytes) = 20ms at 8kHz
-    const MULAW_FRAME = 160; // 160 bytes mulaw = 20ms at 8kHz
+    let buffer = Buffer.alloc(0);
+    const FRAME_SIZE = 160; // 160 bytes mulaw = 20ms at 8kHz
 
     res.on('data', (chunk) => {
       totalBytes += chunk.length;
-      pcmBuffer = Buffer.concat([pcmBuffer, chunk]);
+      buffer = Buffer.concat([buffer, chunk]);
 
-      // Convert PCM chunks to mulaw and send as Twilio frames
-      while (pcmBuffer.length >= PCM_FRAME) {
-        const pcmFrame = pcmBuffer.subarray(0, PCM_FRAME);
-        pcmBuffer = pcmBuffer.subarray(PCM_FRAME);
-        const mulawFrame = pcmToMulaw(pcmFrame);
-        callback(mulawFrame.toString('base64'), false);
+      // Send in Twilio-sized mulaw frames
+      while (buffer.length >= FRAME_SIZE) {
+        const frame = buffer.subarray(0, FRAME_SIZE);
+        buffer = buffer.subarray(FRAME_SIZE);
+        callback(frame.toString('base64'), false);
       }
     });
     res.on('end', () => {
-      // Convert and send remaining PCM
-      if (pcmBuffer.length >= 2) {
-        // Pad to even length
-        if (pcmBuffer.length % 2 !== 0) pcmBuffer = pcmBuffer.subarray(0, pcmBuffer.length - 1);
-        const mulawRemain = pcmToMulaw(pcmBuffer);
-        callback(mulawRemain.toString('base64'), false);
+      if (buffer.length > 0) {
+        callback(buffer.toString('base64'), false);
       }
-      console.log(`ElevenLabs TTS done: ${totalBytes} PCM bytes -> mulaw`);
+      console.log(`ElevenLabs TTS done: ${totalBytes} mulaw bytes`);
       callback(null, true);
     });
   });
