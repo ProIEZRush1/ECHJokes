@@ -146,8 +146,8 @@ const customCalls = ref(3)
 const customMinutes = ref(3)
 
 const customPerCall = computed(() => {
-  const base = 18
-  const extra = 7
+  const base = 26
+  const extra = 10
   return base + Math.max(0, (customMinutes.value - 3) * extra)
 })
 

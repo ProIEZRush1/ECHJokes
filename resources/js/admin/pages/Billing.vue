@@ -23,6 +23,21 @@
         </div>
 
         <div class="bg-matrix-800 border border-matrix-600 rounded-xl p-5">
+          <p class="text-xs text-gray-500 uppercase tracking-wider mb-1">ElevenLabs</p>
+          <template v-if="data.elevenlabs && !data.elevenlabs.error">
+            <p class="text-2xl font-bold font-mono" :class="elLow ? 'text-red-400' : 'text-blue-400'">
+              {{ ((data.elevenlabs.characters_remaining || 0) / 1000).toFixed(0) }}K
+            </p>
+            <p class="text-xs text-gray-500 mt-1">chars remaining ({{ data.elevenlabs.tier }})</p>
+            <div class="mt-1 h-1.5 bg-matrix-700 rounded-full overflow-hidden">
+              <div class="h-full rounded-full" :class="elLow ? 'bg-red-400' : 'bg-blue-400'"
+                :style="`width: ${Math.min(100, (data.elevenlabs.characters_remaining / data.elevenlabs.characters_limit) * 100)}%`"></div>
+            </div>
+          </template>
+          <p v-else class="text-sm text-gray-500">N/A</p>
+        </div>
+
+        <div class="bg-matrix-800 border border-matrix-600 rounded-xl p-5">
           <p class="text-xs text-gray-500 uppercase tracking-wider mb-1">Revenue (Month)</p>
           <p class="text-2xl font-bold font-mono text-neon">${{ data.revenue_mxn || '0' }} MXN</p>
           <p class="text-xs text-gray-500 mt-1">Neto: ${{ data.revenue_net_mxn || '0' }} MXN</p>
@@ -90,7 +105,7 @@
         <table class="w-full text-sm">
           <tbody>
             <tr class="border-b border-matrix-700">
-              <td class="py-2 text-gray-400">Cost per minute (Twilio + OpenAI)</td>
+              <td class="py-2 text-gray-400">Cost per minute (Twilio + OpenAI + ElevenLabs)</td>
               <td class="py-2 text-right font-mono">${{ data.costs?.cost_per_minute_usd }}/min</td>
             </tr>
             <tr class="border-b border-matrix-700">
@@ -122,6 +137,11 @@ const loading = ref(true)
 const twilioLow = computed(() => {
   const b = parseFloat(data.value.twilio?.balance || 0)
   return b < 10
+})
+
+const elLow = computed(() => {
+  const r = data.value.elevenlabs?.characters_remaining || 0
+  return r < 10000
 })
 
 onMounted(async () => {

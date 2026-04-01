@@ -15,7 +15,7 @@ class PlanSeeder extends Seeder
         Plan::updateOrCreate(['slug' => 'single'], [
             'name' => 'Bromita',
             'description' => 'Una broma perfecta para probar',
-            'price_mxn' => 29.00,
+            'price_mxn' => 35.00,
             'calls_included' => 1,
             'max_duration_minutes' => 3,
             'features' => [
@@ -28,13 +28,13 @@ class PlanSeeder extends Seeder
             'is_popular' => false,
             'is_active' => true,
             'sort_order' => 1,
-            'stripe_price_id' => 'price_1THCi4IPT6obHC3cizff20qa',
+            'stripe_price_id' => 'price_1THVlFIPT6obHC3cFsVaegTL',
         ]);
 
         Plan::updateOrCreate(['slug' => 'pack-5'], [
             'name' => 'Bromista',
             'description' => 'El pack ideal para divertirte con tus amigos',
-            'price_mxn' => 99.00,
+            'price_mxn' => 119.00,
             'calls_included' => 5,
             'max_duration_minutes' => 5,
             'features' => [
@@ -48,13 +48,13 @@ class PlanSeeder extends Seeder
             'is_popular' => true,
             'is_active' => true,
             'sort_order' => 2,
-            'stripe_price_id' => 'price_1THCi5IPT6obHC3c2D3GHcoP',
+            'stripe_price_id' => 'price_1THVlGIPT6obHC3cmx98vO2S',
         ]);
 
         Plan::updateOrCreate(['slug' => 'pack-15'], [
             'name' => 'Comediante',
             'description' => 'Para los que no paran de bromear',
-            'price_mxn' => 249.00,
+            'price_mxn' => 299.00,
             'calls_included' => 15,
             'max_duration_minutes' => 5,
             'features' => [
@@ -69,7 +69,7 @@ class PlanSeeder extends Seeder
             'is_popular' => false,
             'is_active' => true,
             'sort_order' => 3,
-            'stripe_price_id' => 'price_1THCi6IPT6obHC3c9xdVjOZB',
+            'stripe_price_id' => 'price_1THVlGIPT6obHC3chF2vUcjP',
         ]);
     }
 }

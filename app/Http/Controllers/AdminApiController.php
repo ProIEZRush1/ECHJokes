@@ -261,8 +261,8 @@ class AdminApiController extends Controller
         $totalMinutes = JokeCall::where('status', JokeCallStatus::Completed)->sum('call_duration_seconds') / 60;
         $monthMinutes = JokeCall::where('status', JokeCallStatus::Completed)->where('created_at', '>=', $thisMonth)->sum('call_duration_seconds') / 60;
 
-        // Estimated costs (rough: $0.35/min for Twilio+OpenAI)
-        $costPerMinute = 0.35;
+        // Estimated costs: $0.49/min (Twilio $0.04 + OpenAI $0.14 + ElevenLabs $0.30 + recording $0.01)
+        $costPerMinute = 0.49;
         $estimatedCostMonth = round($monthMinutes * $costPerMinute, 2);
         $estimatedCostTotal = round($totalMinutes * $costPerMinute, 2);
 
@@ -291,8 +291,28 @@ class AdminApiController extends Controller
         }
         $revenue = round($revenueMxn / 20, 2);
 
+        // ElevenLabs usage
+        $elevenLabsInfo = null;
+        try {
+            $elResponse = \Illuminate\Support\Facades\Http::withHeaders([
+                'xi-api-key' => config('services.elevenlabs.api_key', env('ELEVENLABS_API_KEY')),
+            ])->get('https://api.elevenlabs.io/v1/user/subscription');
+            if ($elResponse->ok()) {
+                $elData = $elResponse->json();
+                $elevenLabsInfo = [
+                    'characters_used' => $elData['character_count'] ?? 0,
+                    'characters_limit' => $elData['character_limit'] ?? 0,
+                    'characters_remaining' => ($elData['character_limit'] ?? 0) - ($elData['character_count'] ?? 0),
+                    'tier' => $elData['tier'] ?? 'unknown',
+                ];
+            }
+        } catch (\Throwable $e) {
+            $elevenLabsInfo = ['error' => $e->getMessage()];
+        }
+
         return response()->json([
             'twilio' => $twilioBalance,
+            'elevenlabs' => $elevenLabsInfo,
             'calls' => [
                 'total' => $totalCalls,
                 'admin' => $adminCalls,

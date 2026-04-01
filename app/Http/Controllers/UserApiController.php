@@ -190,7 +190,7 @@ class UserApiController extends Controller
 
         // Price calculation: base $14 MXN cost/call + 30% margin, scaled by minutes
         // 3 min = base, each extra minute adds ~$7 MXN
-        $basePerCall = 18; // $18 MXN for 3 min
+        $basePerCall = 26; // $26 MXN for 3 min (with ElevenLabs TTS)
         $extraPerMin = 7;  // $7 per extra minute
         $perCall = $basePerCall + max(0, ($minutes - 3) * $extraPerMin);
         $totalMxn = $perCall * $calls;
