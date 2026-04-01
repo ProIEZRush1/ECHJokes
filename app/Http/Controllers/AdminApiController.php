@@ -101,8 +101,8 @@ class AdminApiController extends Controller
         $request->validate([
             'phone_number' => 'required|string',
             'scenario' => 'required|string',
-            'character' => 'required|string',
-            'voice' => 'required|in:ash,coral',
+            'character' => 'nullable|string',
+            'voice' => 'nullable|in:ash,coral',
         ]);
 
         $phone = $request->input('phone_number');
@@ -128,7 +128,7 @@ class AdminApiController extends Controller
             );
 
             $call = $twilio->calls->create($phone, config('services.twilio.phone_number'), [
-                'url' => url('/conversation/start') . '?scenario=' . urlencode($request->input('scenario')) . '&character=' . urlencode($request->input('character')) . '&voice=' . urlencode($request->input('voice')),
+                'url' => url('/conversation/start') . '?scenario=' . urlencode($request->input('scenario')) . '&character=' . urlencode($request->input('character', '')) . '&voice=' . urlencode($request->input('voice', 'ash')),
                 'method' => 'POST',
                 'statusCallback' => route('twilio.status'),
                 'statusCallbackEvent' => ['initiated', 'ringing', 'answered', 'completed'],
