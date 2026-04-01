@@ -118,16 +118,19 @@ function elevenLabsTTS(text, voiceId, callback) {
       totalBytes += chunk.length;
       buffer = Buffer.concat([buffer, chunk]);
 
-      // Send in Twilio-sized mulaw frames
+      // Send in Twilio-sized mulaw frames with noise mixed in
       while (buffer.length >= FRAME_SIZE) {
-        const frame = buffer.subarray(0, FRAME_SIZE);
+        const frame = Buffer.from(buffer.subarray(0, FRAME_SIZE)); // copy so we can modify
         buffer = buffer.subarray(FRAME_SIZE);
+        addNoiseToFrame(frame); // mix noise into the TTS audio
         callback(frame.toString('base64'), false);
       }
     });
     res.on('end', () => {
       if (buffer.length > 0) {
-        callback(buffer.toString('base64'), false);
+        const frame = Buffer.from(buffer);
+        addNoiseToFrame(frame);
+        callback(frame.toString('base64'), false);
       }
       console.log(`ElevenLabs TTS done: ${totalBytes} mulaw bytes`);
       callback(null, true);
@@ -181,26 +184,52 @@ function handleTwilioStream(twilioWs, req) {
   let openAiWs = null;
   let bgNoiseInterval = null;
 
-  // Generate background noise (subtle office ambiance) as mulaw
-  // Mulaw encoding: 0xFF/0x7F = silence. Bit 7 = sign. Lower magnitude bits = louder.
-  // For audible but subtle noise, alternate between positive and negative low-amplitude values
+  // Mulaw decode table (mulaw byte -> linear 16-bit signed)
+  const MULAW_DECODE = new Int16Array(256);
+  for (let i = 0; i < 256; i++) {
+    let mu = ~i & 0xFF;
+    let sign = (mu & 0x80) ? -1 : 1;
+    mu = mu & 0x7F;
+    let exponent = (mu >> 4) & 0x07;
+    let mantissa = mu & 0x0F;
+    let sample = (mantissa << (exponent + 3)) + (1 << (exponent + 3)) - 132;
+    MULAW_DECODE[i] = sign * Math.min(sample, 32767);
+  }
+
+  // Linear to mulaw encode
+  function linearToMulaw(sample) {
+    const BIAS = 0x84;
+    const MAX = 32635;
+    const sign = (sample >> 8) & 0x80;
+    if (sign) sample = -sample;
+    if (sample > MAX) sample = MAX;
+    sample += BIAS;
+    let exponent = 7;
+    for (let expMask = 0x4000; (sample & expMask) === 0 && exponent > 0; exponent--, expMask >>= 1) {}
+    const mantissa = (sample >> (exponent + 3)) & 0x0F;
+    return ~(sign | (exponent << 4) | mantissa) & 0xFF;
+  }
+
+  // Add subtle noise to a mulaw audio buffer (modifies in place)
+  function addNoiseToFrame(mulawBuf) {
+    for (let i = 0; i < mulawBuf.length; i++) {
+      // Decode mulaw sample to linear
+      let sample = MULAW_DECODE[mulawBuf[i]];
+      // Add random noise (amplitude ~200-400 out of 32767, very subtle)
+      const noise = (Math.random() - 0.5) * 600;
+      sample = Math.max(-32767, Math.min(32767, sample + noise));
+      // Encode back to mulaw
+      mulawBuf[i] = linearToMulaw(sample);
+    }
+    return mulawBuf;
+  }
+
+  // Generate standalone noise frame (for silence periods)
   function generateBgNoiseFrame() {
-    const frame = Buffer.alloc(160); // 20ms at 8kHz
+    const frame = Buffer.alloc(160);
     for (let i = 0; i < 160; i++) {
-      const r = Math.random();
-      // Mix of silence and low-level noise (audible as a soft hiss/hum)
-      if (r < 0.3) {
-        frame[i] = 0xFF; // silence
-      } else if (r < 0.6) {
-        // Positive low noise: 0x70-0x7E range
-        frame[i] = 0x70 + Math.floor(Math.random() * 15);
-      } else if (r < 0.9) {
-        // Negative low noise: 0xF0-0xFE range
-        frame[i] = 0xF0 + Math.floor(Math.random() * 15);
-      } else {
-        // Occasional slightly louder pop: 0x60-0x6F or 0xE0-0xEF
-        frame[i] = (Math.random() < 0.5 ? 0x60 : 0xE0) + Math.floor(Math.random() * 16);
-      }
+      const noise = (Math.random() - 0.5) * 800;
+      frame[i] = linearToMulaw(Math.round(noise));
     }
     return frame;
   }
