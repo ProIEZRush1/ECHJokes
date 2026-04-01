@@ -174,7 +174,7 @@ COMO ACTUAR:
         voice: voice,
         instructions: instructions,
         modalities: ['text', 'audio'],
-        input_audio_transcription: { model: 'whisper-1' },
+        input_audio_transcription: { model: 'whisper-1', language: 'es' },
         temperature: 0.9,
       }
     }));
@@ -239,9 +239,14 @@ COMO ACTUAR:
 
         case 'conversation.item.input_audio_transcription.completed':
           if (response.transcript) {
-            console.log(`[Human]: ${response.transcript}`);
-            postTranscript(callSid, 'human', response.transcript.trim());
-            if (callSid) broadcastEvent(callSid, 'human_text', { text: response.transcript.trim() });
+            const t = response.transcript.trim();
+            // Filter Whisper hallucinations (common when it can't hear clearly)
+            const hallucinations = ['thank you', 'thanks for watching', 'thank you for listening', 'thanks for listening', 'bye', 'goodbye', 'you', 'the end', 'subtitles by', 'amara.org'];
+            if (t && !hallucinations.includes(t.toLowerCase())) {
+              console.log(`[Human]: ${t}`);
+              postTranscript(callSid, 'human', t);
+              if (callSid) broadcastEvent(callSid, 'human_text', { text: t });
+            }
           }
           break;
 
