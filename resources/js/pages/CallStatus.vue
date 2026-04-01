@@ -59,7 +59,7 @@
 
             <!-- Error -->
             <div v-if="failureReason" class="bg-red-900/20 border border-red-800 rounded-xl p-6 mb-8">
-                <p class="text-red-400 text-sm">{{ failureReason }}</p>
+                <p class="text-red-400 text-sm">{{ translateFailure(failureReason) }}</p>
                 <router-link to="/" class="inline-block mt-4 px-6 py-2 rounded-lg bg-neon text-matrix-900 font-medium text-sm">
                     Intentar de nuevo
                 </router-link>
@@ -160,6 +160,18 @@ function updateFromData(data) {
     if (data.call_duration_seconds) callDuration.value = data.call_duration_seconds;
     if (data.failure_reason) failureReason.value = data.failure_reason;
     if (data.recording_url) recordingUrl.value = data.recording_url;
+}
+
+function translateFailure(reason) {
+    if (!reason) return '';
+    const r = reason.toLowerCase();
+    if (r.includes('busy')) return 'El numero estaba ocupado. Intenta de nuevo en unos minutos.';
+    if (r.includes('no-answer') || r.includes('no answer')) return 'No contestaron la llamada. Intenta mas tarde.';
+    if (r.includes('canceled') || r.includes('cancelled')) return 'La llamada fue cancelada.';
+    if (r.includes('failed')) return 'La llamada fallo. Puede ser un problema con el numero.';
+    if (r.includes('buzon') || r.includes('voicemail')) return 'La llamada fue al buzon de voz. La persona no contesto.';
+    if (r.includes('timeout')) return 'La llamada se agoto el tiempo de espera.';
+    return reason;
 }
 
 function setupEcho() {
