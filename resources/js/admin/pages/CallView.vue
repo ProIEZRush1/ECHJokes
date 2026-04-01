@@ -6,6 +6,13 @@
         <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/></svg>
       </router-link>
       <h1 class="text-2xl font-bold font-mono">Call Details</h1>
+
+      <!-- Retry button -->
+      <button v-if="canRetry" @click="retryCall" :disabled="retrying"
+        class="ml-auto px-4 py-1.5 rounded-lg bg-neon text-matrix-900 font-bold text-sm hover:shadow-neon transition disabled:opacity-50">
+        {{ retrying ? 'Retrying...' : 'Retry Call' }}
+      </button>
+
       <span v-if="isLive" class="flex items-center gap-2 text-sm">
         <span class="relative flex h-2.5 w-2.5">
           <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
@@ -138,6 +145,30 @@ const isLive = computed(() => {
   const s = call.value?.status
   return s === 'calling' || s === 'in_progress'
 })
+
+const canRetry = computed(() => {
+  const s = call.value?.status
+  return s === 'completed' || s === 'failed' || s === 'voicemail'
+})
+
+const retrying = ref(false)
+
+async function retryCall() {
+  if (!call.value) return
+  retrying.value = true
+  try {
+    const { data } = await axios.post('/admin-api/launch-call', {
+      phone_number: call.value.phone_number,
+      scenario: call.value.custom_joke_prompt || '',
+      character: '',
+      voice: 'ash',
+    })
+    // Navigate to the new call
+    window.location.href = '/admin/calls/' + data.call_id
+  } catch (e) {
+    alert(e.response?.data?.error || 'Retry failed')
+  } finally { retrying.value = false }
+}
 
 async function fetchCall() {
   try {
