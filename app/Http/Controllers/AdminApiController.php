@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Enums\JokeCallStatus;
 use App\Models\JokeCall;
 use App\Models\Plan;
+use App\Models\Preset;
 use App\Models\User;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -293,5 +294,49 @@ class AdminApiController extends Controller
             ],
             'revenue_usd' => $revenue,
         ]);
+    }
+
+    public function presets(): JsonResponse
+    {
+        return response()->json(Preset::orderBy('sort_order')->get());
+    }
+
+    public function createPreset(Request $request): JsonResponse
+    {
+        $data = $request->validate([
+            'label' => 'required|string|max:100',
+            'emoji' => 'required|string|max:10',
+            'scenario' => 'required|string',
+            'character' => 'nullable|string|max:200',
+            'voice' => 'required|in:ash,coral',
+            'category' => 'nullable|string|max:50',
+            'is_active' => 'boolean',
+            'sort_order' => 'integer',
+        ]);
+
+        return response()->json(Preset::create($data), 201);
+    }
+
+    public function updatePreset(Request $request, Preset $preset): JsonResponse
+    {
+        $data = $request->validate([
+            'label' => 'string|max:100',
+            'emoji' => 'string|max:10',
+            'scenario' => 'string',
+            'character' => 'nullable|string|max:200',
+            'voice' => 'in:ash,coral',
+            'category' => 'nullable|string|max:50',
+            'is_active' => 'boolean',
+            'sort_order' => 'integer',
+        ]);
+
+        $preset->update($data);
+        return response()->json($preset);
+    }
+
+    public function deletePreset(Preset $preset): JsonResponse
+    {
+        $preset->delete();
+        return response()->json(['ok' => true]);
     }
 }

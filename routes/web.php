@@ -32,6 +32,10 @@ Route::post('/checkout', [ECHJokesController::class, 'createCheckout'])
     ->middleware('throttle:5,60')
     ->name('checkout');
 
+Route::get('/api/presets', fn() => response()->json(
+    \App\Models\Preset::where('is_active', true)->orderBy('sort_order')->get(['id', 'label', 'emoji', 'scenario', 'character', 'voice', 'category'])
+));
+
 Route::post('/trial', [ECHJokesController::class, 'trialCall'])
     ->middleware('throttle:3,60')
     ->name('trial');
@@ -87,6 +91,10 @@ Route::prefix('admin-api')->group(function () {
         Route::post('/launch-call', [\App\Http\Controllers\AdminApiController::class, 'launchCall']);
         Route::get('/users', [\App\Http\Controllers\AdminApiController::class, 'users']);
         Route::get('/billing', [\App\Http\Controllers\AdminApiController::class, 'billing']);
+        Route::get('/presets', [\App\Http\Controllers\AdminApiController::class, 'presets']);
+        Route::post('/presets', [\App\Http\Controllers\AdminApiController::class, 'createPreset']);
+        Route::put('/presets/{preset}', [\App\Http\Controllers\AdminApiController::class, 'updatePreset']);
+        Route::delete('/presets/{preset}', [\App\Http\Controllers\AdminApiController::class, 'deletePreset']);
         Route::get('/plans', [\App\Http\Controllers\AdminApiController::class, 'plans']);
         Route::post('/plans', [\App\Http\Controllers\AdminApiController::class, 'createPlan']);
         Route::put('/plans/{plan}', [\App\Http\Controllers\AdminApiController::class, 'updatePlan']);
