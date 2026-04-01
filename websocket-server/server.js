@@ -82,15 +82,22 @@ function elevenLabsTTS(text, voiceId, callback) {
   };
 
   const req = https.request(options, (res) => {
-    const chunks = [];
+    console.log(`ElevenLabs response: ${res.statusCode}`);
+    if (res.statusCode !== 200) {
+      let body = '';
+      res.on('data', (c) => body += c);
+      res.on('end', () => { console.error('ElevenLabs error body:', body); callback(null, true); });
+      return;
+    }
+    let totalBytes = 0;
     res.on('data', (chunk) => {
-      chunks.push(chunk);
-      // Stream each chunk as it arrives
+      totalBytes += chunk.length;
       const base64 = chunk.toString('base64');
       callback(base64, false);
     });
     res.on('end', () => {
-      callback(null, true); // signal done
+      console.log(`ElevenLabs TTS done: ${totalBytes} bytes`);
+      callback(null, true);
     });
   });
 
@@ -185,8 +192,7 @@ COMO ACTUAR:
         turn_detection: { type: 'server_vad', threshold: 0.5, silence_duration_ms: 500 },
         input_audio_format: 'g711_ulaw',
         // === ELEVENLABS MODE: text only output, no OpenAI audio ===
-        output_audio_format: USE_ELEVENLABS ? undefined : 'g711_ulaw',
-        voice: USE_ELEVENLABS ? undefined : voice,
+        ...(USE_ELEVENLABS ? {} : { output_audio_format: 'g711_ulaw', voice: voice }),
         instructions: instructions,
         modalities: USE_ELEVENLABS ? ['text'] : ['text', 'audio'],
         input_audio_transcription: { model: 'whisper-1', language: 'es' },
