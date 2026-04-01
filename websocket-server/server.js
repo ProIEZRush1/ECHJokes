@@ -60,6 +60,51 @@ function postTranscript(callSid, role, text) {
 }
 
 // ============================================
+// Mulaw audio utilities (module level)
+// ============================================
+const MULAW_DECODE = new Int16Array(256);
+for (let i = 0; i < 256; i++) {
+  let mu = ~i & 0xFF;
+  let sign = (mu & 0x80) ? -1 : 1;
+  mu = mu & 0x7F;
+  let exponent = (mu >> 4) & 0x07;
+  let mantissa = mu & 0x0F;
+  let sample = (mantissa << (exponent + 3)) + (1 << (exponent + 3)) - 132;
+  MULAW_DECODE[i] = sign * Math.min(sample, 32767);
+}
+
+function linearToMulaw(sample) {
+  const BIAS = 0x84, MAX = 32635;
+  const sign = (sample >> 8) & 0x80;
+  if (sign) sample = -sample;
+  if (sample > MAX) sample = MAX;
+  sample += BIAS;
+  let exponent = 7;
+  for (let expMask = 0x4000; (sample & expMask) === 0 && exponent > 0; exponent--, expMask >>= 1) {}
+  const mantissa = (sample >> (exponent + 3)) & 0x0F;
+  return ~(sign | (exponent << 4) | mantissa) & 0xFF;
+}
+
+function addNoiseToFrame(mulawBuf) {
+  for (let i = 0; i < mulawBuf.length; i++) {
+    let sample = MULAW_DECODE[mulawBuf[i]];
+    const noise = (Math.random() - 0.5) * 600;
+    sample = Math.max(-32767, Math.min(32767, sample + noise));
+    mulawBuf[i] = linearToMulaw(sample);
+  }
+  return mulawBuf;
+}
+
+function generateBgNoiseFrame() {
+  const frame = Buffer.alloc(160);
+  for (let i = 0; i < 160; i++) {
+    const noise = (Math.random() - 0.5) * 800;
+    frame[i] = linearToMulaw(Math.round(noise));
+  }
+  return frame;
+}
+
+// ============================================
 // PCM 16-bit signed to G.711 mulaw conversion
 // ============================================
 function pcmToMulaw(pcmBuffer) {
@@ -184,55 +229,6 @@ function handleTwilioStream(twilioWs, req) {
   let openAiWs = null;
   let bgNoiseInterval = null;
 
-  // Mulaw decode table (mulaw byte -> linear 16-bit signed)
-  const MULAW_DECODE = new Int16Array(256);
-  for (let i = 0; i < 256; i++) {
-    let mu = ~i & 0xFF;
-    let sign = (mu & 0x80) ? -1 : 1;
-    mu = mu & 0x7F;
-    let exponent = (mu >> 4) & 0x07;
-    let mantissa = mu & 0x0F;
-    let sample = (mantissa << (exponent + 3)) + (1 << (exponent + 3)) - 132;
-    MULAW_DECODE[i] = sign * Math.min(sample, 32767);
-  }
-
-  // Linear to mulaw encode
-  function linearToMulaw(sample) {
-    const BIAS = 0x84;
-    const MAX = 32635;
-    const sign = (sample >> 8) & 0x80;
-    if (sign) sample = -sample;
-    if (sample > MAX) sample = MAX;
-    sample += BIAS;
-    let exponent = 7;
-    for (let expMask = 0x4000; (sample & expMask) === 0 && exponent > 0; exponent--, expMask >>= 1) {}
-    const mantissa = (sample >> (exponent + 3)) & 0x0F;
-    return ~(sign | (exponent << 4) | mantissa) & 0xFF;
-  }
-
-  // Add subtle noise to a mulaw audio buffer (modifies in place)
-  function addNoiseToFrame(mulawBuf) {
-    for (let i = 0; i < mulawBuf.length; i++) {
-      // Decode mulaw sample to linear
-      let sample = MULAW_DECODE[mulawBuf[i]];
-      // Add random noise (amplitude ~200-400 out of 32767, very subtle)
-      const noise = (Math.random() - 0.5) * 600;
-      sample = Math.max(-32767, Math.min(32767, sample + noise));
-      // Encode back to mulaw
-      mulawBuf[i] = linearToMulaw(sample);
-    }
-    return mulawBuf;
-  }
-
-  // Generate standalone noise frame (for silence periods)
-  function generateBgNoiseFrame() {
-    const frame = Buffer.alloc(160);
-    for (let i = 0; i < 160; i++) {
-      const noise = (Math.random() - 0.5) * 800;
-      frame[i] = linearToMulaw(Math.round(noise));
-    }
-    return frame;
-  }
   let lastAssistantItem = null;
   let markQueue = [];
   let responseStartTimestamp = null;
