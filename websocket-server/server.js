@@ -181,18 +181,26 @@ function handleTwilioStream(twilioWs, req) {
   let openAiWs = null;
   let bgNoiseInterval = null;
 
-  // Generate background noise (subtle office/street ambiance) as mulaw
-  // Mulaw: 0xFF=silence, lower values=louder. Range ~0xF0-0xFF for soft ambient noise.
+  // Generate background noise (subtle office ambiance) as mulaw
+  // Mulaw encoding: 0xFF/0x7F = silence. Bit 7 = sign. Lower magnitude bits = louder.
+  // For audible but subtle noise, alternate between positive and negative low-amplitude values
   function generateBgNoiseFrame() {
     const frame = Buffer.alloc(160); // 20ms at 8kHz
     for (let i = 0; i < 160; i++) {
       const r = Math.random();
-      if (r < 0.50) frame[i] = 0xFF;      // silence
-      else if (r < 0.75) frame[i] = 0xFE; // very quiet
-      else if (r < 0.88) frame[i] = 0xFD; // soft noise
-      else if (r < 0.95) frame[i] = 0xFC; // slightly louder
-      else if (r < 0.98) frame[i] = 0xFB; // occasional bump
-      else frame[i] = 0xFA;               // rare louder noise
+      // Mix of silence and low-level noise (audible as a soft hiss/hum)
+      if (r < 0.3) {
+        frame[i] = 0xFF; // silence
+      } else if (r < 0.6) {
+        // Positive low noise: 0x70-0x7E range
+        frame[i] = 0x70 + Math.floor(Math.random() * 15);
+      } else if (r < 0.9) {
+        // Negative low noise: 0xF0-0xFE range
+        frame[i] = 0xF0 + Math.floor(Math.random() * 15);
+      } else {
+        // Occasional slightly louder pop: 0x60-0x6F or 0xE0-0xEF
+        frame[i] = (Math.random() < 0.5 ? 0x60 : 0xE0) + Math.floor(Math.random() * 16);
+      }
     }
     return frame;
   }
@@ -420,8 +428,12 @@ COMO ACTUAR:
           if (callSid && !activeCalls.has(callSid)) activeCalls.set(callSid, { listeners: new Set() });
           streamReady = true;
           maybeStartGreeting();
-          // Start subtle background noise
+          // Start background noise
+          console.log('Starting background noise');
+          let noiseFrameCount = 0;
           bgNoiseInterval = setInterval(() => {
+            noiseFrameCount++;
+            if (noiseFrameCount === 50) console.log('BG noise: 50 frames sent (1 sec)'); // log once
             if (streamSid && twilioWs.readyState === WebSocket.OPEN) {
               const noise = generateBgNoiseFrame();
               try {
