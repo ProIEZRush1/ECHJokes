@@ -74,6 +74,7 @@ Route::prefix('user-api')->group(function () {
         Route::get('/calls', [\App\Http\Controllers\UserApiController::class, 'myCalls']);
         Route::get('/calls/{jokeCall}', [\App\Http\Controllers\UserApiController::class, 'myCall']);
         Route::post('/buy-plan', [\App\Http\Controllers\UserApiController::class, 'buyPlan']);
+        Route::post('/buy-custom', [\App\Http\Controllers\UserApiController::class, 'buyCustom']);
         Route::post('/make-call', [\App\Http\Controllers\UserApiController::class, 'makeCall']);
     });
 });

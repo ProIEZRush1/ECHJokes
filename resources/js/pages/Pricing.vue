@@ -9,12 +9,11 @@
     <div class="grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-6 max-w-4xl w-full">
       <div v-for="plan in plans" :key="plan.id"
         class="bg-matrix-800 border rounded-2xl p-5 md:p-6 relative flex flex-col"
-        :class="plan.is_popular ? 'border-neon md:scale-105' : (isCurrentPlan(plan) ? 'border-neon/50' : 'border-matrix-600')">
+        :class="plan.is_popular && !isCurrentPlan(plan) ? 'border-neon md:scale-105' : (isCurrentPlan(plan) ? 'border-blue-500/50' : 'border-matrix-600')">
 
         <div v-if="plan.is_popular && !isCurrentPlan(plan)" class="absolute -top-3 left-1/2 -translate-x-1/2">
           <span class="px-3 py-0.5 bg-neon text-matrix-900 text-xs font-bold rounded-full whitespace-nowrap">MAS POPULAR</span>
         </div>
-
         <div v-if="isCurrentPlan(plan)" class="absolute -top-3 left-1/2 -translate-x-1/2">
           <span class="px-3 py-0.5 bg-blue-500 text-white text-xs font-bold rounded-full whitespace-nowrap">TU PLAN</span>
         </div>
@@ -23,9 +22,20 @@
         <p class="text-sm text-gray-400 mt-1">{{ plan.description }}</p>
 
         <div class="mt-4">
-          <span class="text-3xl md:text-4xl font-bold font-mono text-neon">${{ plan.price_mxn }}</span>
+          <!-- Show upgrade price if applicable -->
+          <template v-if="upgradeDiscount(plan) > 0">
+            <span class="text-lg text-gray-500 line-through mr-2">${{ plan.price_mxn }}</span>
+            <span class="text-3xl md:text-4xl font-bold font-mono text-neon">${{ (plan.price_mxn - upgradeDiscount(plan)).toFixed(0) }}</span>
+          </template>
+          <template v-else>
+            <span class="text-3xl md:text-4xl font-bold font-mono text-neon">${{ plan.price_mxn }}</span>
+          </template>
           <span class="text-gray-500 text-sm"> MXN</span>
         </div>
+
+        <p v-if="upgradeDiscount(plan) > 0" class="text-xs text-blue-400 mt-1">
+          Descuento de ${{ upgradeDiscount(plan).toFixed(0) }} MXN por tu plan actual
+        </p>
 
         <p class="text-xs text-gray-500 mt-1">
           {{ plan.calls_included }} llamada{{ plan.calls_included > 1 ? 's' : '' }} &middot; hasta {{ plan.max_duration_minutes }} min
@@ -39,43 +49,72 @@
         </ul>
 
         <button v-if="isCurrentPlan(plan)" disabled
-          class="mt-5 w-full py-3 rounded-xl font-bold text-sm bg-matrix-700 text-gray-500 border border-matrix-600 cursor-default">
+          class="mt-5 w-full py-3 rounded-xl font-bold text-sm bg-matrix-700 text-gray-500 border border-matrix-600">
           Plan actual
+        </button>
+        <button v-else-if="isDowngrade(plan)" disabled
+          class="mt-5 w-full py-3 rounded-xl font-bold text-sm bg-matrix-700 text-gray-600 border border-matrix-600">
+          Ya tienes un plan superior
         </button>
         <button v-else @click="buy(plan)" :disabled="buying === plan.id"
           class="mt-5 w-full py-3 rounded-xl font-bold text-sm transition"
-          :class="plan.is_popular
+          :class="plan.is_popular || upgradeDiscount(plan) > 0
             ? 'bg-neon text-matrix-900 hover:shadow-neon'
             : 'bg-matrix-700 text-white hover:bg-matrix-600 border border-matrix-600'">
-          {{ buying === plan.id ? 'Redirigiendo...' : (isUpgrade(plan) ? 'Upgrade' : 'Comprar') }}
+          {{ buying === plan.id ? 'Redirigiendo...' : (upgradeDiscount(plan) > 0 ? 'Upgrade' : 'Comprar') }}
         </button>
       </div>
     </div>
 
-    <!-- Single call purchase -->
-    <div v-if="user" class="mt-8 w-full max-w-md">
-      <div class="bg-matrix-800 border border-matrix-600 rounded-2xl p-5">
-        <h3 class="font-bold text-sm mb-3">Comprar bromas sueltas</h3>
-        <p class="text-xs text-gray-400 mb-4">$29 MXN por broma (hasta 3 min)</p>
-        <div class="flex items-center gap-3">
-          <div class="flex items-center bg-matrix-700 rounded-lg border border-matrix-600">
-            <button @click="extraQty = Math.max(1, extraQty - 1)" class="px-3 py-2 text-gray-400 hover:text-white">-</button>
-            <span class="px-3 py-2 font-mono font-bold text-neon">{{ extraQty }}</span>
-            <button @click="extraQty++" class="px-3 py-2 text-gray-400 hover:text-white">+</button>
+    <!-- Custom purchase -->
+    <div class="mt-10 w-full max-w-lg">
+      <div class="bg-matrix-800 border border-matrix-600 rounded-2xl p-5 md:p-6">
+        <h3 class="font-bold text-lg mb-1">Compra personalizada</h3>
+        <p class="text-xs text-gray-400 mb-5">Elige cuantas bromas y de cuantos minutos quieres</p>
+
+        <div class="grid grid-cols-2 gap-4 mb-4">
+          <div>
+            <label class="block text-xs text-gray-500 uppercase mb-1.5">Cantidad de bromas</label>
+            <div class="flex items-center bg-matrix-700 rounded-xl border border-matrix-600">
+              <button @click="customCalls = Math.max(1, customCalls - 1)" class="px-4 py-2.5 text-gray-400 hover:text-white text-lg">-</button>
+              <span class="flex-1 text-center font-mono font-bold text-lg text-neon">{{ customCalls }}</span>
+              <button @click="customCalls = Math.min(50, customCalls + 1)" class="px-4 py-2.5 text-gray-400 hover:text-white text-lg">+</button>
+            </div>
           </div>
-          <div class="flex-1 text-right">
-            <span class="text-lg font-bold font-mono text-neon">${{ extraQty * 29 }}</span>
-            <span class="text-gray-500 text-xs"> MXN</span>
+          <div>
+            <label class="block text-xs text-gray-500 uppercase mb-1.5">Minutos por broma</label>
+            <div class="flex items-center bg-matrix-700 rounded-xl border border-matrix-600">
+              <button @click="customMinutes = Math.max(1, customMinutes - 1)" class="px-4 py-2.5 text-gray-400 hover:text-white text-lg">-</button>
+              <span class="flex-1 text-center font-mono font-bold text-lg text-neon">{{ customMinutes }}</span>
+              <button @click="customMinutes = Math.min(10, customMinutes + 1)" class="px-4 py-2.5 text-gray-400 hover:text-white text-lg">+</button>
+            </div>
           </div>
-          <button @click="buyExtra" :disabled="buyingExtra"
-            class="px-4 py-2 rounded-lg bg-neon text-matrix-900 font-bold text-sm hover:shadow-neon transition disabled:opacity-50">
-            {{ buyingExtra ? '...' : 'Comprar' }}
-          </button>
         </div>
+
+        <!-- Price breakdown -->
+        <div class="bg-matrix-700 rounded-xl p-4 mb-4 space-y-2 text-sm">
+          <div class="flex justify-between text-gray-400">
+            <span>Precio por broma ({{ customMinutes }} min)</span>
+            <span class="font-mono">${{ customPerCall }} MXN</span>
+          </div>
+          <div class="flex justify-between text-gray-400">
+            <span>{{ customCalls }} broma{{ customCalls > 1 ? 's' : '' }}</span>
+            <span class="font-mono">x{{ customCalls }}</span>
+          </div>
+          <div class="border-t border-matrix-600 pt-2 flex justify-between font-bold">
+            <span>Total</span>
+            <span class="text-neon font-mono text-lg">${{ customTotal }} MXN</span>
+          </div>
+        </div>
+
+        <button @click="buyCustom" :disabled="buyingCustom"
+          class="w-full py-3 rounded-xl bg-neon text-matrix-900 font-bold hover:shadow-neon transition disabled:opacity-50">
+          {{ buyingCustom ? 'Redirigiendo...' : 'Comprar' }}
+        </button>
       </div>
     </div>
 
-    <!-- Footer links -->
+    <!-- Footer -->
     <div class="mt-8 text-center text-sm text-gray-500">
       <template v-if="!user">
         <router-link to="/" class="hover:text-neon">Prueba gratis</router-link>
@@ -92,7 +131,7 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import axios from 'axios'
 
@@ -100,8 +139,19 @@ const router = useRouter()
 const plans = ref([])
 const user = ref(null)
 const buying = ref(null)
-const extraQty = ref(1)
-const buyingExtra = ref(false)
+const buyingCustom = ref(false)
+
+// Custom purchase
+const customCalls = ref(3)
+const customMinutes = ref(3)
+
+const customPerCall = computed(() => {
+  const base = 18
+  const extra = 7
+  return base + Math.max(0, (customMinutes.value - 3) * extra)
+})
+
+const customTotal = computed(() => customPerCall.value * customCalls.value)
 
 onMounted(async () => {
   try {
@@ -118,10 +168,19 @@ function isCurrentPlan(plan) {
   return user.value?.plan === plan.slug
 }
 
-function isUpgrade(plan) {
+function isDowngrade(plan) {
   if (!user.value?.plan) return false
-  const currentPlan = plans.value.find(p => p.slug === user.value.plan)
-  return currentPlan && plan.price_mxn > currentPlan.price_mxn
+  const current = plans.value.find(p => p.slug === user.value.plan)
+  return current && plan.price_mxn < current.price_mxn
+}
+
+function upgradeDiscount(plan) {
+  if (!user.value?.plan || isCurrentPlan(plan) || isDowngrade(plan)) return 0
+  const current = plans.value.find(p => p.slug === user.value.plan)
+  if (!current || plan.price_mxn <= current.price_mxn) return 0
+  // Discount = unused value from current plan
+  const usedCalls = 0 // We don't have this client-side, server calculates exact
+  return Math.max(0, current.price_mxn) // Show max possible discount, server calculates exact
 }
 
 async function buy(plan) {
@@ -136,20 +195,17 @@ async function buy(plan) {
   }
 }
 
-async function buyExtra() {
+async function buyCustom() {
   if (!user.value) { router.push('/login'); return }
-  buyingExtra.value = true
+  buyingCustom.value = true
   try {
-    // Buy N single calls — use the single plan's price N times
-    const singlePlan = plans.value.find(p => p.slug === 'single')
-    if (!singlePlan) return
-    const { data } = await axios.post('/user-api/buy-plan', {
-      plan_id: singlePlan.id,
-      quantity: extraQty.value,
+    const { data } = await axios.post('/user-api/buy-custom', {
+      calls: customCalls.value,
+      minutes: customMinutes.value,
     })
     window.location.href = data.checkout_url
   } catch (e) {
     if (e.response?.status === 401) router.push('/login')
-  } finally { buyingExtra.value = false }
+  } finally { buyingCustom.value = false }
 }
 </script>

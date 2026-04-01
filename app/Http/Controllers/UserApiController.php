@@ -115,27 +115,46 @@ class UserApiController extends Controller
 
     public function buyPlan(Request $request): JsonResponse
     {
-        $request->validate([
-            'plan_id' => 'required|exists:plans,id',
-            'quantity' => 'nullable|integer|min:1|max:20',
-        ]);
+        $request->validate(['plan_id' => 'required|exists:plans,id']);
 
         $plan = Plan::findOrFail($request->plan_id);
-        if (!$plan->stripe_price_id) {
-            return response()->json(['error' => 'Plan not configured for payments'], 400);
-        }
-
         $user = Auth::user();
-        $quantity = $request->input('quantity', 1);
-        $totalCalls = $plan->calls_included * $quantity;
 
         Stripe::setApiKey(config('services.stripe.secret'));
+
+        // Calculate upgrade discount
+        $currentPlan = $user->subscription_plan
+            ? Plan::where('slug', $user->subscription_plan)->first()
+            : null;
+
+        $usedCalls = $currentPlan
+            ? JokeCall::where('user_id', $user->id)->where('joke_source', 'paid')->count()
+            : 0;
+
+        $discount = 0;
+        if ($currentPlan && $plan->price_mxn > $currentPlan->price_mxn) {
+            // Upgrade: discount = what they paid minus proportional value of used calls
+            $perCallValue = $currentPlan->calls_included > 0
+                ? $currentPlan->price_mxn / $currentPlan->calls_included
+                : 0;
+            $unusedValue = max(0, $currentPlan->price_mxn - ($usedCalls * $perCallValue));
+            $discount = round($unusedValue, 2);
+        }
+
+        $finalPrice = max(100, round(($plan->price_mxn - $discount) * 100)); // centavos, min $1 MXN
 
         $checkout = StripeSession::create([
             'payment_method_types' => ['card'],
             'line_items' => [[
-                'price' => $plan->stripe_price_id,
-                'quantity' => $quantity,
+                'price_data' => [
+                    'currency' => 'mxn',
+                    'unit_amount' => (int) $finalPrice,
+                    'product_data' => [
+                        'name' => "ECHJokes {$plan->name}" . ($discount > 0 ? " (Upgrade)" : ""),
+                        'description' => "{$plan->calls_included} llamadas de broma" . ($discount > 0 ? " - Descuento de \${$discount} MXN aplicado" : ""),
+                    ],
+                ],
+                'quantity' => 1,
             ]],
             'mode' => 'payment',
             'success_url' => url('/dashboard?purchased=1'),
@@ -145,11 +164,70 @@ class UserApiController extends Controller
                 'user_id' => $user->id,
                 'plan_id' => $plan->id,
                 'plan_slug' => $plan->slug,
-                'calls_included' => $totalCalls,
+                'calls_included' => $plan->calls_included,
+                'discount_applied' => $discount,
+                'type' => $discount > 0 ? 'upgrade' : 'purchase',
             ],
         ]);
 
-        return response()->json(['checkout_url' => $checkout->url]);
+        return response()->json([
+            'checkout_url' => $checkout->url,
+            'discount' => $discount,
+            'final_price' => $finalPrice / 100,
+        ]);
+    }
+
+    public function buyCustom(Request $request): JsonResponse
+    {
+        $request->validate([
+            'calls' => 'required|integer|min:1|max:50',
+            'minutes' => 'required|integer|min:1|max:10',
+        ]);
+
+        $user = Auth::user();
+        $calls = $request->input('calls');
+        $minutes = $request->input('minutes');
+
+        // Price calculation: base $14 MXN cost/call + 30% margin, scaled by minutes
+        // 3 min = base, each extra minute adds ~$7 MXN
+        $basePerCall = 18; // $18 MXN for 3 min
+        $extraPerMin = 7;  // $7 per extra minute
+        $perCall = $basePerCall + max(0, ($minutes - 3) * $extraPerMin);
+        $totalMxn = $perCall * $calls;
+
+        Stripe::setApiKey(config('services.stripe.secret'));
+
+        $checkout = StripeSession::create([
+            'payment_method_types' => ['card'],
+            'line_items' => [[
+                'price_data' => [
+                    'currency' => 'mxn',
+                    'unit_amount' => (int) ($totalMxn * 100),
+                    'product_data' => [
+                        'name' => "ECHJokes - {$calls} broma" . ($calls > 1 ? 's' : '') . " ({$minutes} min c/u)",
+                        'description' => "{$calls} llamadas de broma de hasta {$minutes} minutos",
+                    ],
+                ],
+                'quantity' => 1,
+            ]],
+            'mode' => 'payment',
+            'success_url' => url('/dashboard?purchased=1'),
+            'cancel_url' => url('/pricing'),
+            'customer_email' => $user->email,
+            'metadata' => [
+                'user_id' => $user->id,
+                'plan_slug' => 'custom',
+                'calls_included' => $calls,
+                'max_minutes' => $minutes,
+                'type' => 'custom',
+            ],
+        ]);
+
+        return response()->json([
+            'checkout_url' => $checkout->url,
+            'total_mxn' => $totalMxn,
+            'per_call_mxn' => $perCall,
+        ]);
     }
 
     public function makeCall(Request $request): JsonResponse
