@@ -163,19 +163,16 @@ function elevenLabsTTS(text, voiceId, callback) {
       totalBytes += chunk.length;
       buffer = Buffer.concat([buffer, chunk]);
 
-      // Send in Twilio-sized mulaw frames with noise mixed in
+      // Send in Twilio-sized mulaw frames (clean, no mixing)
       while (buffer.length >= FRAME_SIZE) {
-        const frame = Buffer.from(buffer.subarray(0, FRAME_SIZE)); // copy so we can modify
+        const frame = buffer.subarray(0, FRAME_SIZE);
         buffer = buffer.subarray(FRAME_SIZE);
-        addNoiseToFrame(frame); // mix noise into the TTS audio
         callback(frame.toString('base64'), false);
       }
     });
     res.on('end', () => {
       if (buffer.length > 0) {
-        const frame = Buffer.from(buffer);
-        addNoiseToFrame(frame);
-        callback(frame.toString('base64'), false);
+        callback(buffer.toString('base64'), false);
       }
       console.log(`ElevenLabs TTS done: ${totalBytes} mulaw bytes`);
       callback(null, true);
