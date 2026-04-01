@@ -241,7 +241,7 @@ COMO ACTUAR:
           if (response.transcript) {
             const t = response.transcript.trim();
             // Filter Whisper hallucinations (common when it can't hear clearly)
-            const hallucinations = ['thank you', 'thanks for watching', 'thank you for listening', 'thanks for listening', 'bye', 'goodbye', 'you', 'the end', 'subtitles by', 'amara.org'];
+            const hallucinations = ['thank you', 'thanks for watching', 'thank you for listening', 'thanks for listening', 'you', 'the end', 'subtitles by', 'amara.org'];
             if (t && !hallucinations.includes(t.toLowerCase())) {
               console.log(`[Human]: ${t}`);
               postTranscript(callSid, 'human', t);
