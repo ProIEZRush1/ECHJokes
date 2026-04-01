@@ -129,7 +129,7 @@ const transcript = ref([])
 const transcriptEl = ref(null)
 const listening = ref(false)
 const listenStatus = ref('')
-let pollInterval, ws, audioCtx, schedTime = 0
+let pollInterval, ws, audioCtx, gainNode, schedTime = 0
 
 // Mulaw table
 const MULAW = new Float32Array(256)
@@ -186,6 +186,10 @@ function toggleListen() {
   if (listening.value) return stopListen()
 
   audioCtx = new (window.AudioContext || window.webkitAudioContext)({ sampleRate: 8000 })
+  // Amplify audio 5x (mulaw phone audio is very quiet)
+  gainNode = audioCtx.createGain()
+  gainNode.gain.value = 5.0
+  gainNode.connect(audioCtx.destination)
   ws = new WebSocket(`wss://ws.echjokes.overcloud.us:8443/listen/${call.value.twilio_call_sid}`)
   schedTime = 0
   listenStatus.value = 'Connecting...'
@@ -208,7 +212,7 @@ function toggleListen() {
         buf.getChannelData(0).set(pcm)
         const src = audioCtx.createBufferSource()
         src.buffer = buf
-        src.connect(audioCtx.destination)
+        src.connect(gainNode)
         const now = audioCtx.currentTime
         if (schedTime < now) schedTime = now
         src.start(schedTime)

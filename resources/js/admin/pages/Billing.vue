@@ -23,9 +23,9 @@
         </div>
 
         <div class="bg-matrix-800 border border-matrix-600 rounded-xl p-5">
-          <p class="text-xs text-gray-500 uppercase tracking-wider mb-1">Revenue</p>
-          <p class="text-2xl font-bold font-mono text-neon">${{ data.revenue_usd || '0' }}</p>
-          <p class="text-xs text-gray-500 mt-1">From paid calls</p>
+          <p class="text-xs text-gray-500 uppercase tracking-wider mb-1">Revenue (Month)</p>
+          <p class="text-2xl font-bold font-mono text-neon">${{ data.revenue_mxn || '0' }} MXN</p>
+          <p class="text-xs text-gray-500 mt-1">Neto: ${{ data.revenue_net_mxn || '0' }} MXN</p>
         </div>
       </div>
 

@@ -265,11 +265,30 @@ class AdminApiController extends Controller
         $estimatedCostMonth = round($monthMinutes * $costPerMinute, 2);
         $estimatedCostTotal = round($totalMinutes * $costPerMinute, 2);
 
-        // Revenue (from Stripe — count paid calls * avg price)
-        // For now, estimate from completed paid calls
-        $revenue = JokeCall::where('status', JokeCallStatus::Completed)
-            ->whereNotNull('stripe_payment_intent_id')
-            ->sum('estimated_cost_usd');
+        // Revenue from Stripe (actual charges, net of fees)
+        $revenueMxn = 0;
+        $revenueNet = 0;
+        try {
+            \Stripe\Stripe::setApiKey(config('services.stripe.secret'));
+            $charges = \Stripe\Charge::all(['limit' => 100, 'created' => ['gte' => $thisMonth->timestamp]]);
+            foreach ($charges->data as $charge) {
+                if ($charge->paid && !$charge->refunded) {
+                    $revenueMxn += $charge->amount / 100; // centavos to MXN
+                    // Net = amount - Stripe fee (3.6% + $3 MXN for Mexican cards)
+                    $fee = round($charge->amount * 0.036 + 300); // centavos
+                    $revenueNet += ($charge->amount - $fee) / 100;
+                }
+            }
+        } catch (\Throwable $e) {
+            // Fallback: estimate from users with plans
+            $usersWithPlans = User::whereNotNull('subscription_plan')->get();
+            foreach ($usersWithPlans as $u) {
+                $plan = Plan::where('slug', $u->subscription_plan)->first();
+                if ($plan) $revenueMxn += (float) $plan->price_mxn;
+            }
+            $revenueNet = round($revenueMxn * 0.964 - (count($usersWithPlans) * 3), 2);
+        }
+        $revenue = round($revenueMxn / 20, 2);
 
         return response()->json([
             'twilio' => $twilioBalance,
@@ -293,6 +312,8 @@ class AdminApiController extends Controller
                 'cost_per_minute_usd' => $costPerMinute,
             ],
             'revenue_usd' => $revenue,
+            'revenue_mxn' => round($revenueMxn, 2),
+            'revenue_net_mxn' => round($revenueNet, 2),
         ]);
     }
 

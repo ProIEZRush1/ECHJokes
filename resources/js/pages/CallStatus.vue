@@ -139,16 +139,17 @@ const statusEmoji = computed(() => {
 });
 
 const statusDescription = computed(() => ({
-    pending_payment: 'Verificando tu pago...',
-    paid: 'Pago confirmado! Preparando la broma...',
-    generating_joke: 'La IA esta creando el guion y el personaje...',
-    generating_audio: 'Preparando la voz del personaje...',
-    queued_for_call: 'Preparando la llamada...',
-    calling: 'Marcando el numero ahora mismo!',
-    in_progress: 'La IA esta en la llamada, conversando en tiempo real!',
-    completed: 'La broma fue completada!',
-    failed: 'Algo salio mal con la llamada.',
-    refunded: 'Se proceso tu reembolso.',
+    pending_payment: 'Estamos verificando tu pago. Esto toma solo unos segundos...',
+    paid: 'Pago confirmado! Estamos preparando todo para tu broma...',
+    generating_joke: 'La IA esta creando el guion perfecto y el personaje para la llamada...',
+    generating_audio: 'Preparando la voz del personaje para que suene lo mas real posible...',
+    queued_for_call: 'Tu llamada esta en cola. En unos segundos empezamos a marcar...',
+    calling: 'Estamos marcando el numero! En cualquier momento contestan...',
+    in_progress: 'La IA esta hablando en vivo! La conversacion esta sucediendo ahora mismo.',
+    completed: 'La broma se completo exitosamente! Puedes escuchar la grabacion abajo.',
+    failed: 'La llamada no se pudo completar. Puede ser que el numero estaba ocupado, no contesto, o hubo un error de conexion.',
+    voicemail: 'La llamada fue a buzon de voz. La persona no contesto.',
+    refunded: 'Se proceso tu reembolso. El credito fue devuelto a tu cuenta.',
 }[status.value] || ''));
 
 function updateFromData(data) {
