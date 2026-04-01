@@ -12,14 +12,13 @@
         </div>
         <div>
           <label class="block text-xs text-gray-400 uppercase tracking-wider mb-1.5">Voice</label>
-          <div class="grid grid-cols-2 gap-2">
-            <label v-for="v in voices" :key="v.id"
-              class="flex items-center gap-2 p-2.5 rounded-lg border cursor-pointer transition"
-              :class="form.voice === v.id ? 'border-neon bg-neon/10 text-white' : 'border-matrix-600 text-gray-400'">
-              <input type="radio" v-model="form.voice" :value="v.id" class="hidden" />
-              <span class="text-lg">{{ v.emoji }}</span>
-              <div><p class="text-xs font-semibold">{{ v.label }}</p></div>
-            </label>
+          <div class="grid grid-cols-4 gap-1.5">
+            <button v-for="v in voices" :key="v.id" type="button" @click="form.voice = v.id"
+              :class="['flex flex-col items-center p-2 rounded-lg border transition text-[11px]',
+                form.voice === v.id ? 'border-neon bg-neon/10 text-white' : 'border-matrix-600 text-gray-500']">
+              <span class="text-base mb-0.5">{{ v.emoji }}</span>
+              <span class="font-medium">{{ v.label }}</span>
+            </button>
           </div>
         </div>
       </div>
@@ -88,8 +87,13 @@ async function generateStyle() {
   } catch {} finally { generating.value = false }
 }
 const voices = [
-  { id: 'ash', emoji: '\uD83D\uDC68', label: 'Male' },
-  { id: 'coral', emoji: '\uD83D\uDC69', label: 'Female' },
+  { id: 'ash', emoji: '\uD83D\uDC68', label: 'Casual' },
+  { id: 'ballad', emoji: '\uD83D\uDC54', label: 'Serio' },
+  { id: 'verse', emoji: '\uD83D\uDC64', label: 'Neutro' },
+  { id: 'echo', emoji: '\uD83E\uDDD2', label: 'Joven' },
+  { id: 'coral', emoji: '\uD83D\uDC69', label: 'Amable' },
+  { id: 'sage', emoji: '\uD83D\uDC69\u200D\uD83D\uDCBC', label: 'Pro' },
+  { id: 'shimmer', emoji: '\uD83D\uDC83', label: 'Alegre' },
 ]
 
 const form = reactive({ phone_number: '', character: '', voice: 'ash', scenario: '' })

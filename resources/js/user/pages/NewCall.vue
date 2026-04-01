@@ -21,16 +21,12 @@
 
       <div>
         <label class="block text-xs text-gray-400 uppercase mb-1.5">Voz</label>
-        <div class="grid grid-cols-2 gap-2">
-          <button type="button" @click="voice = 'ash'"
-            :class="['flex items-center gap-2 p-2.5 rounded-xl border transition',
-              voice === 'ash' ? 'border-neon bg-neon/10' : 'border-matrix-600 text-gray-400']">
-            <span>&#x1F468;</span><span class="text-sm">Hombre</span>
-          </button>
-          <button type="button" @click="voice = 'coral'"
-            :class="['flex items-center gap-2 p-2.5 rounded-xl border transition',
-              voice === 'coral' ? 'border-neon bg-neon/10' : 'border-matrix-600 text-gray-400']">
-            <span>&#x1F469;</span><span class="text-sm">Mujer</span>
+        <div class="grid grid-cols-4 gap-1.5">
+          <button v-for="v in voiceOptions" :key="v.id" type="button" @click="voice = v.id"
+            :class="['flex flex-col items-center p-2 rounded-xl border transition text-[11px]',
+              voice === v.id ? 'border-neon bg-neon/10 text-white' : 'border-matrix-600 text-gray-500']">
+            <span class="text-base mb-0.5">{{ v.emoji }}</span>
+            <span class="font-medium">{{ v.label }}</span>
           </button>
         </div>
       </div>
@@ -83,6 +79,15 @@ import { useRouter } from 'vue-router'
 import axios from 'axios'
 
 const router = useRouter()
+const voiceOptions = [
+  { id: 'ash', emoji: '\uD83D\uDC68', label: 'Casual' },
+  { id: 'ballad', emoji: '\uD83D\uDC54', label: 'Serio' },
+  { id: 'verse', emoji: '\uD83D\uDC64', label: 'Neutro' },
+  { id: 'echo', emoji: '\uD83E\uDDD2', label: 'Joven' },
+  { id: 'coral', emoji: '\uD83D\uDC69', label: 'Amable' },
+  { id: 'sage', emoji: '\uD83D\uDC69\u200D\uD83D\uDCBC', label: 'Pro' },
+  { id: 'shimmer', emoji: '\uD83D\uDC83', label: 'Alegre' },
+]
 const phone = ref('')
 const voice = ref('ash')
 const scenario = ref('')
