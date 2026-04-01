@@ -181,16 +181,18 @@ function handleTwilioStream(twilioWs, req) {
   let openAiWs = null;
   let bgNoiseInterval = null;
 
-  // Generate subtle background noise (office ambiance) as mulaw
-  // Mulaw silence = 0xFF, very low noise = values near 0xFF with slight variation
+  // Generate background noise (subtle office/street ambiance) as mulaw
+  // Mulaw: 0xFF=silence, lower values=louder. Range ~0xF0-0xFF for soft ambient noise.
   function generateBgNoiseFrame() {
     const frame = Buffer.alloc(160); // 20ms at 8kHz
     for (let i = 0; i < 160; i++) {
-      // Very subtle noise: mulaw values 0xFE-0xFF with occasional 0xFD
       const r = Math.random();
-      if (r < 0.85) frame[i] = 0xFF;      // silence
-      else if (r < 0.97) frame[i] = 0xFE; // tiny bit of noise
-      else frame[i] = 0xFD;               // slightly more noise
+      if (r < 0.50) frame[i] = 0xFF;      // silence
+      else if (r < 0.75) frame[i] = 0xFE; // very quiet
+      else if (r < 0.88) frame[i] = 0xFD; // soft noise
+      else if (r < 0.95) frame[i] = 0xFC; // slightly louder
+      else if (r < 0.98) frame[i] = 0xFB; // occasional bump
+      else frame[i] = 0xFA;               // rare louder noise
     }
     return frame;
   }
@@ -420,7 +422,7 @@ COMO ACTUAR:
           maybeStartGreeting();
           // Start subtle background noise
           bgNoiseInterval = setInterval(() => {
-            if (streamSid && twilioWs.readyState === WebSocket.OPEN && !isSpeaking) {
+            if (streamSid && twilioWs.readyState === WebSocket.OPEN) {
               const noise = generateBgNoiseFrame();
               try {
                 twilioWs.send(JSON.stringify({ event: 'media', streamSid, media: { payload: noise.toString('base64') } }));
