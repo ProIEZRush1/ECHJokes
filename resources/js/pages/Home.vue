@@ -1,5 +1,25 @@
 <template>
-    <div class="min-h-screen flex flex-col items-center justify-center px-4 py-8 md:py-12">
+    <div class="min-h-screen flex flex-col">
+        <!-- Navbar -->
+        <nav class="w-full px-4 md:px-8 py-4 flex items-center justify-between">
+            <router-link to="/" class="text-lg font-bold font-mono text-neon">ECHJokes</router-link>
+            <div class="flex items-center gap-3 md:gap-5">
+                <router-link to="/pricing" class="text-sm text-gray-400 hover:text-neon transition">Precios</router-link>
+                <template v-if="user">
+                    <router-link to="/dashboard" class="text-sm text-gray-400 hover:text-neon transition">Mis Bromas</router-link>
+                    <router-link to="/dashboard/new" class="hidden md:inline-block px-3 py-1.5 rounded-lg bg-neon/10 border border-neon/20 text-neon text-sm font-medium hover:bg-neon/20 transition">
+                        {{ user.credits }} cr
+                    </router-link>
+                </template>
+                <template v-else>
+                    <router-link to="/login" class="px-4 py-1.5 rounded-lg bg-neon text-matrix-900 text-sm font-bold hover:shadow-neon transition">
+                        Entrar
+                    </router-link>
+                </template>
+            </div>
+        </nav>
+
+        <div class="flex-1 flex flex-col items-center justify-center px-4 py-4 md:py-8">
         <!-- Hero -->
         <div class="text-center mb-8 md:mb-12">
             <div class="text-5xl md:text-7xl mb-4 md:mb-6 animate-[ring_1s_ease-in-out_infinite]">&#x1F4DE;</div>
@@ -110,10 +130,6 @@
             </div>
         </div>
 
-        <!-- Links -->
-        <div class="mt-6 md:mt-8 flex gap-4 md:gap-6 text-xs md:text-sm">
-            <router-link to="/pricing" class="text-gray-500 hover:text-neon transition-colors">Planes</router-link>
-            <router-link to="/login" class="text-gray-500 hover:text-neon transition-colors">Mi cuenta</router-link>
         </div>
     </div>
 </template>
@@ -131,12 +147,17 @@ const loading = ref(false);
 const trialUsed = ref(false);
 const activePreset = ref(null);
 const presets = ref([]);
+const user = ref(null);
 const errors = reactive({ phone: '', scenario: '', general: '' });
 
 onMounted(async () => {
     try {
-        const { data } = await axios.get('/api/presets');
-        presets.value = data;
+        const [pr, me] = await Promise.all([
+            axios.get('/api/presets'),
+            axios.get('/user-api/me').catch(() => null),
+        ]);
+        presets.value = pr.data;
+        if (me?.data?.user) user.value = me.data.user;
     } catch {}
 });
 
