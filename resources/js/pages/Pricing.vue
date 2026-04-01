@@ -171,16 +171,14 @@ function isCurrentPlan(plan) {
 function isDowngrade(plan) {
   if (!user.value?.plan) return false
   const current = plans.value.find(p => p.slug === user.value.plan)
-  return current && plan.price_mxn < current.price_mxn
+  return current && parseFloat(plan.price_mxn) < parseFloat(current.price_mxn)
 }
 
 function upgradeDiscount(plan) {
   if (!user.value?.plan || isCurrentPlan(plan) || isDowngrade(plan)) return 0
   const current = plans.value.find(p => p.slug === user.value.plan)
-  if (!current || plan.price_mxn <= current.price_mxn) return 0
-  // Discount = unused value from current plan
-  const usedCalls = 0 // We don't have this client-side, server calculates exact
-  return Math.max(0, current.price_mxn) // Show max possible discount, server calculates exact
+  if (!current || parseFloat(plan.price_mxn) <= parseFloat(current.price_mxn)) return 0
+  return Math.max(0, parseFloat(current.price_mxn))
 }
 
 async function buy(plan) {
