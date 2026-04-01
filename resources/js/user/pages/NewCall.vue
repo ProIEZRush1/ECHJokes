@@ -37,9 +37,22 @@
 
       <div>
         <label class="block text-xs text-gray-400 uppercase mb-1.5">Escenario</label>
-        <textarea v-model="scenario" rows="4" maxlength="500" required
+        <textarea v-model="scenario" rows="3" maxlength="500" required
           placeholder="Describe la broma..."
           class="w-full bg-matrix-800 border border-matrix-600 rounded-xl px-3 py-2.5 text-white text-sm outline-none focus:border-neon/50 resize-none placeholder:text-gray-600"></textarea>
+      </div>
+
+      <!-- Presets -->
+      <div v-if="presets.length">
+        <p class="text-xs text-gray-500 mb-2">O elige una idea:</p>
+        <div class="grid grid-cols-2 gap-2">
+          <button v-for="p in presets" :key="p.id" type="button" @click="usePreset(p)"
+            :class="['flex items-center gap-2 p-2 rounded-xl border text-left transition text-xs',
+              activePreset === p.id ? 'border-neon bg-neon/10 text-white' : 'border-matrix-600 text-gray-400 hover:border-neon/30']">
+            <span class="text-lg flex-shrink-0">{{ p.emoji }}</span>
+            <span class="truncate">{{ p.label }}</span>
+          </button>
+        </div>
       </div>
 
       <button type="submit" :disabled="loading || credits === 0"
@@ -64,13 +77,25 @@ const scenario = ref('')
 const credits = ref(null)
 const loading = ref(false)
 const error = ref('')
+const presets = ref([])
+const activePreset = ref(null)
 
 onMounted(async () => {
   try {
-    const { data } = await axios.get('/user-api/me')
-    credits.value = data.user.credits
+    const [me, pr] = await Promise.all([
+      axios.get('/user-api/me'),
+      axios.get('/api/presets'),
+    ])
+    credits.value = me.data.user.credits
+    presets.value = pr.data
   } catch {}
 })
+
+function usePreset(p) {
+  scenario.value = p.scenario
+  if (p.voice) voice.value = p.voice
+  activePreset.value = p.id
+}
 
 async function launch() {
   error.value = ''

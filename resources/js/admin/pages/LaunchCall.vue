@@ -50,6 +50,19 @@
                  placeholder-gray-500 focus:outline-none focus:border-neon/50 transition resize-none"></textarea>
       </div>
 
+      <!-- Presets -->
+      <div v-if="presets.length">
+        <p class="text-xs text-gray-400 uppercase mb-2">Quick presets</p>
+        <div class="grid grid-cols-2 lg:grid-cols-3 gap-2">
+          <button v-for="p in presets" :key="p.id" type="button" @click="usePreset(p)"
+            :class="['flex items-center gap-2 p-2 rounded-xl border text-left transition text-xs',
+              activePreset === p.id ? 'border-neon bg-neon/10 text-white' : 'border-matrix-600 text-gray-400 hover:border-neon/30']">
+            <span class="text-lg flex-shrink-0">{{ p.emoji }}</span>
+            <span class="truncate">{{ p.label }}</span>
+          </button>
+        </div>
+      </div>
+
       <!-- Submit -->
       <button type="submit" :disabled="loading"
         class="w-full py-3 rounded-xl bg-neon text-matrix-900 font-bold text-base
@@ -70,8 +83,22 @@
 </template>
 
 <script setup>
-import { ref, reactive } from 'vue'
+import { ref, reactive, onMounted } from 'vue'
 import axios from 'axios'
+
+const presets = ref([])
+const activePreset = ref(null)
+
+onMounted(async () => {
+  try { const { data } = await axios.get('/admin-api/presets'); presets.value = data } catch {}
+})
+
+function usePreset(p) {
+  form.scenario = p.scenario
+  form.character = p.character || ''
+  form.voice = p.voice || 'ash'
+  activePreset.value = p.id
+}
 
 const voices = [
   { id: 'ash', emoji: '👨', label: 'Male', desc: 'Ash' },

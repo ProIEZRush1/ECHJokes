@@ -115,7 +115,10 @@ class UserApiController extends Controller
 
     public function buyPlan(Request $request): JsonResponse
     {
-        $request->validate(['plan_id' => 'required|exists:plans,id']);
+        $request->validate([
+            'plan_id' => 'required|exists:plans,id',
+            'quantity' => 'nullable|integer|min:1|max:20',
+        ]);
 
         $plan = Plan::findOrFail($request->plan_id);
         if (!$plan->stripe_price_id) {
@@ -123,6 +126,8 @@ class UserApiController extends Controller
         }
 
         $user = Auth::user();
+        $quantity = $request->input('quantity', 1);
+        $totalCalls = $plan->calls_included * $quantity;
 
         Stripe::setApiKey(config('services.stripe.secret'));
 
@@ -130,7 +135,7 @@ class UserApiController extends Controller
             'payment_method_types' => ['card'],
             'line_items' => [[
                 'price' => $plan->stripe_price_id,
-                'quantity' => 1,
+                'quantity' => $quantity,
             ]],
             'mode' => 'payment',
             'success_url' => url('/dashboard?purchased=1'),
@@ -140,7 +145,7 @@ class UserApiController extends Controller
                 'user_id' => $user->id,
                 'plan_id' => $plan->id,
                 'plan_slug' => $plan->slug,
-                'calls_included' => $plan->calls_included,
+                'calls_included' => $totalCalls,
             ],
         ]);
 
