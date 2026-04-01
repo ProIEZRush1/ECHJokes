@@ -32,6 +32,10 @@ Route::post('/checkout', [ECHJokesController::class, 'createCheckout'])
     ->middleware('throttle:5,60')
     ->name('checkout');
 
+Route::post('/trial', [ECHJokesController::class, 'trialCall'])
+    ->middleware('throttle:3,60')
+    ->name('trial');
+
 // Test mode: skip Stripe, directly process a call (local env only)
 Route::post('/test/call', [ECHJokesController::class, 'testCall'])
     ->name('test.call');

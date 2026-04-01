@@ -15,29 +15,18 @@
 
         <!-- Form -->
         <div class="w-full max-w-md bg-matrix-800 border border-matrix-600 rounded-2xl p-8 shadow-lg">
-            <form @submit.prevent="handleSubmit">
-                <!-- Gift Toggle -->
-                <div class="flex items-center justify-center gap-2 mb-6">
-                    <button
-                        type="button"
-                        :class="['px-4 py-2 rounded-full text-sm font-medium transition-all', !isGift ? 'bg-neon text-matrix-900' : 'bg-matrix-700 text-gray-400']"
-                        @click="isGift = false"
-                    >
-                        A mi numero
-                    </button>
-                    <button
-                        type="button"
-                        :class="['px-4 py-2 rounded-full text-sm font-medium transition-all', isGift ? 'bg-neon text-matrix-900' : 'bg-matrix-700 text-gray-400']"
-                        @click="isGift = true"
-                    >
-                        &#x1F3AF; A un amigo
-                    </button>
-                </div>
+            <!-- Trial badge -->
+            <div class="text-center mb-6">
+                <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-neon/20 text-neon border border-neon/30">
+                    &#x1F381; Prueba gratis - 1 llamada de hasta 3 min
+                </span>
+            </div>
 
+            <form @submit.prevent="handleSubmit">
                 <!-- Phone Input -->
                 <div class="mb-4">
                     <label class="block text-sm font-medium text-gray-400 mb-2">
-                        {{ isGift ? 'Tu numero (para confirmar)' : 'Numero que recibira la llamada' }}
+                        Numero que recibira la llamada
                     </label>
                     <div class="flex items-center bg-matrix-700 border border-matrix-600 rounded-xl overflow-hidden focus-within:border-neon/50 transition-colors">
                         <span class="px-4 py-3 text-gray-400 font-mono border-r border-matrix-600 flex items-center gap-2">
@@ -55,35 +44,30 @@
                     <p v-if="errors.phone" class="mt-2 text-sm text-red-400">{{ errors.phone }}</p>
                 </div>
 
-                <!-- Gift: Recipient phone -->
-                <template v-if="isGift">
-                    <div class="mb-4">
-                        <label class="block text-sm font-medium text-gray-400 mb-2">Numero de tu amigo (el que recibe la broma)</label>
-                        <div class="flex items-center bg-matrix-700 border border-matrix-600 rounded-xl overflow-hidden focus-within:border-neon/50 transition-colors">
-                            <span class="px-4 py-3 text-gray-400 font-mono border-r border-matrix-600">+52</span>
-                            <input
-                                v-model="recipientPhone"
-                                type="tel"
-                                maxlength="10"
-                                placeholder="55 9876 5432"
-                                class="flex-1 bg-transparent px-4 py-3 text-white font-mono text-lg outline-none placeholder:text-gray-600"
-                                @input="recipientPhone = $event.target.value.replace(/\D/g, '').slice(0, 10)"
-                            />
-                        </div>
-                        <p v-if="errors.recipient_phone" class="mt-2 text-sm text-red-400">{{ errors.recipient_phone }}</p>
+                <!-- Voice -->
+                <div class="mb-4">
+                    <label class="block text-sm font-medium text-gray-400 mb-2">Voz de la IA</label>
+                    <div class="grid grid-cols-2 gap-2">
+                        <button type="button" @click="voice = 'ash'"
+                            :class="['flex items-center gap-2 p-3 rounded-xl border transition-all',
+                                voice === 'ash' ? 'border-neon bg-neon/10 text-white' : 'border-matrix-600 text-gray-400']">
+                            <span class="text-xl">&#x1F468;</span>
+                            <div class="text-left">
+                                <p class="text-sm font-semibold">Hombre</p>
+                                <p class="text-xs opacity-60">Voz natural</p>
+                            </div>
+                        </button>
+                        <button type="button" @click="voice = 'coral'"
+                            :class="['flex items-center gap-2 p-3 rounded-xl border transition-all',
+                                voice === 'coral' ? 'border-neon bg-neon/10 text-white' : 'border-matrix-600 text-gray-400']">
+                            <span class="text-xl">&#x1F469;</span>
+                            <div class="text-left">
+                                <p class="text-sm font-semibold">Mujer</p>
+                                <p class="text-xs opacity-60">Voz natural</p>
+                            </div>
+                        </button>
                     </div>
-
-                    <div class="mb-4">
-                        <label class="block text-sm font-medium text-gray-400 mb-2">Tu nombre</label>
-                        <input
-                            v-model="senderName"
-                            type="text"
-                            maxlength="50"
-                            placeholder="Tu nombre"
-                            class="w-full bg-matrix-700 border border-matrix-600 rounded-xl px-4 py-3 text-white outline-none focus:border-neon/50 transition-colors"
-                        />
-                    </div>
-                </template>
+                </div>
 
                 <!-- SCENARIO — The core input -->
                 <div class="mb-4">
@@ -94,11 +78,7 @@
                         v-model="scenario"
                         maxlength="500"
                         rows="4"
-                        placeholder="Ej: 'Que la lavadora hace mucho ruido y los vecinos se quejan, que llame como si fuera de la administracion del condominio'
-
-'Que le hablen del banco diciendo que su tarjeta tiene un cargo sospechoso de $50,000 en una tienda de peluches'
-
-'Que le hablen de una veterinaria diciendo que su perro gano un concurso de belleza'"
+                        placeholder="Ej: 'Que llamen de la administracion del condominio diciendo que la lavadora hace mucho ruido y los vecinos se quejan'"
                         class="w-full bg-matrix-700 border border-matrix-600 rounded-xl px-4 py-3 text-white text-sm outline-none focus:border-neon/50 transition-colors resize-none placeholder:text-gray-600 leading-relaxed"
                     ></textarea>
                     <div class="flex justify-between mt-1">
@@ -124,30 +104,6 @@
                     </div>
                 </div>
 
-                <!-- Delivery Type -->
-                <div class="mb-6">
-                    <label class="block text-sm font-medium text-gray-400 mb-2">Tipo de entrega</label>
-                    <div class="flex gap-2">
-                        <button
-                            type="button"
-                            :class="['flex-1 px-4 py-2 rounded-xl text-sm font-medium transition-all', deliveryType === 'call' ? 'bg-neon text-matrix-900' : 'bg-matrix-700 text-gray-400 border border-matrix-600']"
-                            @click="deliveryType = 'call'"
-                        >
-                            &#x1F4DE; Llamada con IA
-                        </button>
-                        <button
-                            type="button"
-                            :class="['flex-1 px-4 py-2 rounded-xl text-sm font-medium transition-all', deliveryType === 'whatsapp' ? 'bg-neon text-matrix-900' : 'bg-matrix-700 text-gray-400 border border-matrix-600']"
-                            @click="deliveryType = 'whatsapp'"
-                        >
-                            &#x1F4AC; WhatsApp
-                        </button>
-                    </div>
-                    <p class="text-xs text-gray-600 mt-1">
-                        {{ deliveryType === 'call' ? 'La IA llama, contesta y conversa en tiempo real' : 'Se envia un mensaje de broma por WhatsApp' }}
-                    </p>
-                </div>
-
                 <!-- Submit -->
                 <button
                     type="submit"
@@ -159,18 +115,24 @@
                             <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" fill="none" />
                             <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
                         </svg>
-                        Procesando...
+                        Iniciando llamada...
                     </span>
-                    <span v-else>
-                        {{ deliveryType === 'whatsapp' ? '&#x1F4AC; Enviar broma por WhatsApp!' : '&#x1F4DE; Hacer la llamada de broma!' }}
-                    </span>
+                    <span v-else>&#x1F4DE; Hacer llamada de prueba gratis</span>
                 </button>
 
                 <p v-if="errors.general" class="mt-4 text-sm text-red-400 text-center">{{ errors.general }}</p>
+
+                <!-- Trial used — show plans -->
+                <div v-if="trialUsed" class="mt-4 p-4 rounded-xl bg-matrix-700 border border-neon/20 text-center">
+                    <p class="text-sm text-gray-300 mb-2">Ya usaste tu prueba gratuita</p>
+                    <router-link to="/pricing" class="text-neon font-bold text-sm hover:underline">
+                        Ver planes desde $29 MXN &rarr;
+                    </router-link>
+                </div>
             </form>
 
             <p class="mt-6 text-xs text-gray-600 text-center">
-                Al proporcionar el numero aceptas que ECHJokes realice una {{ deliveryType === 'whatsapp' ? 'mensaje' : 'llamada' }} de broma.
+                Prueba gratuita: 1 llamada de hasta 3 minutos. Sin tarjeta de credito.
             </p>
         </div>
 
@@ -179,35 +141,33 @@
             <h3 class="text-sm font-medium text-gray-500 mb-4 text-center">Ejemplo: "La lavadora hace mucho ruido"</h3>
             <div class="bg-matrix-800 border border-matrix-600 rounded-xl p-6 font-mono text-sm space-y-3">
                 <div class="text-gray-500 text-xs italic mb-2">La IA llama pretendiendo ser de la administracion...</div>
-                <div class="text-neon/80"><span class="text-gray-500">IA:</span> Buenas tardes, le hablo de la administracion del condominio. Tenemos un reporte de ruido excesivo proveniente de su departamento...</div>
-                <div class="text-white/60"><span class="text-gray-500">Persona:</span> Ah si? Que tipo de ruido?</div>
-                <div class="text-neon/80"><span class="text-gray-500">IA:</span> Pues mire, nos reportaron que suena como si tuviera un helicoptero estacionado en su cocina. Los vecinos del 4B dicen que no pueden ni ver su telenovela...</div>
+                <div class="text-neon/80"><span class="text-gray-500">IA:</span> Oye, hola, disculpa que te llame asi. Mira, te hablo de la administracion del condominio...</div>
+                <div class="text-white/60"><span class="text-gray-500">Persona:</span> Ah si? Que paso?</div>
+                <div class="text-neon/80"><span class="text-gray-500">IA:</span> Fijate que nos estan reportando un ruido, este... como de helicoptero o algo asi, que sale de tu depa. Los del 4B ya no aguantan...</div>
                 <div class="text-white/60"><span class="text-gray-500">Persona:</span> Jajaja es la lavadora!</div>
-                <div class="text-neon/80"><span class="text-gray-500">IA:</span> Ah, es una lavadora? Bueno, entonces necesitamos que le ponga un silenciador. O minimo que le ponga musica bonita para que los vecinos disfruten el show...</div>
-                <div class="text-neon/60"><span class="text-gray-500">IA:</span> ...esto fue una broma de ECHJokes! Hasta luego!</div>
+                <div class="text-neon/80"><span class="text-gray-500">IA:</span> No pos, la neta si esta muy fuerte. Que te parece si le pones musiquita pa que los vecinos al menos disfruten el show...</div>
             </div>
         </div>
 
         <!-- Nav links -->
         <div class="mt-8 flex gap-6 text-sm">
-            <router-link to="/pricing" class="text-gray-500 hover:text-neon transition-colors">Precios</router-link>
-            <router-link to="/login" class="text-gray-500 hover:text-neon transition-colors">Mi cuenta</router-link>
+            <router-link to="/pricing" class="text-gray-500 hover:text-neon transition-colors">Planes</router-link>
         </div>
     </div>
 </template>
 
 <script setup>
 import { ref, reactive } from 'vue';
+import { useRouter } from 'vue-router';
 import axios from 'axios';
 
+const router = useRouter();
 const phone = ref('');
 const scenario = ref('');
-const deliveryType = ref('call');
-const isGift = ref(false);
-const recipientPhone = ref('');
-const senderName = ref('');
+const voice = ref('ash');
 const loading = ref(false);
-const errors = reactive({ phone: '', recipient_phone: '', scenario: '', general: '' });
+const trialUsed = ref(false);
+const errors = reactive({ phone: '', scenario: '', general: '' });
 
 const quickIdeas = [
     { label: '&#x1F9FA; Lavadora ruidosa', text: 'Que llamen de la administracion del condominio diciendo que la lavadora hace demasiado ruido y que los vecinos se estan quejando, que si no le baja van a tener que cobrarle una multa' },
@@ -223,9 +183,9 @@ function formatPhone(e) {
 
 async function handleSubmit() {
     errors.phone = '';
-    errors.recipient_phone = '';
     errors.scenario = '';
     errors.general = '';
+    trialUsed.value = false;
 
     const digits = phone.value.replace(/\D/g, '');
     if (digits.length !== 10) { errors.phone = 'El numero debe tener 10 digitos.'; return; }
@@ -236,39 +196,34 @@ async function handleSubmit() {
         return;
     }
 
-    if (isGift.value) {
-        const rd = recipientPhone.value.replace(/\D/g, '');
-        if (rd.length !== 10) { errors.recipient_phone = 'El numero debe tener 10 digitos.'; return; }
-        if (!senderName.value.trim()) { errors.general = 'Indica tu nombre.'; return; }
-    }
-
     loading.value = true;
 
     try {
-        const payload = {
+        const { data } = await axios.post('/trial', {
             phone_number: digits,
             scenario: scenario.value.trim(),
-            delivery_type: deliveryType.value,
-            is_gift: isGift.value,
-        };
+            voice: voice.value,
+        });
 
-        if (isGift.value) {
-            payload.recipient_phone = recipientPhone.value.replace(/\D/g, '');
-            payload.sender_name = senderName.value.trim();
-        }
-
-        const { data } = await axios.post('/checkout', payload);
-        window.location.href = data.checkout_url;
+        // Redirect to call status page
+        router.push(data.redirect);
     } catch (err) {
-        if (err.response?.status === 422) {
+        if (err.response?.status === 429) {
+            const body = err.response.data;
+            if (body.show_plans) {
+                trialUsed.value = true;
+                errors.general = body.error;
+            } else {
+                errors.general = 'Demasiados intentos. Espera un momento.';
+            }
+        } else if (err.response?.status === 422) {
             const se = err.response.data.errors;
             errors.phone = se?.phone_number?.[0] || '';
-            errors.recipient_phone = se?.recipient_phone?.[0] || '';
             errors.scenario = se?.scenario?.[0] || '';
-            errors.general = se?.delivery_type?.[0] || '';
         } else {
-            errors.general = 'Algo salio mal. Intentalo de nuevo.';
+            errors.general = err.response?.data?.error || 'Algo salio mal. Intentalo de nuevo.';
         }
+    } finally {
         loading.value = false;
     }
 }

@@ -78,39 +78,86 @@ class ECHJokesController extends Controller
     }
 
     /**
-     * Test mode: skip Stripe, directly create a call (local env only).
+     * Free trial: 1 call per IP, max 3 min, no payment required.
      */
-    public function testCall(Request $request): JsonResponse
+    public function trialCall(Request $request): JsonResponse
     {
-        if (! app()->environment('local', 'testing')) {
-            abort(404);
-        }
-
         $request->validate([
             'phone_number' => 'required|string|regex:/^[1-9]\d{9}$/',
             'scenario' => 'required|string|min:10|max:500',
+            'character' => 'nullable|string|max:200',
+            'voice' => 'nullable|in:ash,coral',
         ]);
+
+        $ip = $request->ip();
+
+        // Check if this IP already used their free trial
+        $existing = JokeCall::where('ip_address', $ip)
+            ->where('joke_source', 'trial')
+            ->whereNotIn('status', [JokeCallStatus::Failed])
+            ->count();
+
+        if ($existing >= 1) {
+            return response()->json([
+                'error' => 'Ya usaste tu llamada de prueba gratuita. Adquiere un plan para seguir bromeando.',
+                'show_plans' => true,
+            ], 429);
+        }
+
+        $phone = '+52' . $request->input('phone_number');
+        $scenario = strip_tags($request->input('scenario'));
+        $character = strip_tags($request->input('character', ''));
+        $voice = $request->input('voice', 'ash');
 
         $jokeCall = JokeCall::create([
             'session_id' => Str::ulid()->toBase32(),
-            'phone_number' => '+52' . $request->phone_number,
+            'phone_number' => $phone,
             'joke_category' => 'prank',
-            'joke_source' => 'custom',
-            'custom_joke_prompt' => strip_tags($request->scenario),
-            'delivery_type' => $request->input('delivery_type', 'call'),
-            'status' => JokeCallStatus::Paid,
-            'ip_address' => $request->ip(),
+            'joke_source' => 'trial',
+            'custom_joke_prompt' => $scenario,
+            'delivery_type' => 'call',
+            'status' => JokeCallStatus::Calling,
+            'ip_address' => $ip,
         ]);
 
-        // Dispatch directly (sync for testing)
-        \App\Jobs\ProcessJokeCall::dispatchSync($jokeCall);
+        try {
+            $twilio = new \Twilio\Rest\Client(
+                config('services.twilio.sid'),
+                config('services.twilio.auth_token')
+            );
 
-        return response()->json([
-            'id' => $jokeCall->id,
-            'status' => $jokeCall->fresh()->status->value,
-            'joke_text' => $jokeCall->fresh()->joke_text,
-            'redirect' => "/call/{$jokeCall->id}/status",
-        ]);
+            $call = $twilio->calls->create($phone, config('services.twilio.phone_number'), [
+                'url' => url('/conversation/start') . '?scenario=' . urlencode($scenario) . '&character=' . urlencode($character) . '&voice=' . urlencode($voice),
+                'method' => 'POST',
+                'statusCallback' => route('twilio.status'),
+                'statusCallbackEvent' => ['initiated', 'ringing', 'answered', 'completed'],
+                'statusCallbackMethod' => 'POST',
+                'machineDetection' => 'Enable',
+                'asyncAmd' => 'true',
+                'asyncAmdStatusCallback' => route('twilio.status'),
+                'asyncAmdStatusCallbackMethod' => 'POST',
+                'timeout' => 30,
+                'timeLimit' => 180, // 3 min max for trial
+                'record' => true,
+                'recordingStatusCallback' => route('twilio.recording'),
+                'recordingStatusCallbackEvent' => ['completed'],
+            ]);
+
+            $jokeCall->update(['twilio_call_sid' => $call->sid]);
+
+            return response()->json([
+                'id' => $jokeCall->id,
+                'call_sid' => $call->sid,
+                'redirect' => "/call/{$jokeCall->id}/status",
+            ]);
+        } catch (\Throwable $e) {
+            $jokeCall->update([
+                'status' => JokeCallStatus::Failed,
+                'failure_reason' => $e->getMessage(),
+            ]);
+
+            return response()->json(['error' => 'No se pudo hacer la llamada. Intenta de nuevo.'], 500);
+        }
     }
 
     public function callStatus(JokeCall $jokeCall): JsonResponse|null
@@ -118,6 +165,12 @@ class ECHJokesController extends Controller
         if (request()->wantsJson()) {
             $transcript = $jokeCall->ai_transcript ?? [];
             $conversation = $transcript['conversation'] ?? [];
+
+            // Include live transcript for active calls
+            $liveTranscript = [];
+            if ($jokeCall->live_transcript) {
+                $liveTranscript = json_decode($jokeCall->live_transcript, true) ?: [];
+            }
 
             return response()->json([
                 'id' => $jokeCall->id,
@@ -127,7 +180,7 @@ class ECHJokesController extends Controller
                 'is_terminal' => $jokeCall->status->isTerminal(),
                 'scenario' => $jokeCall->custom_joke_prompt,
                 'opening_line' => $jokeCall->joke_text,
-                'conversation' => $jokeCall->status->isTerminal() ? $conversation : [],
+                'conversation' => $jokeCall->status->isTerminal() ? $conversation : $liveTranscript,
                 'call_duration_seconds' => $jokeCall->call_duration_seconds,
                 'failure_reason' => $jokeCall->failure_reason,
                 'recording_url' => $jokeCall->recording_url,

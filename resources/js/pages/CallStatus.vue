@@ -165,20 +165,36 @@ function setupEcho() {
         .listen('.App\\Events\\JokeCallStatusUpdated', updateFromData);
 }
 
-onMounted(async () => {
+let pollInterval = null;
+
+async function fetchStatus() {
     try {
         const { data } = await axios.get(`/call/${jokeCallId}/status`, { headers: { Accept: 'application/json' } });
         updateFromData(data);
-        sessionId.value = data.session_id;
-        setupEcho();
+        if (!sessionId.value && data.session_id) {
+            sessionId.value = data.session_id;
+            setupEcho();
+        }
+        // Stop polling when terminal
+        if (data.is_terminal && pollInterval) {
+            clearInterval(pollInterval);
+            pollInterval = null;
+        }
     } catch {
         status.value = 'failed';
         currentLabel.value = 'Error';
         failureReason.value = 'No se pudo cargar el estado de la llamada.';
     }
+}
+
+onMounted(() => {
+    fetchStatus();
+    // Poll every 3s as fallback (WebSocket may not be configured)
+    pollInterval = setInterval(fetchStatus, 3000);
 });
 
 onUnmounted(() => {
+    if (pollInterval) clearInterval(pollInterval);
     if (echo && sessionId.value) echo.leave('joke-call.' + sessionId.value);
 });
 </script>
