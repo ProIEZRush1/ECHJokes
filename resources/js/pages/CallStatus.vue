@@ -65,6 +65,17 @@
                 </router-link>
             </div>
 
+            <!-- Recording -->
+            <div v-if="recordingUrl && isTerminal" class="bg-matrix-800 border border-matrix-600 rounded-xl p-4 md:p-6 mb-6">
+                <h3 class="text-xs font-medium text-gray-500 mb-3 uppercase tracking-wider">Grabacion</h3>
+                <audio controls class="w-full mb-3" :src="recordingUrl" preload="metadata"
+                    style="filter: hue-rotate(100deg) saturate(1.5);"></audio>
+                <a :href="recordingUrl" download class="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-matrix-700 border border-matrix-600 text-sm text-gray-300 hover:text-neon hover:border-neon/30 transition">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
+                    Descargar grabacion
+                </a>
+            </div>
+
             <!-- Completed -->
             <div v-if="status === 'completed'" class="space-y-4">
                 <p class="text-neon text-lg font-medium">Broma completada!</p>
@@ -93,6 +104,7 @@ const scenario = ref('');
 const conversation = ref([]);
 const callDuration = ref(null);
 const failureReason = ref(null);
+const recordingUrl = ref(null);
 const sessionId = ref(null);
 let echo = null;
 
@@ -146,6 +158,7 @@ function updateFromData(data) {
     if (data.conversation?.length) conversation.value = data.conversation;
     if (data.call_duration_seconds) callDuration.value = data.call_duration_seconds;
     if (data.failure_reason) failureReason.value = data.failure_reason;
+    if (data.recording_url) recordingUrl.value = data.recording_url;
 }
 
 function setupEcho() {
