@@ -67,7 +67,7 @@ function elevenLabsTTS(text, voiceId, callback) {
     text: text,
     model_id: 'eleven_turbo_v2_5',
     output_format: 'ulaw_8000',
-    voice_settings: { stability: 0.4, similarity_boost: 0.8, style: 0.2 }
+    voice_settings: { stability: 0.5, similarity_boost: 0.75 }
   });
 
   const options = {
@@ -271,12 +271,17 @@ COMO ACTUAR:
             if (USE_ELEVENLABS && streamSid) {
               isSpeaking = true;
               responseStartTimestamp = latestMediaTimestamp;
+              let framesSent = 0;
               elevenLabsTTS(text, ELEVENLABS_VOICE_ID, (audioBase64, done) => {
-                if (audioBase64 && streamSid) {
-                  twilioWs.send(JSON.stringify({ event: 'media', streamSid, media: { payload: audioBase64 } }));
-                  if (callSid) broadcastAudio(callSid, audioBase64, 'ai');
+                if (audioBase64 && streamSid && twilioWs.readyState === WebSocket.OPEN) {
+                  try {
+                    twilioWs.send(JSON.stringify({ event: 'media', streamSid, media: { payload: audioBase64 } }));
+                    framesSent++;
+                    if (callSid) broadcastAudio(callSid, audioBase64, 'ai');
+                  } catch(e) { console.error('Twilio send error:', e.message); }
                 }
                 if (done) {
+                  console.log(`ElevenLabs: sent ${framesSent} frames to Twilio`);
                   isSpeaking = false;
                   if (streamSid) {
                     const markId = `mark_${Date.now()}`;
@@ -372,7 +377,8 @@ COMO ACTUAR:
           break;
         case 'media':
           latestMediaTimestamp = msg.media?.timestamp ? parseInt(msg.media.timestamp) : Date.now();
-          if (openAiWs?.readyState === WebSocket.OPEN) {
+          // Don't send audio to OpenAI while ElevenLabs is speaking (prevents echo/feedback loop)
+          if (openAiWs?.readyState === WebSocket.OPEN && !(USE_ELEVENLABS && isSpeaking)) {
             openAiWs.send(JSON.stringify({ type: 'input_audio_buffer.append', audio: msg.media.payload }));
           }
           if (callSid) broadcastAudio(callSid, msg.media.payload, 'human');
