@@ -160,7 +160,7 @@ class ECHJokesController extends Controller
         }
     }
 
-    public function callStatus(JokeCall $jokeCall): JsonResponse|null
+    public function callStatus(JokeCall $jokeCall): JsonResponse|\Illuminate\View\View
     {
         if (request()->wantsJson()) {
             $transcript = $jokeCall->ai_transcript ?? [];
