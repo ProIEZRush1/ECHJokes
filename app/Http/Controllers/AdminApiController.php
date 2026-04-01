@@ -72,7 +72,7 @@ class AdminApiController extends Controller
 
     public function calls(Request $request): JsonResponse
     {
-        $query = JokeCall::query()->latest();
+        $query = JokeCall::query()->with('user:id,name,email')->latest();
 
         if ($status = $request->input('status')) {
             $query->where('status', $status);

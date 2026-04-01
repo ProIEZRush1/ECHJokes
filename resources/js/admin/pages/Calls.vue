@@ -31,6 +31,7 @@
               <th class="text-left p-3">Scenario</th>
               <th class="text-left p-3">Status</th>
               <th class="text-left p-3">Source</th>
+              <th class="text-left p-3">User</th>
               <th class="text-left p-3">Duration</th>
               <th class="text-left p-3">Rec</th>
               <th class="text-left p-3">Date</th>
@@ -40,7 +41,7 @@
             <tr v-for="call in calls" :key="call.id"
               @click="$router.push('/admin/calls/' + call.id)"
               class="border-b border-matrix-700 hover:bg-matrix-700 cursor-pointer transition">
-              <td class="p-3 font-mono text-xs">{{ maskPhone(call.phone_number) }}</td>
+              <td class="p-3 font-mono text-xs">{{ call.phone_number }}</td>
               <td class="p-3 max-w-sm truncate text-gray-300">{{ call.custom_joke_prompt || '-' }}</td>
               <td class="p-3">
                 <span class="px-2 py-0.5 rounded-full text-xs font-medium" :class="statusClass(call.status)">
@@ -52,6 +53,10 @@
                   {{ sourceLabel(call.joke_source) }}
                 </span>
               </td>
+              <td class="p-3 text-xs text-gray-400">
+                <span v-if="call.user" class="cursor-pointer hover:text-neon" @click.stop="$router.push('/admin/users/' + call.user.id)">{{ call.user.name }}</span>
+                <span v-else class="text-gray-600">-</span>
+              </td>
               <td class="p-3 font-mono text-xs">{{ formatDuration(call.call_duration_seconds) }}</td>
               <td class="p-3">
                 <span v-if="call.recording_url" class="text-neon text-xs">&#9679;</span>
@@ -60,7 +65,7 @@
               <td class="p-3 text-gray-400 text-xs whitespace-nowrap">{{ formatDate(call.created_at) }}</td>
             </tr>
             <tr v-if="!calls.length && !loading">
-              <td colspan="7" class="p-8 text-center text-gray-500">No calls found</td>
+              <td colspan="8" class="p-8 text-center text-gray-500">No calls found</td>
             </tr>
           </tbody>
         </table>
