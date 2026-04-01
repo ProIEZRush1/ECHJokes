@@ -179,6 +179,21 @@ function handleTwilioStream(twilioWs, req) {
   let streamSid = null;
   let callSid = null;
   let openAiWs = null;
+  let bgNoiseInterval = null;
+
+  // Generate subtle background noise (office ambiance) as mulaw
+  // Mulaw silence = 0xFF, very low noise = values near 0xFF with slight variation
+  function generateBgNoiseFrame() {
+    const frame = Buffer.alloc(160); // 20ms at 8kHz
+    for (let i = 0; i < 160; i++) {
+      // Very subtle noise: mulaw values 0xFE-0xFF with occasional 0xFD
+      const r = Math.random();
+      if (r < 0.85) frame[i] = 0xFF;      // silence
+      else if (r < 0.97) frame[i] = 0xFE; // tiny bit of noise
+      else frame[i] = 0xFD;               // slightly more noise
+    }
+    return frame;
+  }
   let lastAssistantItem = null;
   let markQueue = [];
   let responseStartTimestamp = null;
@@ -194,7 +209,7 @@ TU PERSONAJE:
 ${character || 'Una persona que llama por un asunto importante'}
 
 PERSONA A QUIEN LLAMAS:
-${victimName ? `Se llama ${victimName}. Usa su nombre cuando le hables.` : 'No sabes su nombre, pregunta por "el encargado" o "la persona responsable".'}
+${victimName ? `Se llama ${victimName}. Usa su nombre cuando le hables.` : 'NO SABES su nombre. NUNCA inventes un nombre. Simplemente pregunta "hablo con el encargado?" o "buenas tardes, le hablo porque..." sin mencionar ningun nombre.'}
 
 SITUACION / CONTEXTO DE LA LLAMADA:
 ${scenario || 'Llamada importante que debes llevar a cabo'}
@@ -403,6 +418,15 @@ COMO ACTUAR:
           if (callSid && !activeCalls.has(callSid)) activeCalls.set(callSid, { listeners: new Set() });
           streamReady = true;
           maybeStartGreeting();
+          // Start subtle background noise
+          bgNoiseInterval = setInterval(() => {
+            if (streamSid && twilioWs.readyState === WebSocket.OPEN && !isSpeaking) {
+              const noise = generateBgNoiseFrame();
+              try {
+                twilioWs.send(JSON.stringify({ event: 'media', streamSid, media: { payload: noise.toString('base64') } }));
+              } catch(e) {}
+            }
+          }, 20);
           break;
         case 'media':
           latestMediaTimestamp = msg.media?.timestamp ? parseInt(msg.media.timestamp) : Date.now();
@@ -417,6 +441,7 @@ COMO ACTUAR:
           break;
         case 'stop':
           console.log('Twilio stream stopped');
+          if (bgNoiseInterval) { clearInterval(bgNoiseInterval); bgNoiseInterval = null; }
           if (openAiWs?.readyState === WebSocket.OPEN) openAiWs.close();
           break;
       }
@@ -427,6 +452,7 @@ COMO ACTUAR:
 
   twilioWs.on('close', () => {
     console.log('Twilio disconnected');
+    if (bgNoiseInterval) { clearInterval(bgNoiseInterval); bgNoiseInterval = null; }
     if (openAiWs?.readyState === WebSocket.OPEN) openAiWs.close();
   });
 }
