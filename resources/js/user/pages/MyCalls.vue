@@ -1,5 +1,16 @@
 <template>
   <div class="space-y-6">
+    <!-- Purchase confirmation -->
+    <div v-if="purchased" class="bg-neon/10 border border-neon/30 rounded-2xl p-6 text-center animate-pulse-once">
+      <div class="text-4xl mb-3">&#x1F389;</div>
+      <h2 class="text-xl font-bold text-neon mb-2">Compra exitosa!</h2>
+      <p class="text-gray-300 text-sm mb-4">Tus creditos han sido agregados. Ya puedes hacer tus bromas!</p>
+      <router-link to="/dashboard/new"
+        class="inline-block px-6 py-3 bg-neon text-matrix-900 rounded-xl font-bold hover:shadow-neon transition">
+        Hacer una broma ahora
+      </router-link>
+    </div>
+
     <div class="flex items-center justify-between">
       <h1 class="text-2xl font-bold font-mono">Mis Llamadas</h1>
       <router-link to="/dashboard/new"
@@ -44,11 +55,14 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, computed, onMounted } from 'vue'
+import { useRoute } from 'vue-router'
 import axios from 'axios'
 
+const route = useRoute()
 const calls = ref([])
 const loading = ref(true)
+const purchased = computed(() => route.query.purchased === '1')
 
 onMounted(async () => {
   try {
