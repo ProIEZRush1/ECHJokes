@@ -1,5 +1,13 @@
 <template>
     <div class="min-h-screen flex flex-col items-center justify-center px-4 py-12">
+        <!-- Back button -->
+        <div class="w-full max-w-lg mb-4">
+            <router-link to="/" class="inline-flex items-center gap-1.5 text-sm text-gray-500 hover:text-neon transition">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/></svg>
+                Volver al inicio
+            </router-link>
+        </div>
+
         <div class="w-full max-w-lg text-center">
             <!-- Phone Animation -->
             <div class="text-7xl mb-8" :class="{ 'animate-[ring_1s_ease-in-out_infinite]': isRinging }">
