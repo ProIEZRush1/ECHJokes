@@ -154,51 +154,38 @@ class JokeCallController extends Controller
 
     private function fetchJoke(string $lang): ?array
     {
-        // Try JokeAPI with random category to increase variety
-        $categories = ['Programming', 'Misc', 'Pun', 'Spooky', 'Christmas', 'Any'];
-        $category = $categories[array_rand($categories)];
+        $langNames = ['es' => 'Spanish', 'en' => 'English', 'de' => 'German', 'pt' => 'Portuguese', 'fr' => 'French'];
+        $langName = $langNames[$lang] ?? 'Spanish';
+        $topics = ['daily life', 'animals', 'food', 'technology', 'work', 'school', 'family', 'sports', 'doctors', 'lawyers', 'kids', 'marriage', 'shopping', 'travel', 'weather', 'money'];
+        $topic = $topics[array_rand($topics)];
+        $seed = mt_rand(1, 99999);
 
         try {
-            $r = Http::timeout(5)->get("https://v2.jokeapi.dev/joke/{$category}", [
-                'lang' => $lang,
-                'blacklistFlags' => 'nsfw,religious,political,racist,sexist',
-                'type' => 'single,twopart',
-                'idRange' => '0-300', // use wider range
+            $r = Http::withHeaders([
+                'x-api-key' => config('services.anthropic.api_key'),
+                'anthropic-version' => '2023-06-01',
+            ])->timeout(10)->post('https://api.anthropic.com/v1/messages', [
+                'model' => 'claude-3-haiku-20240307',
+                'max_tokens' => 150,
+                'temperature' => 1.0,
+                'system' => "You are a comedian. Generate ONE short, funny, family-friendly joke in {$langName} about {$topic}. Seed: {$seed}. Just the joke text, nothing else. No intro, no explanation.",
+                'messages' => [['role' => 'user', 'content' => "Tell me a unique funny joke about {$topic} (#{$seed})"]],
             ]);
-            if ($r->ok() && !($r->json('error'))) return $r->json();
+            $text = trim($r->json('content.0.text') ?? '');
+            if ($text) {
+                return ['type' => 'single', 'joke' => $text, 'category' => $topic];
+            }
         } catch (\Throwable $e) {
-            Log::warning('JokeAPI failed', ['error' => $e->getMessage()]);
+            Log::warning('AI joke generation failed', ['error' => $e->getMessage()]);
         }
 
-        // Fallback: try without category filter
+        // Fallback to JokeAPI
         try {
             $r = Http::timeout(5)->get("https://v2.jokeapi.dev/joke/Any", [
                 'lang' => $lang,
                 'blacklistFlags' => 'nsfw,religious,political,racist,sexist',
             ]);
             if ($r->ok() && !($r->json('error'))) return $r->json();
-        } catch (\Throwable $e) {}
-
-        // Final fallback: generate a joke with AI
-        try {
-            $aiJoke = Http::withHeaders([
-                'x-api-key' => config('services.anthropic.api_key'),
-                'anthropic-version' => '2023-06-01',
-            ])->timeout(8)->post('https://api.anthropic.com/v1/messages', [
-                'model' => 'claude-3-haiku-20240307',
-                'max_tokens' => 100,
-                'temperature' => 1.0,
-                'system' => 'Generate a short funny joke in ' . $lang . '. Just the joke, nothing else. If two parts, separate setup and punchline with "---".',
-                'messages' => [['role' => 'user', 'content' => 'Tell me a random joke']],
-            ]);
-            $text = trim($aiJoke->json('content.0.text') ?? '');
-            if ($text) {
-                $parts = explode('---', $text);
-                if (count($parts) === 2) {
-                    return ['type' => 'twopart', 'setup' => trim($parts[0]), 'delivery' => trim($parts[1]), 'category' => 'AI'];
-                }
-                return ['type' => 'single', 'joke' => $text, 'category' => 'AI'];
-            }
         } catch (\Throwable $e) {}
 
         return null;
