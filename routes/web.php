@@ -97,6 +97,7 @@ Route::post('/inbound', [\App\Http\Controllers\InboundCallController::class, 'ha
 // Joke calls (TTS only, no AI)
 Route::post('/joke/twiml/{jokeCall}', [\App\Http\Controllers\JokeCallController::class, 'twiml'])->name('joke.twiml');
 Route::post('/joke/punchline/{jokeCall}', [\App\Http\Controllers\JokeCallController::class, 'punchline'])->name('joke.punchline');
+Route::get('/joke/audio/{jokeCall}', [\App\Http\Controllers\JokeCallController::class, 'serveAudio'])->name('joke.audio');
 Route::post('/conversation/start', [\App\Http\Controllers\ConversationWebhookController::class, 'start'])->name('conversation.start');
 Route::post('/conversation/gather', [\App\Http\Controllers\ConversationWebhookController::class, 'gather'])->name('conversation.gather');
 Route::get('/conversation/audio/{filename}', [\App\Http\Controllers\ConversationWebhookController::class, 'audio'])->name('conversation.audio');

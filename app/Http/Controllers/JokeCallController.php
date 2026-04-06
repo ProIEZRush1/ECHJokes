@@ -9,18 +9,11 @@ use Illuminate\Http\Request;
 use Illuminate\Http\Response;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 
 class JokeCallController extends Controller
 {
-    private array $languageMap = [
-        'es' => ['lang' => 'es', 'twilio_lang' => 'es-MX', 'twilio_voice' => 'Polly.Mia'],
-        'en' => ['lang' => 'en', 'twilio_lang' => 'en-US', 'twilio_voice' => 'Polly.Joanna'],
-        'de' => ['lang' => 'de', 'twilio_lang' => 'de-DE', 'twilio_voice' => 'Polly.Marlene'],
-        'pt' => ['lang' => 'pt', 'twilio_lang' => 'pt-BR', 'twilio_voice' => 'Polly.Vitoria'],
-        'fr' => ['lang' => 'fr', 'twilio_lang' => 'fr-FR', 'twilio_voice' => 'Polly.Celine'],
-    ];
-
     public function launch(Request $request): JsonResponse
     {
         $request->validate([
@@ -41,14 +34,23 @@ class JokeCallController extends Controller
             return response()->json(['error' => 'No se pudo obtener un chiste'], 500);
         }
 
+        $jokeText = $joke['type'] === 'single' ? $joke['joke'] : $joke['setup'] . ' ... ' . $joke['delivery'];
+
+        // Generate audio via ElevenLabs
+        $audioPath = $this->generateAudio($jokeText, $lang);
+        if (!$audioPath) {
+            return response()->json(['error' => 'No se pudo generar el audio'], 500);
+        }
+
         $jokeCall = JokeCall::create([
             'session_id' => Str::ulid()->toBase32(),
             'phone_number' => $phone,
             'joke_category' => $joke['category'] ?? 'Any',
             'joke_source' => $source,
-            'joke_text' => $joke['type'] === 'single' ? $joke['joke'] : $joke['setup'] . "\n---\n" . $joke['delivery'],
+            'joke_text' => $jokeText,
             'delivery_type' => 'joke_call',
             'voice' => $lang,
+            'audio_file_path' => $audioPath,
             'status' => JokeCallStatus::Calling,
             'ip_address' => $request->ip(),
             'user_id' => auth()->id(),
@@ -88,53 +90,65 @@ class JokeCallController extends Controller
 
     public function twiml(JokeCall $jokeCall): Response
     {
-        $jokeText = $jokeCall->joke_text ?? '';
-        $lang = $jokeCall->voice ?? 'es';
-        $langConfig = $this->languageMap[$lang] ?? $this->languageMap['es'];
+        $audioPath = $jokeCall->audio_file_path;
 
-        $parts = explode("\n---\n", $jokeText);
-
-        if (count($parts) === 2) {
-            // Two-part joke: setup, wait for reaction, then punchline
-            $setup = $this->clean($parts[0]);
-            $punchline = $this->clean($parts[1]);
-
-            $twiml = '<Say language="' . $langConfig['twilio_lang'] . '" voice="' . $langConfig['twilio_voice'] . '">' . e($setup) . '</Say>';
-            $twiml .= '<Gather input="speech" timeout="5" speechTimeout="auto" language="' . $langConfig['twilio_lang'] . '" action="' . e(route('joke.punchline', ['jokeCall' => $jokeCall->id])) . '" method="POST">';
-            $twiml .= '<Pause length="3"/>';
-            $twiml .= '</Gather>';
-            // If no input, just deliver punchline anyway
-            $twiml .= '<Say language="' . $langConfig['twilio_lang'] . '" voice="' . $langConfig['twilio_voice'] . '">' . e($punchline) . '</Say>';
-            $twiml .= '<Pause length="1"/>';
-            $twiml .= '<Say language="' . $langConfig['twilio_lang'] . '" voice="' . $langConfig['twilio_voice'] . '">Gracias por escuchar</Say>';
-            $twiml .= '<Hangup/>';
+        if ($audioPath && Storage::exists($audioPath)) {
+            // Play ElevenLabs pre-generated audio
+            $audioUrl = url('/joke/audio/' . $jokeCall->id);
+            $twiml = '<Play>' . e($audioUrl) . '</Play><Hangup/>';
         } else {
-            // Single joke
-            $joke = $this->clean($jokeText);
-            $twiml = '<Say language="' . $langConfig['twilio_lang'] . '" voice="' . $langConfig['twilio_voice'] . '">' . e($joke) . '</Say>';
-            $twiml .= '<Pause length="1"/>';
-            $twiml .= '<Say language="' . $langConfig['twilio_lang'] . '" voice="' . $langConfig['twilio_voice'] . '">Gracias por escuchar</Say>';
-            $twiml .= '<Hangup/>';
+            // Fallback to Twilio TTS
+            $twiml = '<Say language="es-MX" voice="Polly.Mia">' . e($this->clean($jokeCall->joke_text ?? '')) . '</Say><Hangup/>';
         }
 
         return response('<?xml version="1.0" encoding="UTF-8"?><Response>' . $twiml . '</Response>', 200, ['Content-Type' => 'text/xml']);
     }
 
+    public function serveAudio(JokeCall $jokeCall): \Symfony\Component\HttpFoundation\Response
+    {
+        $path = $jokeCall->audio_file_path;
+        if (!$path || !Storage::exists($path)) {
+            abort(404);
+        }
+        return response(Storage::get($path), 200, [
+            'Content-Type' => 'audio/mpeg',
+            'Content-Length' => Storage::size($path),
+        ]);
+    }
+
     public function punchline(JokeCall $jokeCall): Response
     {
-        $jokeText = $jokeCall->joke_text ?? '';
-        $lang = $jokeCall->voice ?? 'es';
-        $langConfig = $this->languageMap[$lang] ?? $this->languageMap['es'];
+        // Not used with ElevenLabs (full joke in one audio), kept for backwards compat
+        return response('<?xml version="1.0" encoding="UTF-8"?><Response><Hangup/></Response>', 200, ['Content-Type' => 'text/xml']);
+    }
 
-        $parts = explode("\n---\n", $jokeText);
-        $punchline = $this->clean($parts[1] ?? 'jaja');
+    private function generateAudio(string $text, string $lang): ?string
+    {
+        $apiKey = config('services.elevenlabs.api_key', env('ELEVENLABS_API_KEY'));
+        $voiceId = config('services.elevenlabs.voice_id', env('ELEVENLABS_VOICE_ID', 'iP95p4xoKVk53GoZ742B'));
 
-        $twiml = '<Say language="' . $langConfig['twilio_lang'] . '" voice="' . $langConfig['twilio_voice'] . '">' . e($punchline) . '</Say>';
-        $twiml .= '<Pause length="1"/>';
-        $twiml .= '<Say language="' . $langConfig['twilio_lang'] . '" voice="' . $langConfig['twilio_voice'] . '">Gracias por escuchar</Say>';
-        $twiml .= '<Hangup/>';
+        if (!$apiKey) return null;
 
-        return response('<?xml version="1.0" encoding="UTF-8"?><Response>' . $twiml . '</Response>', 200, ['Content-Type' => 'text/xml']);
+        try {
+            $response = Http::withHeaders([
+                'xi-api-key' => $apiKey,
+                'Content-Type' => 'application/json',
+            ])->timeout(15)->post("https://api.elevenlabs.io/v1/text-to-speech/{$voiceId}?output_format=mp3_44100_128", [
+                'text' => $text,
+                'model_id' => 'eleven_turbo_v2_5',
+                'voice_settings' => ['stability' => 0.5, 'similarity_boost' => 0.75],
+            ]);
+
+            if ($response->ok()) {
+                $filename = 'jokes/' . Str::ulid() . '.mp3';
+                Storage::put($filename, $response->body());
+                return $filename;
+            }
+        } catch (\Throwable $e) {
+            Log::warning('ElevenLabs joke TTS failed', ['error' => $e->getMessage()]);
+        }
+
+        return null;
     }
 
     private function fetchJoke(string $lang): ?array
@@ -145,9 +159,7 @@ class JokeCallController extends Controller
                 'blacklistFlags' => 'nsfw,religious,political,racist,sexist',
                 'type' => 'single,twopart',
             ]);
-            if ($r->ok() && !($r->json('error'))) {
-                return $r->json();
-            }
+            if ($r->ok() && !($r->json('error'))) return $r->json();
         } catch (\Throwable $e) {
             Log::warning('JokeAPI failed', ['error' => $e->getMessage()]);
         }
@@ -156,7 +168,6 @@ class JokeCallController extends Controller
 
     private function clean(string $text): string
     {
-        $text = preg_replace('/[""\'\'«»]/u', '', $text);
-        return str_replace(['<', '>', '&'], ['', '', 'y'], trim($text));
+        return str_replace(['<', '>', '&', '"', "'"], ['', '', 'y', '', ''], trim($text));
     }
 }
