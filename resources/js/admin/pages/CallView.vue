@@ -8,10 +8,17 @@
       <h1 class="text-2xl font-bold font-mono">Call Details</h1>
 
       <!-- Retry button -->
-      <button v-if="canRetry" @click="retryCall" :disabled="retrying"
-        class="ml-auto px-4 py-1.5 rounded-lg bg-neon text-matrix-900 font-bold text-sm hover:shadow-neon transition disabled:opacity-50">
-        {{ retrying ? 'Retrying...' : 'Retry Call' }}
-      </button>
+      <div v-if="canRetry" class="ml-auto flex items-center gap-2">
+        <select v-if="isJokeCall" v-model="retryJokeMode"
+          class="bg-matrix-700 border border-matrix-600 rounded-lg px-2 py-1.5 text-xs text-white">
+          <option value="new">New joke</option>
+          <option value="same">Same joke</option>
+        </select>
+        <button @click="retryCall" :disabled="retrying"
+          class="px-4 py-1.5 rounded-lg bg-neon text-matrix-900 font-bold text-sm hover:shadow-neon transition disabled:opacity-50">
+          {{ retrying ? 'Retrying...' : 'Retry' }}
+        </button>
+      </div>
 
       <span v-if="isLive" class="flex items-center gap-2 text-sm">
         <span class="relative flex h-2.5 w-2.5">
@@ -151,19 +158,34 @@ const canRetry = computed(() => {
   return s === 'completed' || s === 'failed' || s === 'voicemail'
 })
 
+const isJokeCall = computed(() => call.value?.delivery_type === 'joke_call')
 const retrying = ref(false)
+const retryJokeMode = ref('new')
 
 async function retryCall() {
   if (!call.value) return
   retrying.value = true
   try {
-    const { data } = await axios.post('/admin-api/launch-call', {
-      phone_number: call.value.phone_number,
-      scenario: call.value.custom_joke_prompt || '',
-      character: '',
-      voice: call.value.voice || 'ash',
-    })
-    // Navigate to the new call
+    let data
+    if (isJokeCall.value) {
+      // Joke call retry
+      const payload = {
+        phone_number: call.value.phone_number,
+        language: call.value.voice || 'es',
+        source: 'admin',
+      }
+      const res = await axios.post('/admin-api/joke-call', payload)
+      data = res.data
+    } else {
+      // Prank call retry
+      const res = await axios.post('/admin-api/launch-call', {
+        phone_number: call.value.phone_number,
+        scenario: call.value.custom_joke_prompt || '',
+        character: '',
+        voice: call.value.voice || 'ash',
+      })
+      data = res.data
+    }
     window.location.href = '/admin/calls/' + data.call_id
   } catch (e) {
     alert(e.response?.data?.error || 'Retry failed')
