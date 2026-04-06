@@ -106,14 +106,14 @@ class JokeCallController extends Controller
             // If no input, just deliver punchline anyway
             $twiml .= '<Say language="' . $langConfig['twilio_lang'] . '" voice="' . $langConfig['twilio_voice'] . '">' . e($punchline) . '</Say>';
             $twiml .= '<Pause length="1"/>';
-            $twiml .= '<Say language="' . $langConfig['twilio_lang'] . '" voice="' . $langConfig['twilio_voice'] . '">ECH Jokes punto com</Say>';
+            $twiml .= '<Say language="' . $langConfig['twilio_lang'] . '" voice="' . $langConfig['twilio_voice'] . '">Gracias por escuchar</Say>';
             $twiml .= '<Hangup/>';
         } else {
             // Single joke
             $joke = $this->clean($jokeText);
             $twiml = '<Say language="' . $langConfig['twilio_lang'] . '" voice="' . $langConfig['twilio_voice'] . '">' . e($joke) . '</Say>';
             $twiml .= '<Pause length="1"/>';
-            $twiml .= '<Say language="' . $langConfig['twilio_lang'] . '" voice="' . $langConfig['twilio_voice'] . '">ECH Jokes punto com</Say>';
+            $twiml .= '<Say language="' . $langConfig['twilio_lang'] . '" voice="' . $langConfig['twilio_voice'] . '">Gracias por escuchar</Say>';
             $twiml .= '<Hangup/>';
         }
 
@@ -131,7 +131,7 @@ class JokeCallController extends Controller
 
         $twiml = '<Say language="' . $langConfig['twilio_lang'] . '" voice="' . $langConfig['twilio_voice'] . '">' . e($punchline) . '</Say>';
         $twiml .= '<Pause length="1"/>';
-        $twiml .= '<Say language="' . $langConfig['twilio_lang'] . '" voice="' . $langConfig['twilio_voice'] . '">ECH Jokes punto com</Say>';
+        $twiml .= '<Say language="' . $langConfig['twilio_lang'] . '" voice="' . $langConfig['twilio_voice'] . '">Gracias por escuchar</Say>';
         $twiml .= '<Hangup/>';
 
         return response('<?xml version="1.0" encoding="UTF-8"?><Response>' . $twiml . '</Response>', 200, ['Content-Type' => 'text/xml']);

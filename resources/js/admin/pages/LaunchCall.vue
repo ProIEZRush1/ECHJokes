@@ -39,6 +39,7 @@
       <div v-if="jokeResult" class="p-4 rounded-xl text-sm" :class="jokeResult.ok ? 'bg-green-500/10 border border-green-500/20 text-green-400' : 'bg-red-500/10 border border-red-500/20 text-red-400'">
         <p>{{ jokeResult.message }}</p>
         <p v-if="jokeResult.joke" class="mt-2 text-xs text-gray-400 italic">"{{ jokeResult.joke }}"</p>
+        <router-link v-if="jokeResult.callId" :to="'/admin/calls/' + jokeResult.callId" class="inline-block mt-2 text-neon text-xs hover:underline">View call &rarr;</router-link>
       </div>
     </form>
 
@@ -143,7 +144,7 @@ async function launchJoke() {
   try {
     const { data } = await axios.post('/admin-api/joke-call', { ...jokeForm, source: 'admin' })
     const jokeText = data.joke?.type === 'single' ? data.joke.joke : `${data.joke?.setup} - ${data.joke?.delivery}`
-    jokeResult.value = { ok: true, message: `Joke call initiated!`, joke: jokeText }
+    jokeResult.value = { ok: true, message: `Joke call initiated!`, joke: jokeText, callId: data.call_id }
   } catch (e) {
     jokeResult.value = { ok: false, message: e.response?.data?.error || 'Failed' }
   } finally { jokeLoading.value = false }

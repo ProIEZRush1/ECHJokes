@@ -28,6 +28,7 @@
           <thead>
             <tr class="text-gray-500 text-xs uppercase border-b border-matrix-600">
               <th class="text-left p-3">Phone</th>
+              <th class="text-left p-3">Type</th>
               <th class="text-left p-3">Scenario</th>
               <th class="text-left p-3">Status</th>
               <th class="text-left p-3">Source</th>
@@ -42,7 +43,12 @@
               @click="$router.push('/admin/calls/' + call.id)"
               class="border-b border-matrix-700 hover:bg-matrix-700 cursor-pointer transition">
               <td class="p-3 font-mono text-xs">{{ call.phone_number }}</td>
-              <td class="p-3 max-w-sm truncate text-gray-300">{{ call.custom_joke_prompt || '-' }}</td>
+              <td class="p-3">
+                <span class="px-1.5 py-0.5 rounded text-[10px] font-medium" :class="call.delivery_type === 'joke_call' ? 'bg-yellow-500/20 text-yellow-400' : 'bg-blue-500/20 text-blue-400'">
+                  {{ call.delivery_type === 'joke_call' ? 'Joke' : 'Prank' }}
+                </span>
+              </td>
+              <td class="p-3 max-w-sm truncate text-gray-300">{{ call.custom_joke_prompt || call.joke_text || '-' }}</td>
               <td class="p-3">
                 <span class="px-2 py-0.5 rounded-full text-xs font-medium" :class="statusClass(call.status)">
                   {{ call.status }}
@@ -65,7 +71,7 @@
               <td class="p-3 text-gray-400 text-xs whitespace-nowrap">{{ formatDate(call.created_at) }}</td>
             </tr>
             <tr v-if="!calls.length && !loading">
-              <td colspan="8" class="p-8 text-center text-gray-500">No calls found</td>
+              <td colspan="9" class="p-8 text-center text-gray-500">No calls found</td>
             </tr>
           </tbody>
         </table>
