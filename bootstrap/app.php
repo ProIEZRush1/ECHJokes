@@ -17,6 +17,8 @@ return Application::configure(basePath: dirname(__DIR__))
             'webhooks/*',
             'api/generate-style',
             'inbound',
+            'joke/*',
+            'trial-joke',
             'conversation/*',
             'api/call-transcript',
             'trial',

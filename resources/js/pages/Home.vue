@@ -41,7 +41,54 @@
                 </span>
             </div>
 
-            <form @submit.prevent="handleSubmit">
+            <!-- Call Type Toggle -->
+            <div class="flex gap-2 mb-5 justify-center">
+                <button type="button" @click="callMode = 'prank'"
+                    :class="['px-4 py-2 rounded-full text-sm font-bold transition', callMode === 'prank' ? 'bg-neon text-matrix-900' : 'bg-matrix-700 text-gray-400']">
+                    Broma con IA
+                </button>
+                <button type="button" @click="callMode = 'joke'"
+                    :class="['px-4 py-2 rounded-full text-sm font-bold transition', callMode === 'joke' ? 'bg-neon text-matrix-900' : 'bg-matrix-700 text-gray-400']">
+                    Chiste rapido
+                </button>
+            </div>
+
+            <!-- JOKE MODE -->
+            <form v-if="callMode === 'joke'" @submit.prevent="handleJoke">
+                <div class="mb-4">
+                    <label class="block text-sm font-medium text-gray-400 mb-2">Numero</label>
+                    <div class="flex items-center bg-matrix-700 border border-matrix-600 rounded-xl overflow-hidden focus-within:border-neon/50 transition-colors">
+                        <span class="px-3 py-3 text-gray-400 font-mono border-r border-matrix-600 text-sm">+52</span>
+                        <input v-model="jokePhone" type="tel" maxlength="10" placeholder="55 1234 5678"
+                            class="flex-1 bg-transparent px-3 py-3 text-white font-mono outline-none placeholder:text-gray-600"
+                            @input="jokePhone = $event.target.value.replace(/\D/g, '').slice(0, 10)" />
+                    </div>
+                </div>
+                <div class="mb-4">
+                    <label class="block text-sm font-medium text-gray-400 mb-2">Idioma del chiste</label>
+                    <div class="grid grid-cols-5 gap-2">
+                        <button v-for="l in jokeLangs" :key="l.id" type="button" @click="jokeLang = l.id"
+                            :class="['flex flex-col items-center p-2 rounded-xl border transition text-xs',
+                                jokeLang === l.id ? 'border-neon bg-neon/10 text-white' : 'border-matrix-600 text-gray-500']">
+                            <span class="text-lg">{{ l.flag }}</span>
+                            <span>{{ l.label }}</span>
+                        </button>
+                    </div>
+                </div>
+                <button type="submit" :disabled="jokeLoading || jokePhone.length < 10"
+                    class="w-full py-3.5 rounded-xl bg-neon text-matrix-900 font-bold text-base shadow-[var(--shadow-neon)] hover:shadow-[var(--shadow-neon-lg)] transition-all disabled:opacity-50">
+                    {{ jokeLoading ? 'Llamando...' : 'Enviar chiste' }}
+                </button>
+                <p v-if="jokeError" class="mt-3 text-sm text-red-400 text-center">{{ jokeError }}</p>
+                <div v-if="jokeSuccess" class="mt-3 p-3 rounded-xl bg-green-500/10 border border-green-500/20 text-center">
+                    <p class="text-green-400 text-sm">Chiste enviado!</p>
+                    <p class="text-xs text-gray-400 mt-1 italic">"{{ jokeSuccess }}"</p>
+                </div>
+                <p class="mt-4 text-[10px] text-gray-600 text-center">Un chiste aleatorio sera llamado al numero. Gratis!</p>
+            </form>
+
+            <!-- PRANK MODE -->
+            <form v-else @submit.prevent="handleSubmit">
                 <!-- Phone -->
                 <div class="mb-4">
                     <label class="block text-sm font-medium text-gray-400 mb-2">Numero que recibira la llamada</label>
@@ -164,8 +211,40 @@ import { useRouter } from 'vue-router';
 import axios from 'axios';
 
 const router = useRouter();
+const callMode = ref('prank');
 const phone = ref('');
 const victimName = ref('');
+
+// Joke mode
+const jokeLangs = [
+    { id: 'es', flag: '\uD83C\uDDF2\uD83C\uDDFD', label: 'ES' },
+    { id: 'en', flag: '\uD83C\uDDFA\uD83C\uDDF8', label: 'EN' },
+    { id: 'pt', flag: '\uD83C\uDDE7\uD83C\uDDF7', label: 'PT' },
+    { id: 'fr', flag: '\uD83C\uDDEB\uD83C\uDDF7', label: 'FR' },
+    { id: 'de', flag: '\uD83C\uDDE9\uD83C\uDDEA', label: 'DE' },
+];
+const jokePhone = ref('');
+const jokeLang = ref('es');
+const jokeLoading = ref(false);
+const jokeError = ref('');
+const jokeSuccess = ref('');
+
+async function handleJoke() {
+    jokeError.value = ''; jokeSuccess.value = '';
+    if (jokePhone.value.length < 10) { jokeError.value = 'Numero de 10 digitos'; return; }
+    jokeLoading.value = true;
+    try {
+        const { data } = await axios.post('/trial-joke', {
+            phone_number: jokePhone.value,
+            language: jokeLang.value,
+            source: 'trial',
+        });
+        const j = data.joke;
+        jokeSuccess.value = j?.type === 'single' ? j.joke : `${j?.setup} ... ${j?.delivery}`;
+    } catch (e) {
+        jokeError.value = e.response?.data?.error || 'Error';
+    } finally { jokeLoading.value = false; }
+}
 const scenario = ref('');
 const voice = ref('ash');
 const style = ref('');

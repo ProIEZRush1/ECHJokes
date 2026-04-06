@@ -19,7 +19,8 @@ class PlanSeeder extends Seeder
             'calls_included' => 1,
             'max_duration_minutes' => 3,
             'features' => [
-                '1 llamada de broma',
+                '1 llamada de broma con IA',
+                '3 chistes telefonicos gratis',
                 'Hasta 3 minutos',
                 'Voz IA realista',
                 'Grabacion incluida',
@@ -38,7 +39,8 @@ class PlanSeeder extends Seeder
             'calls_included' => 5,
             'max_duration_minutes' => 5,
             'features' => [
-                '5 llamadas de broma',
+                '5 llamadas de broma con IA',
+                '15 chistes telefonicos',
                 'Hasta 5 minutos cada una',
                 'Voz IA realista (hombre o mujer)',
                 'Grabaciones incluidas',
@@ -58,7 +60,8 @@ class PlanSeeder extends Seeder
             'calls_included' => 15,
             'max_duration_minutes' => 5,
             'features' => [
-                '15 llamadas de broma',
+                '15 llamadas de broma con IA',
+                'Chistes telefonicos ilimitados',
                 'Hasta 5 minutos cada una',
                 'Voz IA realista (hombre o mujer)',
                 'Grabaciones incluidas',

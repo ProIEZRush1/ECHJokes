@@ -67,6 +67,9 @@ Responde EXACTAMENTE en este formato JSON:
     }
 })->middleware('throttle:10,1')->name('generate.style');
 
+Route::post('/trial-joke', [\App\Http\Controllers\JokeCallController::class, 'launch'])
+    ->middleware('throttle:5,60');
+
 Route::post('/trial', [ECHJokesController::class, 'trialCall'])
     ->middleware('throttle:3,60')
     ->name('trial');
@@ -90,6 +93,10 @@ Route::prefix('webhooks/twilio')->middleware(VerifyTwilioSignature::class)->grou
 // Conversation webhooks (Twilio Gather-based real-time AI conversation)
 // Conversation webhooks — no DB dependency, state via query params
 Route::post('/inbound', [\App\Http\Controllers\InboundCallController::class, 'handle'])->name('inbound');
+
+// Joke calls (TTS only, no AI)
+Route::post('/joke/twiml/{jokeCall}', [\App\Http\Controllers\JokeCallController::class, 'twiml'])->name('joke.twiml');
+Route::post('/joke/punchline/{jokeCall}', [\App\Http\Controllers\JokeCallController::class, 'punchline'])->name('joke.punchline');
 Route::post('/conversation/start', [\App\Http\Controllers\ConversationWebhookController::class, 'start'])->name('conversation.start');
 Route::post('/conversation/gather', [\App\Http\Controllers\ConversationWebhookController::class, 'gather'])->name('conversation.gather');
 Route::get('/conversation/audio/{filename}', [\App\Http\Controllers\ConversationWebhookController::class, 'audio'])->name('conversation.audio');
@@ -108,6 +115,7 @@ Route::prefix('user-api')->group(function () {
         Route::post('/buy-plan', [\App\Http\Controllers\UserApiController::class, 'buyPlan']);
         Route::post('/buy-custom', [\App\Http\Controllers\UserApiController::class, 'buyCustom']);
         Route::post('/make-call', [\App\Http\Controllers\UserApiController::class, 'makeCall']);
+        Route::post('/joke-call', [\App\Http\Controllers\JokeCallController::class, 'launch']);
     });
 });
 
@@ -126,6 +134,7 @@ Route::prefix('admin-api')->group(function () {
         Route::get('/users/{user}', [\App\Http\Controllers\AdminApiController::class, 'userDetail']);
         Route::put('/users/{user}', [\App\Http\Controllers\AdminApiController::class, 'updateUser']);
         Route::get('/billing', [\App\Http\Controllers\AdminApiController::class, 'billing']);
+        Route::post('/joke-call', [\App\Http\Controllers\JokeCallController::class, 'launch']);
         Route::get('/presets', [\App\Http\Controllers\AdminApiController::class, 'presets']);
         Route::post('/presets', [\App\Http\Controllers\AdminApiController::class, 'createPreset']);
         Route::put('/presets/{preset}', [\App\Http\Controllers\AdminApiController::class, 'updatePreset']);
