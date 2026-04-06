@@ -483,7 +483,6 @@ COMO ACTUAR:
 
   twilioWs.on('close', () => {
     console.log('Twilio disconnected');
-    if (bgNoiseInterval) { clearInterval(bgNoiseInterval); bgNoiseInterval = null; }
     if (openAiWs?.readyState === WebSocket.OPEN) openAiWs.close();
   });
 }
