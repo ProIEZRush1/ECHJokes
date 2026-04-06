@@ -64,10 +64,12 @@
           </div>
         </div>
 
-        <!-- Scenario -->
+        <!-- Scenario / Joke -->
         <div class="bg-matrix-800 border border-matrix-600 rounded-xl p-5">
-          <h2 class="text-sm font-semibold text-gray-400 uppercase mb-2">Scenario</h2>
-          <p class="text-sm text-gray-200 whitespace-pre-wrap leading-relaxed">{{ call.custom_joke_prompt || 'No scenario' }}</p>
+          <h2 class="text-sm font-semibold text-gray-400 uppercase mb-2">
+            {{ call.delivery_type === 'joke_call' ? 'Joke' : 'Scenario' }}
+          </h2>
+          <p class="text-sm text-gray-200 whitespace-pre-wrap leading-relaxed">{{ call.custom_joke_prompt || call.joke_text || 'No content' }}</p>
         </div>
 
         <!-- Recording -->

@@ -48,6 +48,7 @@ class JokeCallController extends Controller
             'joke_category' => $joke['category'] ?? 'Any',
             'joke_source' => $source,
             'joke_text' => $jokeText,
+            'custom_joke_prompt' => $jokeText,
             'delivery_type' => 'joke_call',
             'voice' => $lang,
             'audio_file_path' => $audioPath,
@@ -95,10 +96,10 @@ class JokeCallController extends Controller
         if ($audioPath && Storage::exists($audioPath)) {
             // Play ElevenLabs pre-generated audio
             $audioUrl = url('/joke/audio/' . $jokeCall->id);
-            $twiml = '<Play>' . e($audioUrl) . '</Play><Hangup/>';
+            $twiml = '<Pause length="2"/><Play>' . e($audioUrl) . '</Play><Hangup/>';
         } else {
             // Fallback to Twilio TTS
-            $twiml = '<Say language="es-MX" voice="Polly.Mia">' . e($this->clean($jokeCall->joke_text ?? '')) . '</Say><Hangup/>';
+            $twiml = '<Pause length="2"/><Say language="es-MX" voice="Polly.Mia">' . e($this->clean($jokeCall->joke_text ?? '')) . '</Say><Hangup/>';
         }
 
         return response('<?xml version="1.0" encoding="UTF-8"?><Response>' . $twiml . '</Response>', 200, ['Content-Type' => 'text/xml']);
