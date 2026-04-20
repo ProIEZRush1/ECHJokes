@@ -5,7 +5,19 @@ const https = require('https');
 const PORT = parseInt(process.env.WS_PORT || '8081', 10);
 const OPENAI_API_KEY = process.env.OPENAI_API_KEY;
 const ELEVENLABS_API_KEY = process.env.ELEVENLABS_API_KEY || '';
-const ELEVENLABS_VOICE_ID = process.env.ELEVENLABS_VOICE_ID || 'iP95p4xoKVk53GoZ742B';
+const parseVoicePool = (raw, fallback) => {
+  const ids = (raw || '').split(',').map(s => s.trim()).filter(Boolean);
+  return ids.length ? ids : [fallback];
+};
+const ELEVENLABS_VOICES_MALE = parseVoicePool(
+  process.env.ELEVENLABS_VOICES_MALE || process.env.ELEVENLABS_VOICE_MALE || process.env.ELEVENLABS_VOICE_ID,
+  'iP95p4xoKVk53GoZ742B'
+);
+const ELEVENLABS_VOICES_FEMALE = parseVoicePool(
+  process.env.ELEVENLABS_VOICES_FEMALE || process.env.ELEVENLABS_VOICE_FEMALE,
+  'EXAVITQu4vr4xnSDxMaL'
+);
+console.log(`Voice pools: male=${ELEVENLABS_VOICES_MALE.length} female=${ELEVENLABS_VOICES_FEMALE.length}`);
 const DEFAULT_VOICE = process.env.OPENAI_VOICE || 'ash';
 const APP_INTERNAL_URL = 'http://app:8000';
 
@@ -85,23 +97,55 @@ function linearToMulaw(sample) {
   return ~(sign | (exponent << 4) | mantissa) & 0xFF;
 }
 
-function addNoiseToFrame(mulawBuf) {
-  for (let i = 0; i < mulawBuf.length; i++) {
-    let sample = MULAW_DECODE[mulawBuf[i]];
-    const noise = (Math.random() - 0.5) * 600;
-    sample = Math.max(-32767, Math.min(32767, sample + noise));
-    mulawBuf[i] = linearToMulaw(sample);
+const AMBIENCE_SR = 8000;
+const AMBIENCE_LEN = AMBIENCE_SR * 15;
+const ambienceLoop = new Int16Array(AMBIENCE_LEN);
+(function generateAmbienceLoop() {
+  let lp1 = 0, lp2 = 0, lp3 = 0;
+  const BAND_CENTER = 350, BAND_Q = 6;
+  let bp = 0, bpPrev = 0;
+  for (let i = 0; i < AMBIENCE_LEN; i++) {
+    const white = (Math.random() - 0.5) * 2400;
+    lp1 = lp1 * 0.9 + white * 0.1;
+    lp2 = lp2 * 0.88 + lp1 * 0.12;
+    lp3 = lp3 * 0.85 + lp2 * 0.15;
+    const envelope = 0.45 + 0.55 * (0.5 + 0.5 * Math.sin(2 * Math.PI * i * 0.2 / AMBIENCE_SR));
+    const rumble = Math.sin(2 * Math.PI * i * 90 / AMBIENCE_SR) * 35;
+    const hum = Math.sin(2 * Math.PI * i * 120 / AMBIENCE_SR) * 18;
+    let s = lp3 * envelope + rumble + hum;
+    const click = Math.random() < 0.00008 ? (Math.random() - 0.5) * 800 : 0;
+    s += click;
+    ambienceLoop[i] = Math.max(-32767, Math.min(32767, Math.round(s)));
   }
-  return mulawBuf;
+  console.log(`Ambience loop generated: ${AMBIENCE_LEN} samples (${AMBIENCE_LEN/AMBIENCE_SR}s)`);
+})();
+
+function createAmbienceProfile() {
+  return {
+    pos: Math.floor(Math.random() * AMBIENCE_LEN),
+    gain: 0.35 + Math.random() * 0.35,
+  };
 }
 
-function generateBgNoiseFrame() {
-  const frame = Buffer.alloc(160);
-  for (let i = 0; i < 160; i++) {
-    const noise = (Math.random() - 0.5) * 800;
-    frame[i] = linearToMulaw(Math.round(noise));
+const VOICE_GAIN = 2.4;
+const CLIP_KNEE = 16000;
+function softClip(x) {
+  const a = Math.abs(x);
+  if (a <= CLIP_KNEE) return x;
+  const sign = x < 0 ? -1 : 1;
+  const headroom = 32767 - CLIP_KNEE;
+  return sign * (CLIP_KNEE + headroom * Math.tanh((a - CLIP_KNEE) / headroom));
+}
+function mixAmbience(mulawFrame, p) {
+  const buf = Buffer.from(mulawFrame);
+  for (let i = 0; i < buf.length; i++) {
+    const voice = softClip(MULAW_DECODE[buf[i]] * VOICE_GAIN);
+    const amb = ambienceLoop[p.pos] * p.gain;
+    p.pos = (p.pos + 1) % AMBIENCE_LEN;
+    const sample = Math.max(-32767, Math.min(32767, voice + amb));
+    buf[i] = linearToMulaw(sample);
   }
-  return frame;
+  return buf.toString('base64');
 }
 
 // ============================================
@@ -133,7 +177,7 @@ function elevenLabsTTS(text, voiceId, callback) {
   const postData = JSON.stringify({
     text: text,
     model_id: 'eleven_turbo_v2_5',
-    voice_settings: { stability: 0.5, similarity_boost: 0.75 }
+    voice_settings: { stability: 0.42, similarity_boost: 0.85, style: 0.45, use_speaker_boost: true }
   });
 
   const options = {
@@ -229,18 +273,24 @@ function handleTwilioStream(twilioWs, req) {
   let streamReady = false;
   let currentAiText = '';
   let isSpeaking = false; // Track if ElevenLabs is currently speaking
+  let ttsSessionId = 0; // Increment to invalidate in-flight TTS callbacks
 
   // Generate a random Mexican name for the AI caller
   const maleNames = ['Carlos','Miguel','Roberto','Fernando','Alejandro','Ricardo','Eduardo','Jorge','Luis','Daniel','Raul','Sergio','Arturo','Oscar','Hector','Manuel','Pablo','Diego','Ivan','Andres'];
   const femaleNames = ['Maria','Sofia','Andrea','Daniela','Valeria','Fernanda','Gabriela','Alejandra','Patricia','Carmen','Laura','Monica','Claudia','Leticia','Veronica','Diana','Karla','Adriana','Lorena','Sandra'];
   const lastNames = ['Garcia','Hernandez','Lopez','Martinez','Gonzalez','Rodriguez','Perez','Sanchez','Ramirez','Torres','Flores','Rivera','Morales','Cruz','Reyes','Gutierrez','Ortiz','Mendoza','Castillo','Jimenez'];
   const isFemaleVoice = ['coral','sage','shimmer'].includes(voice);
+  const voicePool = isFemaleVoice ? ELEVENLABS_VOICES_FEMALE : ELEVENLABS_VOICES_MALE;
+  const elevenLabsVoiceId = voicePool[Math.floor(Math.random() * voicePool.length)];
   const firstName = isFemaleVoice
     ? femaleNames[Math.floor(Math.random() * femaleNames.length)]
     : maleNames[Math.floor(Math.random() * maleNames.length)];
   const lastName = lastNames[Math.floor(Math.random() * lastNames.length)];
   const callerName = `${firstName} ${lastName}`;
-  console.log(`AI caller name: ${callerName}`);
+  console.log(`AI caller name: ${callerName} (voice=${voice} gender=${isFemaleVoice ? 'F' : 'M'} elevenLabs=${elevenLabsVoiceId})`);
+
+  const ambience = createAmbienceProfile();
+  console.log(`Ambience: gain=${ambience.gain.toFixed(2)} offset=${ambience.pos}`);
 
   const instructions = `Estas en una llamada telefonica. TU eres quien LLAMO. La persona que contesta es a quien llamaste.
 
@@ -254,6 +304,12 @@ ${victimName ? `Se llama ${victimName}. Usa su nombre cuando le hables.` : 'NO S
 
 SITUACION / CONTEXTO DE LA LLAMADA:
 ${scenario || 'Llamada importante que debes llevar a cabo'}
+
+ATENCION — SABER A QUIEN LE HABLAN:
+- A veces escucharas voces de fondo, personas hablando entre ellas, ruido. ESO NO TE LO ESTAN HABLANDO A TI.
+- Solo responde cuando la persona se dirija claramente a ti (responde tu pregunta, te hace una pregunta, o continua la conversacion que tu iniciaste).
+- Si escuchas voces pero no parecen dirigidas a ti, NO RESPONDAS. Solo di "aja", "mhm", "si?" o quedate callado esperando.
+- Como un humano real: tu esperas pacientemente cuando la otra persona esta distraida.
 
 COMO HABLAR — ESTO ES LO MAS IMPORTANTE. SUENA 100% HUMANO:
 - SIEMPRE empieza tus respuestas con una muletilla o sonido natural ANTES del contenido: "Mmm...", "Este...", "Ay mira...", "No pos...", "Aja, aja...", "Oye...", "Fijate que...", "A ver...", "Ah ok ok..."
@@ -287,7 +343,7 @@ COMO ACTUAR:
     openAiWs.send(JSON.stringify({
       type: 'session.update',
       session: {
-        turn_detection: { type: 'server_vad', threshold: 0.5, silence_duration_ms: 500 },
+        turn_detection: { type: 'server_vad', threshold: 0.72, silence_duration_ms: 900, prefix_padding_ms: 250, create_response: false, interrupt_response: false },
         input_audio_format: 'g711_ulaw',
         // === ELEVENLABS MODE: text only output, no OpenAI audio ===
         ...(USE_ELEVENLABS ? {} : { output_audio_format: 'g711_ulaw', voice: voice }),
@@ -330,8 +386,7 @@ COMO ACTUAR:
           break;
 
         case 'input_audio_buffer.speech_started':
-          console.log('Speech started (interruption)');
-          handleInterruption();
+          console.log('Speech started (waiting for transcript before interrupting)');
           if (callSid) broadcastEvent(callSid, 'speech_started');
           break;
 
@@ -354,20 +409,28 @@ COMO ACTUAR:
 
             // === ELEVENLABS TTS: convert text to speech ===
             if (USE_ELEVENLABS && streamSid) {
+              if (isSpeaking && streamSid) {
+                try { twilioWs.send(JSON.stringify({ event: 'clear', streamSid })); } catch(e) {}
+              }
+              ttsSessionId++;
+              const mySessionId = ttsSessionId;
               isSpeaking = true;
               responseStartTimestamp = latestMediaTimestamp;
               let framesSent = 0;
-              elevenLabsTTS(text, ELEVENLABS_VOICE_ID, (audioBase64, done) => {
+              elevenLabsTTS(text, elevenLabsVoiceId, (audioBase64, done) => {
+                if (mySessionId !== ttsSessionId) return;
                 if (audioBase64 && streamSid && twilioWs.readyState === WebSocket.OPEN) {
                   try {
-                    twilioWs.send(JSON.stringify({ event: 'media', streamSid, media: { payload: audioBase64 } }));
+                    const mulawFrame = Buffer.from(audioBase64, 'base64');
+                    const mixedPayload = mixAmbience(mulawFrame, ambience);
+                    twilioWs.send(JSON.stringify({ event: 'media', streamSid, media: { payload: mixedPayload } }));
                     framesSent++;
-                    if (callSid) broadcastAudio(callSid, audioBase64, 'ai');
+                    if (callSid) broadcastAudio(callSid, mixedPayload, 'ai');
                   } catch(e) { console.error('Twilio send error:', e.message); }
                 }
                 if (done) {
                   console.log(`ElevenLabs: sent ${framesSent} frames to Twilio`);
-                  isSpeaking = false;
+                  if (mySessionId === ttsSessionId) isSpeaking = false;
                   if (streamSid) {
                     const markId = `mark_${Date.now()}`;
                     markQueue.push(markId);
@@ -384,11 +447,13 @@ COMO ACTUAR:
         case 'conversation.item.input_audio_transcription.completed':
           if (response.transcript) {
             const t = response.transcript.trim();
-            const hallucinations = ['thank you', 'thanks for watching', 'thank you for listening', 'thanks for listening', 'you', 'the end', 'subtitles by', 'amara.org'];
-            if (t && !hallucinations.includes(t.toLowerCase())) {
+            if (t) {
               console.log(`[Human]: ${t}`);
               postTranscript(callSid, 'human', t);
               if (callSid) broadcastEvent(callSid, 'human_text', { text: t });
+              if (openAiWs?.readyState === WebSocket.OPEN) {
+                openAiWs.send(JSON.stringify({ type: 'response.create' }));
+              }
             }
           }
           break;
@@ -405,6 +470,7 @@ COMO ACTUAR:
   openAiWs.on('error', (e) => console.error('OpenAI WS error:', e.message));
   openAiWs.on('close', () => {
     console.log('OpenAI disconnected');
+    stopAmbienceStream();
     if (callSid) { broadcastEvent(callSid, 'call_ended'); activeCalls.delete(callSid); }
   });
 
@@ -458,6 +524,7 @@ COMO ACTUAR:
           console.log(`Twilio stream: ${streamSid} call: ${callSid}`);
           if (callSid && !activeCalls.has(callSid)) activeCalls.set(callSid, { listeners: new Set() });
           streamReady = true;
+          startAmbienceStream();
           maybeStartGreeting();
           break;
         case 'media':
@@ -483,6 +550,33 @@ COMO ACTUAR:
 
   twilioWs.on('close', () => {
     console.log('Twilio disconnected');
+    stopAmbienceStream();
     if (openAiWs?.readyState === WebSocket.OPEN) openAiWs.close();
   });
+
+  let ambienceInterval = null;
+  let ambienceFrameCount = 0;
+  const STANDALONE_AMB_GAIN = 5.0;
+  function startAmbienceStream() {
+    if (ambienceInterval) return;
+    ambienceFrameCount = 0;
+    console.log('Ambience stream started');
+    ambienceInterval = setInterval(() => {
+      if (!streamSid || twilioWs.readyState !== WebSocket.OPEN || isSpeaking) return;
+      const frame = Buffer.alloc(160);
+      for (let i = 0; i < 160; i++) {
+        const amb = ambienceLoop[ambience.pos] * ambience.gain * STANDALONE_AMB_GAIN;
+        ambience.pos = (ambience.pos + 1) % AMBIENCE_LEN;
+        frame[i] = linearToMulaw(Math.max(-32767, Math.min(32767, amb)));
+      }
+      try {
+        twilioWs.send(JSON.stringify({ event: 'media', streamSid, media: { payload: frame.toString('base64') } }));
+        ambienceFrameCount++;
+        if (ambienceFrameCount % 250 === 0) console.log(`Ambience: ${ambienceFrameCount} standalone frames sent (${(ambienceFrameCount/50).toFixed(1)}s)`);
+      } catch (e) { /* ignored */ }
+    }, 20);
+  }
+  function stopAmbienceStream() {
+    if (ambienceInterval) { clearInterval(ambienceInterval); ambienceInterval = null; console.log(`Ambience stream stopped (${ambienceFrameCount} standalone frames total)`); }
+  }
 }

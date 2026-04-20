@@ -123,10 +123,28 @@ class JokeCallController extends Controller
         return response('<?xml version="1.0" encoding="UTF-8"?><Response><Hangup/></Response>', 200, ['Content-Type' => 'text/xml']);
     }
 
+    private function pickVoiceId(): string
+    {
+        $pool = array_filter(array_map('trim', explode(',', env('ELEVENLABS_VOICES_MALE', ''))));
+        if (empty($pool)) {
+            $pool = [env('ELEVENLABS_VOICE_ID', 'iP95p4xoKVk53GoZ742B')];
+        }
+        return $pool[array_rand($pool)];
+    }
+
+    private function wrapJoke(string $joke, string $lang): string
+    {
+        if ($lang !== 'es') return $joke;
+        $openers = ['Oye, que tal, fijate que te tengo un chiste bien bueno... ', 'Ey, hola, aguantame tantito, te voy a contar un chistorete... ', 'Bueno, oye, ya que agarre el telefono, checate este chiste... ', 'Aja, mira, no es por nada pero me acorde de un chiste, va... ', 'Hola, este, te hablo porque me acorde de un chiste bien chistoso, escucha... '];
+        $closers = [' ... Jaja, no manches verdad? Bueno, ya, adios!', ' ... Ay, no, que risa. Bueno, pos ya, nos vemos!', ' ... Jajaja, ta bueno eh? Orale, cuidate!', ' ... Ay wey, que chistoso. Bueno, hasta luego!', ' ... Jaja, chale. Bueno ya, bye!'];
+        return $openers[array_rand($openers)] . $joke . $closers[array_rand($closers)];
+    }
+
     private function generateAudio(string $text, string $lang): ?string
     {
         $apiKey = config('services.elevenlabs.api_key', env('ELEVENLABS_API_KEY'));
-        $voiceId = config('services.elevenlabs.voice_id', env('ELEVENLABS_VOICE_ID', 'iP95p4xoKVk53GoZ742B'));
+        $voiceId = $this->pickVoiceId();
+        $wrapped = $this->wrapJoke($text, $lang);
 
         if (!$apiKey) return null;
 
@@ -135,14 +153,15 @@ class JokeCallController extends Controller
                 'xi-api-key' => $apiKey,
                 'Content-Type' => 'application/json',
             ])->timeout(15)->post("https://api.elevenlabs.io/v1/text-to-speech/{$voiceId}?output_format=mp3_44100_128", [
-                'text' => $text,
+                'text' => $wrapped,
                 'model_id' => 'eleven_turbo_v2_5',
-                'voice_settings' => ['stability' => 0.5, 'similarity_boost' => 0.75],
+                'voice_settings' => ['stability' => 0.35, 'similarity_boost' => 0.75, 'style' => 0.45, 'use_speaker_boost' => true],
             ]);
 
             if ($response->ok()) {
                 $filename = 'jokes/' . Str::ulid() . '.mp3';
                 Storage::put($filename, $response->body());
+                Log::info('Joke TTS generated', ['voice_id' => $voiceId, 'lang' => $lang]);
                 return $filename;
             }
         } catch (\Throwable $e) {

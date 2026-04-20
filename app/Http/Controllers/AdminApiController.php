@@ -116,6 +116,7 @@ class AdminApiController extends Controller
             'joke_category' => 'prank',
             'joke_source' => 'custom',
             'custom_joke_prompt' => $request->input('scenario'),
+            'victim_name' => $request->input('victim_name'),
             'delivery_type' => 'call',
             'voice' => $request->input('voice', 'ash'),
             'status' => JokeCallStatus::Calling,

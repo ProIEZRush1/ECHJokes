@@ -16,6 +16,7 @@ class JokeCall extends Model
         'joke_category',
         'joke_source',
         'custom_joke_prompt',
+        'victim_name',
         'delivery_type',
         'is_gift',
         'recipient_phone',
