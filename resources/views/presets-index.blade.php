@@ -16,7 +16,10 @@
     <nav class="px-4 py-4 border-b border-matrix-700">
         <div class="max-w-4xl mx-auto flex justify-between items-center">
             <a href="/" class="text-lg font-bold font-mono text-neon">Vacilada</a>
-            <a href="/" class="text-sm bg-neon text-matrix-900 font-bold px-4 py-2 rounded-lg">Hacer broma</a>
+            <div class="flex items-center gap-3">
+                <a href="/trending" class="text-sm text-gray-400 hover:text-neon transition">🔥 Trending</a>
+                <a href="/" class="text-sm bg-neon text-matrix-900 font-bold px-4 py-2 rounded-lg">Hacer broma</a>
+            </div>
         </div>
     </nav>
 

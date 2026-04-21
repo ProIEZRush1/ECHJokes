@@ -5,9 +5,11 @@ use App\Http\Controllers\AuthController;
 use App\Http\Controllers\VaciladaController;
 use App\Http\Controllers\PresetPageController;
 use App\Http\Controllers\AbTestController;
+use App\Http\Controllers\OgImageController;
 use App\Http\Controllers\ReferralLandingController;
 use App\Http\Controllers\ShareController;
 use App\Http\Controllers\SharedAudioController;
+use App\Http\Controllers\TrendingController;
 use App\Http\Controllers\StripeWebhookController;
 use App\Http\Controllers\TwilioWebhookController;
 use App\Http\Middleware\VerifyTwilioSignature;
@@ -23,6 +25,10 @@ Route::get('/share/{sessionId}/audio.mp3', [SharedAudioController::class, 'strea
 
 // Public call page by short slug (preferred, from /v/{slug})
 Route::get('/v/{slug}', [ShareController::class, 'showBySlug'])->name('share.v');
+Route::get('/v/{slug}/og.svg', [OgImageController::class, 'forCall'])->name('share.v.og');
+
+// Trending feed
+Route::get('/trending', [TrendingController::class, 'index'])->name('trending');
 
 // Referrer landing page
 Route::get('/r/{code}', [ReferralLandingController::class, 'show'])->name('referral.landing');

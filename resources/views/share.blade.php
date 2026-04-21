@@ -19,7 +19,13 @@
     <meta property="og:description" content="{{ $desc }}" />
     <meta property="og:type" content="website" />
     <meta property="og:url" content="{{ $shareUrl }}" />
+    @if($jokeCall->share_slug)
+    <meta property="og:image" content="{{ url('/v/' . $jokeCall->share_slug . '/og.svg') }}" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    @else
     <meta property="og:image" content="{{ url('/brand/og-image.svg') }}" />
+    @endif
     @if($audioUrl ?? $jokeCall->recording_url)
     <meta property="og:audio" content="{{ $audioUrl ?? $jokeCall->recording_url }}" />
     @endif
@@ -27,6 +33,27 @@
     <meta name="twitter:title" content="{{ $title }}" />
     <meta name="twitter:description" content="{{ $desc }}" />
     <meta name="twitter:image" content="{{ url('/brand/og-image.svg') }}" />
+
+    @if($jokeCall->share_slug)
+    @php
+        $ldData = [
+            '@context' => 'https://schema.org',
+            '@type' => 'MediaObject',
+            'name' => $title,
+            'description' => $desc,
+            'contentUrl' => $audioUrl ?? $jokeCall->recording_url,
+            'encodingFormat' => 'audio/mpeg',
+            'uploadDate' => optional($jokeCall->created_at)->toIso8601String(),
+            'duration' => $jokeCall->call_duration_seconds ? 'PT' . $jokeCall->call_duration_seconds . 'S' : null,
+            'interactionStatistic' => [
+                '@type' => 'InteractionCounter',
+                'interactionType' => 'https://schema.org/ListenAction',
+                'userInteractionCount' => (int) ($jokeCall->share_views ?? 0),
+            ],
+        ];
+    @endphp
+    <script type="application/ld+json">{!! json_encode(array_filter($ldData), JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) !!}</script>
+    @endif
 
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
