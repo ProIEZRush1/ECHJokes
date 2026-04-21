@@ -152,7 +152,7 @@ const ambienceLoop = new Int16Array(AMBIENCE_LEN);
 function createAmbienceProfile() {
   return {
     pos: Math.floor(Math.random() * AMBIENCE_LEN),
-    gain: 0.08 + Math.random() * 0.10,
+    gain: 0.03 + Math.random() * 0.05,
   };
 }
 
@@ -654,7 +654,7 @@ COMO ACTUAR:
 
   let ambienceInterval = null;
   let ambienceFrameCount = 0;
-  const STANDALONE_AMB_GAIN = 2.0;
+  const STANDALONE_AMB_GAIN = 1.2;
   function startAmbienceStream() {
     if (ambienceInterval) return;
     ambienceFrameCount = 0;
