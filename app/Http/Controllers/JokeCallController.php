@@ -27,8 +27,28 @@ class JokeCallController extends Controller
 
         $lang = $request->input('language', 'es');
         $source = $request->input('source', 'admin');
+        $user = auth()->user();
 
-        // Fetch joke from JokeAPI
+        // Quota enforcement (admin bypasses)
+        if ($user && !$user->is_admin) {
+            $credit = \App\Models\UserCredit::firstOrCreate(['user_id' => $user->id], [
+                'credits_remaining' => 0, 'jokes_remaining' => 5, 'jokes_reset_at' => now()->addMonth(),
+            ]);
+            if (!$credit->consumeJoke()) {
+                return response()->json(['error' => 'Ya usaste tus chistes de este mes. Compra un plan para más.'], 429);
+            }
+        } elseif (!$user) {
+            // Anonymous: 1 joke/day per destination number
+            $todayCount = JokeCall::where('phone_number', $phone)
+                ->where('delivery_type', 'joke_call')
+                ->whereNull('user_id')
+                ->where('created_at', '>', now()->subDay())
+                ->count();
+            if ($todayCount >= 1) {
+                return response()->json(['error' => 'Ya se envió un chiste a este número hoy. Regístrate gratis para 5 chistes al mes.'], 429);
+            }
+        }
+
         $joke = $this->fetchJoke($lang);
         if (!$joke) {
             return response()->json(['error' => 'No se pudo obtener un chiste'], 500);

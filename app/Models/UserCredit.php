@@ -10,6 +10,8 @@ class UserCredit extends Model
     protected $fillable = [
         'user_id',
         'credits_remaining',
+        'jokes_remaining',
+        'jokes_reset_at',
         'plan_type',
         'resets_at',
     ];
@@ -18,7 +20,26 @@ class UserCredit extends Model
     {
         return [
             'resets_at' => 'datetime',
+            'jokes_reset_at' => 'datetime',
         ];
+    }
+
+    /**
+     * Try to consume one joke. Auto-resets monthly quota if past reset date.
+     * Returns true if allowed.
+     */
+    public function consumeJoke(): bool
+    {
+        if ($this->jokes_reset_at && $this->jokes_reset_at->isPast()) {
+            // Monthly reset — free users get 5 back
+            $freeQuota = $this->plan_type ? $this->jokes_remaining : 5;
+            $this->update(['jokes_remaining' => $freeQuota, 'jokes_reset_at' => now()->addMonth()]);
+            $this->refresh();
+        }
+
+        if ($this->jokes_remaining <= 0) return false;
+        $this->decrement('jokes_remaining');
+        return true;
     }
 
     public function user(): BelongsTo

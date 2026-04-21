@@ -81,9 +81,21 @@ class StripeWebhookController extends Controller
         // Add credits
         $credit = UserCredit::firstOrCreate(
             ['user_id' => $user->id],
-            ['credits_remaining' => 0]
+            ['credits_remaining' => 0, 'jokes_remaining' => 5, 'jokes_reset_at' => now()->addMonth()]
         );
         $credit->increment('credits_remaining', $callsIncluded);
+
+        // Add jokes quota based on plan
+        $jokesForPlan = match ($planSlug) {
+            'bromita' => 3,
+            'bromista' => 15,
+            'comediante' => 999, // effectively unlimited
+            default => 0,
+        };
+        if ($jokesForPlan > 0) {
+            $credit->increment('jokes_remaining', $jokesForPlan);
+            $credit->update(['jokes_reset_at' => now()->addMonth()]);
+        }
 
         // Update user's plan
         $user->update([

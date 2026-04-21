@@ -54,8 +54,13 @@ class UserApiController extends Controller
             'referred_by_user_id' => $referrer?->id,
         ]);
 
-        // Grant 2 free credits on signup so users can make their first call immediately
-        \App\Models\UserCredit::create(['user_id' => $user->id, 'credits_remaining' => 2]);
+        // Grant 2 free prank-call credits + 5 joke credits on signup
+        \App\Models\UserCredit::create([
+            'user_id' => $user->id,
+            'credits_remaining' => 2,
+            'jokes_remaining' => 5,
+            'jokes_reset_at' => now()->addMonth(),
+        ]);
 
         Auth::login($user, true);
 
