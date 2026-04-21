@@ -185,7 +185,7 @@ function pcmToMulaw(pcmBuffer) {
 function elevenLabsTTS(text, voiceId, callback) {
   const postData = JSON.stringify({
     text: text,
-    model_id: 'eleven_turbo_v2_5',
+    model_id: 'eleven_flash_v2_5',
     voice_settings: { stability: 0.42, similarity_boost: 0.85, style: 0.45, use_speaker_boost: true, speed: 1.1 }
   });
 
@@ -283,6 +283,11 @@ function handleTwilioStream(twilioWs, req) {
   let currentAiText = '';
   let isSpeaking = false; // Track if ElevenLabs is currently speaking
   let ttsSessionId = 0; // Increment to invalidate in-flight TTS callbacks
+  // Sentence-level streaming to ElevenLabs
+  let streamedOffset = 0;          // chars of currentAiText already dispatched to TTS
+  let ttsQueue = [];               // pending sentence fragments for current response
+  let ttsActive = false;           // true while an ElevenLabs request is in-flight
+  let responseActive = false;      // true between response start and response.done
 
   // Generate a random Mexican name for the AI caller
   const maleNames = ['Carlos','Miguel','Roberto','Fernando','Alejandro','Ricardo','Eduardo','Jorge','Luis','Daniel','Raul','Sergio','Arturo','Oscar','Hector','Manuel','Pablo','Diego','Ivan','Andres'];
@@ -352,7 +357,7 @@ COMO ACTUAR:
     openAiWs.send(JSON.stringify({
       type: 'session.update',
       session: {
-        turn_detection: { type: 'server_vad', threshold: 0.6, silence_duration_ms: 500, prefix_padding_ms: 250, create_response: false, interrupt_response: false },
+        turn_detection: { type: 'server_vad', threshold: 0.55, silence_duration_ms: 350, prefix_padding_ms: 200, create_response: false, interrupt_response: false },
         input_audio_format: 'g711_ulaw',
         // === ELEVENLABS MODE: text only output, no OpenAI audio ===
         ...(USE_ELEVENLABS ? {} : { output_audio_format: 'g711_ulaw', voice: voice }),
@@ -413,51 +418,42 @@ COMO ACTUAR:
         case 'response.audio_transcript.delta':
           if (response.delta) {
             process.stdout.write(response.delta);
+            if (USE_ELEVENLABS && !responseActive) {
+              // First delta of a new response — set up session.
+              if (isSpeaking && streamSid) {
+                try { twilioWs.send(JSON.stringify({ event: 'clear', streamSid })); } catch(e) {}
+              }
+              ttsSessionId++;
+              streamedOffset = 0;
+              currentAiText = '';
+              ttsQueue = [];
+              isSpeaking = true;
+              responseActive = true;
+              responseStartTimestamp = latestMediaTimestamp;
+            }
             currentAiText += response.delta;
+            if (USE_ELEVENLABS) flushSentences(ttsSessionId);
           }
           break;
 
         case 'response.done':
           console.log('');
+          responseActive = false;
           if (currentAiText.trim()) {
             const text = currentAiText.trim();
             console.log(`[AI]: ${text}`);
             postTranscript(callSid, 'ai', text);
             if (callSid) broadcastEvent(callSid, 'ai_text', { text });
 
-            // === ELEVENLABS TTS: convert text to speech ===
             if (USE_ELEVENLABS && streamSid) {
-              if (isSpeaking && streamSid) {
-                try { twilioWs.send(JSON.stringify({ event: 'clear', streamSid })); } catch(e) {}
-              }
-              ttsSessionId++;
-              const mySessionId = ttsSessionId;
-              isSpeaking = true;
-              responseStartTimestamp = latestMediaTimestamp;
-              let framesSent = 0;
-              elevenLabsTTS(text, elevenLabsVoiceId, (audioBase64, done) => {
-                if (mySessionId !== ttsSessionId) return;
-                if (audioBase64 && streamSid && twilioWs.readyState === WebSocket.OPEN) {
-                  try {
-                    const mulawFrame = Buffer.from(audioBase64, 'base64');
-                    const mixedPayload = mixAmbience(mulawFrame, ambience);
-                    twilioWs.send(JSON.stringify({ event: 'media', streamSid, media: { payload: mixedPayload } }));
-                    framesSent++;
-                    if (callSid) broadcastAudio(callSid, mixedPayload, 'ai');
-                  } catch(e) { console.error('Twilio send error:', e.message); }
-                }
-                if (done) {
-                  console.log(`ElevenLabs: sent ${framesSent} frames to Twilio`);
-                  if (mySessionId === ttsSessionId) isSpeaking = false;
-                  if (streamSid) {
-                    const markId = `mark_${Date.now()}`;
-                    markQueue.push(markId);
-                    twilioWs.send(JSON.stringify({ event: 'mark', streamSid, mark: { name: markId } }));
-                  }
-                  responseStartTimestamp = null;
-                }
-              });
+              // Flush any trailing fragment that didn't end with a sentence terminator.
+              const tail = currentAiText.slice(streamedOffset).trim();
+              if (tail) { ttsQueue.push(tail); streamedOffset = currentAiText.length; }
+              drainTtsQueue(ttsSessionId);
             }
+          } else {
+            // No text produced — make sure we don't leave isSpeaking stuck.
+            if (!ttsActive && ttsQueue.length === 0) isSpeaking = false;
           }
           currentAiText = '';
           break;
@@ -500,6 +496,67 @@ COMO ACTUAR:
         content: [{ type: 'input_text', text: `[La persona contesto el telefono y dijo "bueno"]. Responde con "Bueno, buenas tardes"${victimName ? ` y pregunta "se encuentra ${victimName}?"` : ' y presentate segun tu personaje'}. Sigue el protocolo mexicano de llamada telefonica.` }] }
     }));
     openAiWs.send(JSON.stringify({ type: 'response.create' }));
+  }
+
+  // Look for sentence terminators past streamedOffset and enqueue finished
+  // sentences for TTS immediately, so ElevenLabs starts speaking the first
+  // sentence while Claude is still streaming the rest.
+  function flushSentences(sessionId) {
+    if (sessionId !== ttsSessionId) return;
+    const sentenceEnd = /[.!?…]+[\s)"'"]*|\n+/g;
+    sentenceEnd.lastIndex = streamedOffset;
+    let m;
+    let progressed = false;
+    while ((m = sentenceEnd.exec(currentAiText)) !== null) {
+      const end = m.index + m[0].length;
+      // Need enough lead-in to be worth a TTS round-trip (avoid "Ok." etc.).
+      if (end - streamedOffset < 12) continue;
+      const fragment = currentAiText.slice(streamedOffset, end).trim();
+      if (fragment) {
+        ttsQueue.push(fragment);
+        streamedOffset = end;
+        progressed = true;
+      }
+    }
+    if (progressed) drainTtsQueue(sessionId);
+  }
+
+  function drainTtsQueue(sessionId) {
+    if (sessionId !== ttsSessionId) return;
+    if (ttsActive || ttsQueue.length === 0 || !streamSid) return;
+    ttsActive = true;
+    const text = ttsQueue.shift();
+    const mySessionId = ttsSessionId;
+    elevenLabsTTS(text, elevenLabsVoiceId, (audioBase64, done) => {
+      if (mySessionId !== ttsSessionId) {
+        if (done) { ttsActive = false; }
+        return;
+      }
+      if (audioBase64 && streamSid && twilioWs.readyState === WebSocket.OPEN) {
+        try {
+          const mulawFrame = Buffer.from(audioBase64, 'base64');
+          const mixedPayload = mixAmbience(mulawFrame, ambience);
+          twilioWs.send(JSON.stringify({ event: 'media', streamSid, media: { payload: mixedPayload } }));
+          if (callSid) broadcastAudio(callSid, mixedPayload, 'ai');
+        } catch(e) { console.error('Twilio send error:', e.message); }
+      }
+      if (done) {
+        ttsActive = false;
+        if (ttsQueue.length > 0) {
+          drainTtsQueue(mySessionId);
+        } else if (!responseActive) {
+          // Queue empty AND no more text coming — this response is fully spoken.
+          if (streamSid) {
+            const markId = `mark_${Date.now()}`;
+            markQueue.push(markId);
+            twilioWs.send(JSON.stringify({ event: 'mark', streamSid, mark: { name: markId } }));
+          }
+          isSpeaking = false;
+          responseStartTimestamp = null;
+        }
+        // else: more text still streaming from OpenAI — wait for next delta/flushSentences
+      }
+    });
   }
 
   function handleInterruption() {
