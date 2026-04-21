@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 200" width="800" height="200">
+  <rect width="800" height="200" rx="12" fill="#0a0f0a"/>
+  <g transform="translate(40 100)">
+    <g transform="scale(0.42)">
+      <g transform="rotate(-35)">
+        <path d="M -56 -18 Q -56 -34, -40 -34 L -28 -34 Q -18 -34, -14 -22 L -8 -4 Q -6 2, -10 6 L -18 12 Q -14 32, 0 48 L 6 54 Q 12 60, 18 56 L 30 48 Q 38 42, 44 48 L 56 60 Q 66 70, 56 82 L 48 90 Q 38 100, 24 96 Q -12 88, -42 58 Q -72 28, -76 -8 Q -78 -18, -70 -22 Z" fill="#39ff14"/>
+      </g>
+      <path d="M 20 -60 Q 42 -56, 50 -30" fill="none" stroke="#39ff14" stroke-width="8" stroke-linecap="round"/>
+      <circle cx="38" cy="-72" r="5" fill="#39ff14"/>
+      <circle cx="58" cy="-60" r="5" fill="#39ff14"/>
+    </g>
+  </g>
+  <text x="140" y="130" font-family="'JetBrains Mono', 'Courier New', monospace" font-size="92" font-weight="700" fill="#39ff14" letter-spacing="-2">Vacilada</text>
+</svg>

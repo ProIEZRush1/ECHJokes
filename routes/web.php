@@ -24,6 +24,9 @@ Route::get('/bromas', [PresetPageController::class, 'index'])->name('presets.ind
 Route::get('/bromas/{preset:slug}', [PresetPageController::class, 'show'])->name('presets.show');
 Route::get('/sitemap.xml', [PresetPageController::class, 'sitemap'])->name('sitemap');
 
+// Press kit (public marketing/press page)
+Route::get('/press', fn() => view('press'))->name('press');
+
 // SPA catch-all routes (Vue Router handles these)
 Route::get('/pricing', fn() => view('app'))->name('pricing');
 Route::get('/login', fn() => view('app'))->name('login');
