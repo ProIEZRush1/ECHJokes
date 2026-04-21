@@ -62,7 +62,7 @@
     // Re-runs on every Livewire poll — re-attaches onclick each time
     (function() {
         const callSid = @js($this->record->twilio_call_sid);
-        const wsUrl = 'wss://ws.echjokes.overcloud.us:8443/listen/' + callSid;
+        const wsUrl = 'wss://ws.vacilada.com/listen/' + callSid;
 
         // Initialize mulaw table once
         if (!window.__echjT) {

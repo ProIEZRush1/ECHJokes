@@ -39,7 +39,7 @@ class ConversationWebhookController extends Controller
             'v' => $voice,
             'n' => $victimName,
         ]));
-        $streamUrl = 'wss://ws.echjokes.overcloud.us:8443/stream/' . $payload;
+        $streamUrl = 'wss://ws.vacilada.com/stream/' . $payload;
 
         return $this->twiml(
             '<Connect><Stream url="' . e($streamUrl) . '" /></Connect>'

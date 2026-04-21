@@ -214,7 +214,7 @@ function toggleListen() {
   gainNode = audioCtx.createGain()
   gainNode.gain.value = 5.0
   gainNode.connect(audioCtx.destination)
-  ws = new WebSocket(`wss://ws.echjokes.overcloud.us:8443/listen/${call.value.twilio_call_sid}`)
+  ws = new WebSocket(`wss://ws.vacilada.com/listen/${call.value.twilio_call_sid}`)
   schedTime = 0
   listenStatus.value = 'Connecting...'
 
