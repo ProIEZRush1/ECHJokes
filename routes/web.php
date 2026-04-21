@@ -83,16 +83,22 @@ Route::post('/api/generate-style', function (\Illuminate\Http\Request $request) 
 1. Un estilo de voz corto (max 15 palabras)
 2. La voz ideal de esta lista: ash (hombre casual), ballad (hombre autoritario), coral (mujer amigable), sage (mujer profesional), shimmer (mujer energetica), verse (hombre versatil), echo (hombre joven)
 
-Responde EXACTAMENTE en este formato JSON:
+Responde EXCLUSIVAMENTE con el objeto JSON sin comillas invertidas, sin marcadores de codigo, sin texto antes ni despues. Solo:
 {"style":"Formal y serio con tono de autoridad","voice":"ballad","gender":"hombre"}',
             'messages' => [['role' => 'user', 'content' => $scenario]],
         ]);
         $text = trim($r->json('content.0.text') ?? '{}');
-        $parsed = json_decode($text, true);
-        if ($parsed && isset($parsed['style'])) {
-            return response()->json($parsed);
+        // Claude sometimes wraps JSON in ```json fences or prefixes with text —
+        // pull the first {...} block out before decoding.
+        if (preg_match('/\{.*\}/s', $text, $m)) {
+            $parsed = json_decode($m[0], true);
+            if ($parsed && isset($parsed['style'])) {
+                return response()->json($parsed);
+            }
         }
-        return response()->json(['style' => $text, 'voice' => 'ash', 'gender' => 'hombre']);
+        // Final fallback: strip ticks/language hint + curly braces and use raw.
+        $clean = trim(preg_replace('/```(?:json)?|```/', '', $text));
+        return response()->json(['style' => $clean ?: 'Casual y natural', 'voice' => 'ash', 'gender' => 'hombre']);
     } catch (\Throwable $e) {
         return response()->json(['style' => ''], 200);
     }
