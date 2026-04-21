@@ -19,7 +19,7 @@ const ELEVENLABS_VOICES_FEMALE = parseVoicePool(
 );
 console.log(`Voice pools: male=${ELEVENLABS_VOICES_MALE.length} female=${ELEVENLABS_VOICES_FEMALE.length}`);
 const DEFAULT_VOICE = process.env.OPENAI_VOICE || 'ash';
-const APP_INTERNAL_URL = 'http://app:8000';
+const APP_INTERNAL_URL = process.env.APP_INTERNAL_URL || 'https://vacilada.com';
 
 // Toggle: set to true to use ElevenLabs TTS, false for OpenAI native audio
 const USE_ELEVENLABS = !!ELEVENLABS_API_KEY;
@@ -63,10 +63,16 @@ function postTranscript(callSid, role, text) {
   if (!callSid || !text) return;
   const data = JSON.stringify({ call_sid: callSid, role, text });
   const url = new URL(`${APP_INTERNAL_URL}/api/call-transcript`);
-  const opts = { hostname: url.hostname, port: url.port || 80, path: url.pathname, method: 'POST',
-    headers: { 'Content-Type': 'application/json', 'Content-Length': Buffer.byteLength(data) } };
-  const req = http.request(opts, () => {});
-  req.on('error', () => {});
+  const isHttps = url.protocol === 'https:';
+  const opts = {
+    hostname: url.hostname,
+    port: url.port || (isHttps ? 443 : 80),
+    path: url.pathname,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'Content-Length': Buffer.byteLength(data) },
+  };
+  const req = (isHttps ? https : http).request(opts, () => {});
+  req.on('error', (e) => console.error('postTranscript error:', e.message));
   req.write(data);
   req.end();
 }
@@ -123,7 +129,7 @@ const ambienceLoop = new Int16Array(AMBIENCE_LEN);
 function createAmbienceProfile() {
   return {
     pos: Math.floor(Math.random() * AMBIENCE_LEN),
-    gain: 0.15 + Math.random() * 0.20,
+    gain: 0.08 + Math.random() * 0.10,
   };
 }
 
@@ -556,7 +562,7 @@ COMO ACTUAR:
 
   let ambienceInterval = null;
   let ambienceFrameCount = 0;
-  const STANDALONE_AMB_GAIN = 3.0;
+  const STANDALONE_AMB_GAIN = 2.0;
   function startAmbienceStream() {
     if (ambienceInterval) return;
     ambienceFrameCount = 0;

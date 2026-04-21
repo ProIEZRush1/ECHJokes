@@ -40,6 +40,18 @@ class UserApiController extends Controller
             'ref' => 'nullable|string|max:16',
         ]);
 
+        // Block multi-account abuse: max 2 free accounts per IP per 7 days
+        $ip = $request->ip();
+        $recentFromIp = \App\Models\User::where('registration_ip', $ip)
+            ->where('created_at', '>=', now()->subDays(7))
+            ->count();
+        if ($recentFromIp >= 2) {
+            return response()->json([
+                'error' => 'Ya tienes una cuenta activa. Inicia sesión o compra un plan para más llamadas.',
+                'show_plans' => true,
+            ], 429);
+        }
+
         $referrer = null;
         $refCode = $request->ref ?: $request->cookie('vacilada_ref') ?: session('echjokes_ref');
         if ($refCode) {
@@ -52,6 +64,7 @@ class UserApiController extends Controller
             'password' => $request->password,
             'email_verified_at' => now(),
             'referred_by_user_id' => $referrer?->id,
+            'registration_ip' => $ip,
         ]);
 
         // Grant 2 free prank-call credits + 5 joke credits on signup

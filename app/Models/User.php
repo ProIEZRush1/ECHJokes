@@ -27,6 +27,7 @@ class User extends Authenticatable
         'stripe_customer_id',
         'subscription_plan',
         'subscription_ends_at',
+        'registration_ip',
     ];
 
     protected static function booted(): void
