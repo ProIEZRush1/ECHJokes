@@ -175,7 +175,20 @@ class JokeCallController extends Controller
     {
         $langNames = ['es' => 'Spanish', 'en' => 'English', 'de' => 'German', 'pt' => 'Portuguese', 'fr' => 'French'];
         $langName = $langNames[$lang] ?? 'Spanish';
-        $topics = ['daily life', 'animals', 'food', 'technology', 'work', 'school', 'family', 'sports', 'doctors', 'lawyers', 'kids', 'marriage', 'shopping', 'travel', 'weather', 'money'];
+
+        $topics = [
+            'abuelitas mexicanas', 'suegras', 'el doctor', 'el mecánico', 'los tacos',
+            'la tiendita de la esquina', 'el tráfico de CDMX', 'los gatos traviesos',
+            'los perritos', 'el bebé de la familia', 'la vecina chismosa',
+            'el albañil', 'los mariachis', 'los políticos genéricos', 'el uber',
+            'el pedido de pizza', 'el calor extremo', 'la lluvia inoportuna',
+            'el partido de fútbol', 'los niños en la escuela', 'la boda',
+            'el gimnasio', 'el súper mercado', 'el cine', 'la playa',
+            'el carnicero', 'el tianguis', 'las vacaciones', 'la aerolínea',
+            'el taxista', 'los pajaritos en el parque', 'el novio celoso',
+            'la quinceañera', 'el pariente lejano', 'la fiesta familiar',
+            'el elote con chile', 'el agua de horchata', 'el pan dulce',
+        ];
         $topic = $topics[array_rand($topics)];
         $seed = mt_rand(1, 99999);
 
@@ -185,10 +198,26 @@ class JokeCallController extends Controller
                 'anthropic-version' => '2023-06-01',
             ])->timeout(10)->post('https://api.anthropic.com/v1/messages', [
                 'model' => 'claude-3-haiku-20240307',
-                'max_tokens' => 150,
+                'max_tokens' => 200,
                 'temperature' => 1.0,
-                'system' => "You are a comedian. Generate ONE short, funny, family-friendly joke in {$langName} about {$topic}. Seed: {$seed}. Just the joke text, nothing else. No intro, no explanation.",
-                'messages' => [['role' => 'user', 'content' => "Tell me a unique funny joke about {$topic} (#{$seed})"]],
+                'system' => "Eres un comediante mexicano que hace chistes ORIGINALES, cortos, ocurrentes.
+
+REGLAS ESTRICTAS:
+- IDIOMA: {$langName}
+- TEMA OBLIGATORIO: {$topic}
+- PROHIBIDO: chistes de computadoras, programación, tecnología, IA, apps, bugs, debuggers
+- PROHIBIDO: palabras groseras, doble sentido sexual, insultos, escatológico
+- PROHIBIDO: chistes de 'Jaimito', '2 patos van por un río', chistes gastados tipo abecedario
+- EL CHISTE DEBE SER INNOVADOR: algo que nunca hayas oído antes, un twist inesperado
+- Formato: setup corto + remate. Máximo 40 palabras.
+- NO expliques el chiste. Solo el texto del chiste.
+
+Ejemplos del tono que quiero (pero DIFERENTES temas):
+'Mi abuelita me preguntó si internet viene por el cable de la luz. Le dije que sí. Ahora cada vez que se va la luz me reclama que le corté el WiFi.'
+'Fui al mecánico, me dijo que el problema era la bujía. Le pregunté cuál. Me dijo «la que está ahí». Llevo dos horas pagándole por señalar.'
+
+Seed único (ignora en el output, solo úsalo para variar): {$seed}",
+                'messages' => [['role' => 'user', 'content' => "Dame UN chiste nuevo sobre: {$topic}. Que sea ocurrente, familiar, sin groserías. Variante #{$seed}."]],
             ]);
             $text = trim($r->json('content.0.text') ?? '');
             if ($text) {
