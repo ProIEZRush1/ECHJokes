@@ -34,6 +34,11 @@ class VaciladaController extends Controller
             ], 422);
         }
 
+        $moderation = app(\App\Services\ContentModerationService::class)->check((string) $request->input('scenario'));
+        if (!$moderation['allowed']) {
+            return response()->json(app(\App\Services\ContentModerationService::class)->rejectionResponse($moderation), 422);
+        }
+
         $jokeCall = JokeCall::create([
             'session_id' => Str::ulid()->toBase32(),
             'phone_number' => $phone,
@@ -108,6 +113,11 @@ class VaciladaController extends Controller
         $scenario = strip_tags($request->input('scenario'));
         $character = strip_tags($request->input('character', ''));
         $voice = $request->input('voice', 'ash');
+
+        $moderation = app(\App\Services\ContentModerationService::class)->check($scenario);
+        if (!$moderation['allowed']) {
+            return response()->json(app(\App\Services\ContentModerationService::class)->rejectionResponse($moderation), 422);
+        }
 
         $jokeCall = JokeCall::create([
             'session_id' => Str::ulid()->toBase32(),

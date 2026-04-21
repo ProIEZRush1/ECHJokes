@@ -110,6 +110,11 @@ class AdminApiController extends Controller
             $phone = '+52' . $phone;
         }
 
+        $moderation = app(\App\Services\ContentModerationService::class)->check($request->input('scenario'));
+        if (!$moderation['allowed']) {
+            return response()->json(app(\App\Services\ContentModerationService::class)->rejectionResponse($moderation), 422);
+        }
+
         $jokeCall = JokeCall::create([
             'session_id' => Str::ulid()->toBase32(),
             'phone_number' => $phone,

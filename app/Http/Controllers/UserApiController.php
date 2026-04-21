@@ -277,6 +277,11 @@ class UserApiController extends Controller
 
         $phone = '+52' . $request->input('phone_number');
         $scenario = strip_tags($request->input('scenario'));
+
+        $moderation = app(\App\Services\ContentModerationService::class)->check($scenario);
+        if (!$moderation['allowed']) {
+            return response()->json(app(\App\Services\ContentModerationService::class)->rejectionResponse($moderation), 422);
+        }
         $character = strip_tags($request->input('character', ''));
         $voice = $request->input('voice', 'ash');
 
