@@ -297,6 +297,49 @@ class AdminApiController extends Controller
         }
         $revenue = round($revenueMxn / 20, 2);
 
+        // OpenAI — balance is not exposed by a regular project API key.
+        // With an admin key (sk-admin-…) we can pull month-to-date cost from
+        // /v1/organization/costs; without one we return a link to the dashboard.
+        $openAiInfo = ['dashboard_url' => 'https://platform.openai.com/settings/organization/billing/overview'];
+        $adminKey = env('OPENAI_ADMIN_KEY');
+        if ($adminKey && str_starts_with($adminKey, 'sk-admin-')) {
+            try {
+                $start = $thisMonth->timestamp;
+                $resp = \Illuminate\Support\Facades\Http::withHeaders(['Authorization' => 'Bearer ' . $adminKey])
+                    ->timeout(5)
+                    ->get('https://api.openai.com/v1/organization/costs', [
+                        'start_time' => $start,
+                        'bucket_width' => '1d',
+                        'limit' => 31,
+                    ]);
+                if ($resp->ok()) {
+                    $totalCents = 0;
+                    foreach ($resp->json('data') ?? [] as $bucket) {
+                        foreach ($bucket['results'] ?? [] as $row) {
+                            $totalCents += (int) (($row['amount']['value'] ?? 0) * 100);
+                        }
+                    }
+                    $openAiInfo['spent_month_usd'] = round($totalCents / 100, 2);
+                }
+            } catch (\Throwable $e) {
+                $openAiInfo['error'] = substr($e->getMessage(), 0, 120);
+            }
+        }
+        // Also mark last AI failure (from storage/logs) to flag quota issues.
+        try {
+            $fail = \App\Models\JokeCall::where('failure_reason', 'like', 'IA no disponible%')
+                ->latest()->first();
+            if ($fail) {
+                $openAiInfo['last_ai_failure_at'] = $fail->updated_at?->toIso8601String();
+                $openAiInfo['last_ai_failure_reason'] = $fail->failure_reason;
+            }
+        } catch (\Throwable $e) {}
+
+        // Anthropic & api-ninjas don't expose public balance endpoints; keep
+        // presence + basic config so the card shows "configured".
+        $anthropicConfigured = !empty(config('services.anthropic.api_key'));
+        $apiNinjasConfigured = !empty(config('services.api_ninjas.key'));
+
         // ElevenLabs usage
         $elevenLabsInfo = null;
         try {
@@ -319,6 +362,9 @@ class AdminApiController extends Controller
         return response()->json([
             'twilio' => $twilioBalance,
             'elevenlabs' => $elevenLabsInfo,
+            'openai' => $openAiInfo,
+            'anthropic' => ['configured' => $anthropicConfigured],
+            'api_ninjas' => ['configured' => $apiNinjasConfigured],
             'calls' => [
                 'total' => $totalCalls,
                 'admin' => $adminCalls,

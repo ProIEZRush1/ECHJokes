@@ -16,10 +16,28 @@
           <p v-if="twilioLow" class="text-xs text-red-400 mt-2">Low balance - add funds</p>
         </div>
 
-        <div class="bg-matrix-800 border border-matrix-600 rounded-xl p-5">
-          <p class="text-xs text-gray-500 uppercase tracking-wider mb-1">Est. Cost (Month)</p>
-          <p class="text-2xl font-bold font-mono text-yellow-400">${{ data.costs?.estimated_month_usd || '0' }}</p>
-          <p class="text-xs text-gray-500 mt-1">{{ data.minutes?.this_month || 0 }} minutes used</p>
+        <div class="bg-matrix-800 border border-matrix-600 rounded-xl p-5"
+          :class="openAiQuotaFail ? 'border-red-500/50' : ''">
+          <div class="flex items-start justify-between">
+            <p class="text-xs text-gray-500 uppercase tracking-wider mb-1">OpenAI</p>
+            <a :href="data.openai?.dashboard_url" target="_blank" class="text-[10px] text-gray-500 hover:text-neon">Abrir ↗</a>
+          </div>
+          <template v-if="data.openai?.spent_month_usd !== undefined">
+            <p class="text-2xl font-bold font-mono text-yellow-400">
+              ${{ data.openai.spent_month_usd.toFixed(2) }}
+            </p>
+            <p class="text-xs text-gray-500 mt-1">gastado este mes</p>
+          </template>
+          <template v-else>
+            <p class="text-sm text-gray-500 mt-1">Balance no expuesto por la API</p>
+            <p class="text-[10px] text-gray-600 mt-1">
+              Añade <code class="text-gray-400">OPENAI_ADMIN_KEY</code>
+              (sk-admin-...) para ver gasto del mes.
+            </p>
+          </template>
+          <p v-if="openAiQuotaFail" class="text-xs text-red-400 mt-2">
+            ⚠ Falla de cuota detectada · {{ lastFailRelative }}
+          </p>
         </div>
 
         <div class="bg-matrix-800 border border-matrix-600 rounded-xl p-5">
@@ -38,9 +56,33 @@
         </div>
 
         <div class="bg-matrix-800 border border-matrix-600 rounded-xl p-5">
+          <p class="text-xs text-gray-500 uppercase tracking-wider mb-1">Est. Cost (Month)</p>
+          <p class="text-2xl font-bold font-mono text-yellow-400">${{ data.costs?.estimated_month_usd || '0' }}</p>
+          <p class="text-xs text-gray-500 mt-1">{{ data.minutes?.this_month || 0 }} minutes used</p>
+        </div>
+
+        <div class="bg-matrix-800 border border-matrix-600 rounded-xl p-5">
           <p class="text-xs text-gray-500 uppercase tracking-wider mb-1">Revenue (Month)</p>
           <p class="text-2xl font-bold font-mono text-neon">${{ data.revenue_mxn || '0' }} MXN</p>
           <p class="text-xs text-gray-500 mt-1">Neto: ${{ data.revenue_net_mxn || '0' }} MXN</p>
+        </div>
+
+        <div class="bg-matrix-800 border border-matrix-600 rounded-xl p-5">
+          <p class="text-xs text-gray-500 uppercase tracking-wider mb-1">Otros</p>
+          <div class="text-xs space-y-1 mt-1">
+            <div class="flex justify-between">
+              <span class="text-gray-400">Anthropic (moderación)</span>
+              <span :class="data.anthropic?.configured ? 'text-neon' : 'text-gray-600'">
+                {{ data.anthropic?.configured ? '✓' : '—' }}
+              </span>
+            </div>
+            <div class="flex justify-between">
+              <span class="text-gray-400">api-ninjas (chistes)</span>
+              <span :class="data.api_ninjas?.configured ? 'text-neon' : 'text-gray-600'">
+                {{ data.api_ninjas?.configured ? '✓' : '—' }}
+              </span>
+            </div>
+          </div>
         </div>
       </div>
 
@@ -142,6 +184,21 @@ const twilioLow = computed(() => {
 const elLow = computed(() => {
   const r = data.value.elevenlabs?.characters_remaining || 0
   return r < 10000
+})
+
+const openAiQuotaFail = computed(() => {
+  const ts = data.value.openai?.last_ai_failure_at
+  if (!ts) return false
+  return (Date.now() - new Date(ts).getTime()) < 24 * 60 * 60 * 1000
+})
+
+const lastFailRelative = computed(() => {
+  const ts = data.value.openai?.last_ai_failure_at
+  if (!ts) return ''
+  const mins = Math.max(1, Math.floor((Date.now() - new Date(ts).getTime()) / 60000))
+  if (mins < 60) return `hace ${mins} min`
+  const h = Math.floor(mins / 60)
+  return h < 24 ? `hace ${h}h` : `hace ${Math.floor(h / 24)}d`
 })
 
 onMounted(async () => {
