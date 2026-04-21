@@ -45,18 +45,7 @@
                 port: {{ config('reverb.apps.0.options.port', 8080) }},
                 scheme: "{{ config('reverb.apps.0.options.scheme', 'http') }}",
             },
-            shareData: @json([
-                'scenario' => $jokeCall->custom_joke_prompt,
-                'joke_text' => $jokeCall->joke_text,
-                'recording_url' => $audioUrl ?? $jokeCall->recording_url,
-                'victim_name' => $jokeCall->victim_name,
-                'creator_name' => $creatorName ?? null,
-                'session_id' => $jokeCall->session_id,
-                'slug' => $jokeCall->share_slug,
-                'share_views' => $jokeCall->share_views ?? 0,
-                'call_duration_seconds' => $jokeCall->call_duration_seconds ?? 0,
-                'transcript' => $jokeCall->live_transcript ? json_decode($jokeCall->live_transcript, true) : [],
-            ]),
+            shareData: {!! $shareDataJson ?? '{}' !!},
         };
     </script>
 </body>

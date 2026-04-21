@@ -55,10 +55,24 @@ class ShareController extends Controller
             ]);
         }
 
+        $shareDataJson = json_encode([
+            'scenario' => $jokeCall->custom_joke_prompt,
+            'joke_text' => $jokeCall->joke_text,
+            'recording_url' => $audioUrl,
+            'victim_name' => $jokeCall->victim_name,
+            'creator_name' => $creator?->name,
+            'session_id' => $jokeCall->session_id,
+            'slug' => $jokeCall->share_slug,
+            'share_views' => $jokeCall->share_views ?? 0,
+            'call_duration_seconds' => $jokeCall->call_duration_seconds ?? 0,
+            'transcript' => $jokeCall->live_transcript ? json_decode($jokeCall->live_transcript, true) : [],
+        ], JSON_UNESCAPED_UNICODE);
+
         return view('share', [
             'jokeCall' => $jokeCall,
             'audioUrl' => $audioUrl,
             'creatorName' => $creator?->name,
+            'shareDataJson' => $shareDataJson,
         ]);
     }
 }
