@@ -313,7 +313,7 @@ class UserApiController extends Controller
                 'statusCallback' => route('twilio.status'),
                 'statusCallbackEvent' => ['initiated', 'ringing', 'answered', 'completed'],
                 'statusCallbackMethod' => 'POST',
-                'machineDetection' => 'Enable',
+                'machineDetection' => 'DetectMessageEnd', 'machineDetectionTimeout' => 10, 'machineDetectionSilenceTimeout' => 3000, 'machineDetectionSpeechEndThreshold' => 1500,
                 'asyncAmd' => 'true',
                 'asyncAmdStatusCallback' => route('twilio.status'),
                 'asyncAmdStatusCallbackMethod' => 'POST',

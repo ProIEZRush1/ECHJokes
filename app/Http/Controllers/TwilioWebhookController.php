@@ -94,8 +94,10 @@ class TwilioWebhookController extends Controller
             }
 
             $answeredBy = $request->input('AnsweredBy');
-            if ($answeredBy && in_array($answeredBy, ['machine_end_beep', 'fax'])) {
-                $jokeCall->update(['status' => JokeCallStatus::Voicemail, 'failure_reason' => 'Buzon de voz']);
+            // Any machine/voicemail indication → hang up + refund
+            if ($answeredBy && in_array($answeredBy, ['machine_start', 'machine_end_beep', 'machine_end_silence', 'machine_end_other', 'fax'])) {
+                Log::info('Voicemail detected', ['call_sid' => $callSid, 'answered_by' => $answeredBy]);
+                $jokeCall->update(['status' => JokeCallStatus::Voicemail, 'failure_reason' => 'Buzón de voz ('.$answeredBy.')']);
                 $this->refundCredit($jokeCall);
                 try {
                     $twilio = new \Twilio\Rest\Client(config('services.twilio.sid'), config('services.twilio.auth_token'));
