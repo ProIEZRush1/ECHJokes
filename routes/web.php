@@ -167,6 +167,7 @@ Route::prefix('admin-api')->group(function () {
         Route::get('/users', [\App\Http\Controllers\AdminApiController::class, 'users']);
         Route::get('/users/{user}', [\App\Http\Controllers\AdminApiController::class, 'userDetail']);
         Route::put('/users/{user}', [\App\Http\Controllers\AdminApiController::class, 'updateUser']);
+        Route::delete('/users/{user}', [\App\Http\Controllers\AdminApiController::class, 'destroyUser']);
         Route::get('/billing', [\App\Http\Controllers\AdminApiController::class, 'billing']);
         Route::post('/joke-call', [\App\Http\Controllers\JokeCallController::class, 'launch']);
         Route::get('/presets', [\App\Http\Controllers\AdminApiController::class, 'presets']);

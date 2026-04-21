@@ -429,6 +429,41 @@ class AdminApiController extends Controller
         return response()->json(['ok' => true]);
     }
 
+    /**
+     * Hard-delete a user and every record tied to them (credits, calls,
+     * referrals). Admin-only. Cannot self-delete, cannot delete another admin.
+     */
+    public function destroyUser(Request $request, User $user): JsonResponse
+    {
+        $currentAdmin = $request->user();
+        if ($user->id === $currentAdmin->id) {
+            return response()->json(['error' => 'No puedes eliminar tu propia cuenta.'], 400);
+        }
+        if ($user->is_admin) {
+            return response()->json(['error' => 'No puedes eliminar otra cuenta admin desde aquí.'], 400);
+        }
+
+        $summary = \DB::transaction(function () use ($user) {
+            $calls = JokeCall::where('user_id', $user->id)->count();
+            JokeCall::where('user_id', $user->id)->delete();
+
+            // user_credits + referrals + ab_test_events + visitor_touchpoints
+            // clean up automatically via their FK cascade / nullOnDelete rules.
+            $email = $user->email;
+            $user->delete();
+
+            return ['deleted_email' => $email, 'deleted_calls' => $calls];
+        });
+
+        \Illuminate\Support\Facades\Log::info('Admin deleted user', [
+            'admin_id' => $currentAdmin->id,
+            'deleted_email' => $summary['deleted_email'],
+            'deleted_calls' => $summary['deleted_calls'],
+        ]);
+
+        return response()->json(['ok' => true, 'deleted' => $summary]);
+    }
+
     public function presets(): JsonResponse
     {
         return response()->json(Preset::orderBy('sort_order')->get());

@@ -103,6 +103,16 @@
             </div>
           </div>
         </div>
+
+        <!-- Danger zone -->
+        <div v-if="!data.user.is_admin" class="bg-matrix-800 border border-red-500/30 rounded-xl p-5">
+          <h2 class="text-sm font-semibold text-red-400 uppercase mb-2">Danger zone</h2>
+          <p class="text-xs text-gray-500 mb-3">Elimina al usuario, sus créditos, llamadas y referidos. Esta acción no se puede deshacer.</p>
+          <button @click="deleteUser" :disabled="deleting"
+            class="w-full py-2 rounded-lg bg-red-500/10 border border-red-500/40 text-red-400 text-xs font-bold hover:bg-red-500/20 transition disabled:opacity-50">
+            {{ deleting ? 'Eliminando...' : 'Eliminar usuario completamente' }}
+          </button>
+        </div>
       </div>
 
       <!-- Recent Calls -->
@@ -163,6 +173,7 @@ const editCredits = ref(0)
 const editJokes = ref(0)
 const editPlan = ref('')
 const editAdmin = ref(false)
+const deleting = ref(false)
 
 onMounted(async () => {
   const [u, p] = await Promise.all([
@@ -194,6 +205,20 @@ async function setPlan() {
 
 async function setAdmin() {
   await axios.put(`/admin-api/users/${route.params.id}`, { is_admin: editAdmin.value })
+}
+
+async function deleteUser() {
+  const name = data.value?.user?.name || data.value?.user?.email || 'este usuario'
+  if (!confirm(`¿Eliminar COMPLETAMENTE a ${name}? Se borrarán sus créditos, llamadas y referidos. No se puede deshacer.`)) return
+  deleting.value = true
+  try {
+    await axios.delete(`/admin-api/users/${route.params.id}`)
+    window.location.href = '/admin/users'
+  } catch (e) {
+    alert(e.response?.data?.error || 'No se pudo eliminar.')
+  } finally {
+    deleting.value = false
+  }
 }
 
 function statusClass(s) {
