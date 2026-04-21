@@ -37,13 +37,20 @@ class UserApiController extends Controller
             'name' => 'required|string|max:100',
             'email' => 'required|email|unique:users,email',
             'password' => 'required|string|min:6',
+            'ref' => 'nullable|string|max:16',
         ]);
+
+        $referrer = null;
+        if ($request->ref) {
+            $referrer = \App\Models\User::where('referral_code', strtoupper($request->ref))->first();
+        }
 
         $user = \App\Models\User::create([
             'name' => $request->name,
             'email' => $request->email,
             'password' => $request->password,
             'email_verified_at' => now(),
+            'referred_by_user_id' => $referrer?->id,
         ]);
 
         Auth::login($user, true);
@@ -269,6 +276,17 @@ class UserApiController extends Controller
         $credit = $user->credit;
         if ($credit) {
             $credit->decrement('credits_remaining');
+        }
+
+        // Referral reward: first successful call credits both referrer and referee
+        if ($user->referred_by_user_id && !$user->referral_credited_at) {
+            $referrer = \App\Models\User::find($user->referred_by_user_id);
+            if ($referrer) {
+                \App\Models\UserCredit::firstOrCreate(['user_id' => $referrer->id], ['credits_remaining' => 0])->increment('credits_remaining', 2);
+                \App\Models\UserCredit::firstOrCreate(['user_id' => $user->id], ['credits_remaining' => 0])->increment('credits_remaining', 2);
+                $user->referral_credited_at = now();
+                $user->save();
+            }
         }
 
         try {

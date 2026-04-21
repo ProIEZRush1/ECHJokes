@@ -40,6 +40,7 @@ const user = ref(null)
 const nav = [
   { to: '/dashboard', label: 'Mis Llamadas' },
   { to: '/dashboard/new', label: 'Nueva Broma' },
+  { to: '/dashboard/referral', label: 'Invita y Gana' },
   { to: '/pricing', label: 'Planes' },
 ]
 

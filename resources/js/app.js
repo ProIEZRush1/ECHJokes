@@ -15,6 +15,7 @@ import Login from './pages/Login.vue';
 import UserLayout from './user/UserLayout.vue';
 import MyCalls from './user/pages/MyCalls.vue';
 import NewCall from './user/pages/NewCall.vue';
+import Referral from './user/pages/Referral.vue';
 
 // Admin
 import AdminLayout from './admin/AdminLayout.vue';
@@ -53,6 +54,7 @@ const router = createRouter({
             children: [
                 { path: '', name: 'dashboard', component: MyCalls },
                 { path: 'new', name: 'dashboard.new', component: NewCall },
+                { path: 'referral', name: 'dashboard.referral', component: Referral },
             ],
         },
 

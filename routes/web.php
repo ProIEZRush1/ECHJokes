@@ -3,7 +3,9 @@
 use App\Http\Controllers\AudioController;
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\ECHJokesController;
+use App\Http\Controllers\PresetPageController;
 use App\Http\Controllers\ShareController;
+use App\Http\Controllers\SharedAudioController;
 use App\Http\Controllers\StripeWebhookController;
 use App\Http\Controllers\TwilioWebhookController;
 use App\Http\Middleware\VerifyTwilioSignature;
@@ -15,6 +17,12 @@ Route::get('/call/{jokeCall}/status', [ECHJokesController::class, 'callStatus'])
 
 // Share page (public, with OG meta tags)
 Route::get('/share/{sessionId}', [ShareController::class, 'show'])->name('share.show');
+Route::get('/share/{sessionId}/audio.mp3', [SharedAudioController::class, 'stream'])->name('share.audio');
+
+// SEO — preset landing pages + sitemap
+Route::get('/bromas', [PresetPageController::class, 'index'])->name('presets.index');
+Route::get('/bromas/{preset:slug}', [PresetPageController::class, 'show'])->name('presets.show');
+Route::get('/sitemap.xml', [PresetPageController::class, 'sitemap'])->name('sitemap');
 
 // SPA catch-all routes (Vue Router handles these)
 Route::get('/pricing', fn() => view('app'))->name('pricing');
@@ -25,6 +33,7 @@ Route::get('/dashboard/{any?}', fn() => view('app'))->where('any', '.*')->name('
 Route::post('/auth/magic-link', [AuthController::class, 'sendMagicLink'])->name('auth.magic-link');
 Route::get('/auth/verify/{user}', [AuthController::class, 'verifyMagicLink'])->name('auth.verify');
 Route::get('/api/user', [AuthController::class, 'user'])->name('auth.user');
+Route::get('/api/referrals/me', [AuthController::class, 'referralInfo'])->name('referrals.me');
 Route::post('/auth/logout', [AuthController::class, 'logout'])->name('auth.logout');
 
 // API

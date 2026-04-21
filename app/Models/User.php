@@ -20,11 +20,26 @@ class User extends Authenticatable
         'email',
         'password',
         'phone',
+        'referral_code',
+        'referred_by_user_id',
+        'referral_credited_at',
         'is_admin',
         'stripe_customer_id',
         'subscription_plan',
         'subscription_ends_at',
     ];
+
+    protected static function booted(): void
+    {
+        static::creating(function (User $user) {
+            if (empty($user->referral_code)) {
+                do {
+                    $code = strtoupper(\Illuminate\Support\Str::random(7));
+                } while (self::where('referral_code', $code)->exists());
+                $user->referral_code = $code;
+            }
+        });
+    }
 
     protected $hidden = [
         'password',
@@ -38,6 +53,7 @@ class User extends Authenticatable
             'password' => 'hashed',
             'is_admin' => 'boolean',
             'subscription_ends_at' => 'datetime',
+            'referral_credited_at' => 'datetime',
         ];
     }
 

@@ -10,8 +10,8 @@
     <meta property="og:description" content="{{ Str::limit($jokeCall->custom_joke_prompt ?? 'Una broma telefonica increible...', 150) }}" />
     <meta property="og:type" content="website" />
     <meta property="og:url" content="{{ route('share.show', $jokeCall->session_id) }}" />
-    @if($jokeCall->recording_url)
-    <meta property="og:audio" content="{{ $jokeCall->recording_url }}" />
+    @if($audioUrl ?? $jokeCall->recording_url)
+    <meta property="og:audio" content="{{ $audioUrl ?? $jokeCall->recording_url }}" />
     @endif
     <meta name="twitter:card" content="summary" />
     <meta name="twitter:title" content="ECHJokes - Broma telefonica con IA" />
@@ -36,7 +36,7 @@
             shareData: @json([
                 'scenario' => $jokeCall->custom_joke_prompt,
                 'joke_text' => $jokeCall->joke_text,
-                'recording_url' => $jokeCall->recording_url,
+                'recording_url' => $audioUrl ?? $jokeCall->recording_url,
                 'session_id' => $jokeCall->session_id,
             ]),
         };

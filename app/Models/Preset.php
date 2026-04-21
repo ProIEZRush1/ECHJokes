@@ -8,6 +8,7 @@ class Preset extends Model
 {
     protected $fillable = [
         'label',
+        'slug',
         'emoji',
         'scenario',
         'character',
@@ -23,5 +24,10 @@ class Preset extends Model
         return [
             'is_active' => 'boolean',
         ];
+    }
+
+    public function getRouteKeyName(): string
+    {
+        return 'slug';
     }
 }

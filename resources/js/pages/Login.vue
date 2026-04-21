@@ -52,11 +52,12 @@
 
 <script setup>
 import { ref } from 'vue'
-import { useRouter } from 'vue-router'
+import { useRouter, useRoute } from 'vue-router'
 import axios from 'axios'
 
 const router = useRouter()
-const isRegister = ref(false)
+const route = useRoute()
+const isRegister = ref(!!route.query.ref)
 const name = ref('')
 const email = ref('')
 const password = ref('')
@@ -68,8 +69,9 @@ async function submit() {
   loading.value = true
   try {
     const endpoint = isRegister.value ? '/user-api/register' : '/user-api/login'
+    const refCode = route.query.ref || localStorage.getItem('echjokes_ref') || ''
     const payload = isRegister.value
-      ? { name: name.value, email: email.value, password: password.value }
+      ? { name: name.value, email: email.value, password: password.value, ref: refCode }
       : { email: email.value, password: password.value }
     await axios.post(endpoint, payload)
     router.push('/dashboard')

@@ -18,15 +18,22 @@ class AuthController extends Controller
     {
         $request->validate([
             'email' => 'required|email',
+            'ref' => 'nullable|string|max:16',
         ]);
 
         $email = $request->email;
+        $existing = User::where('email', $email)->first();
+        $isNew = ! $existing;
 
-        // Create user if doesn't exist
-        $user = User::firstOrCreate(
-            ['email' => $email],
-            ['name' => explode('@', $email)[0], 'password' => '']
-        );
+        $user = $existing ?? User::create(['email' => $email, 'name' => explode('@', $email)[0], 'password' => '']);
+
+        if ($isNew && $request->ref) {
+            $referrer = User::where('referral_code', strtoupper($request->ref))->first();
+            if ($referrer && $referrer->id !== $user->id) {
+                $user->referred_by_user_id = $referrer->id;
+                $user->save();
+            }
+        }
 
         // Generate signed URL valid for 15 minutes
         $url = URL::temporarySignedRoute(
@@ -78,6 +85,26 @@ class AuthController extends Controller
             'is_admin' => $user->isAdmin(),
             'subscription_plan' => $user->subscription_plan,
             'credits_remaining' => $user->creditsRemaining(),
+            'referral_code' => $user->referral_code,
+        ]);
+    }
+
+    public function referralInfo(Request $request): JsonResponse
+    {
+        $user = $request->user();
+        if (!$user) return response()->json(null, 401);
+
+        $referred = User::where('referred_by_user_id', $user->id)->get();
+        $successful = $referred->whereNotNull('referral_credited_at')->count();
+        $base = rtrim(config('app.url'), '/');
+
+        return response()->json([
+            'code' => $user->referral_code,
+            'link' => $base . '/?ref=' . $user->referral_code,
+            'share_text' => "Bromas telefonicas con IA! Usa mi link y los dos ganamos 2 bromas gratis: {$base}/?ref={$user->referral_code}",
+            'referred_total' => $referred->count(),
+            'referred_successful' => $successful,
+            'credits_earned' => $successful * 2,
         ]);
     }
 

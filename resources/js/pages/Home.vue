@@ -266,6 +266,8 @@ const user = ref(null);
 const errors = reactive({ phone: '', scenario: '', general: '' });
 
 onMounted(async () => {
+    const urlRef = new URLSearchParams(window.location.search).get('ref');
+    if (urlRef) localStorage.setItem('echjokes_ref', urlRef.toUpperCase());
     try {
         const [pr, me] = await Promise.all([
             axios.get('/api/presets'),
