@@ -443,8 +443,8 @@ class AdminApiController extends Controller
         $kFactor = $activeUsers > 0 ? round($credited / $activeUsers, 3) : 0;
 
         // Viral cycle time: avg days between referrer.created_at and referee.created_at (for credited pairs)
-        $avgCycleDays = \App\Models\User::whereNotNull('referral_credited_at')
-            ->whereNotNull('referred_by_user_id')
+        $avgCycleDays = \App\Models\User::whereNotNull('users.referral_credited_at')
+            ->whereNotNull('users.referred_by_user_id')
             ->join('users as ref', 'ref.id', '=', 'users.referred_by_user_id')
             ->selectRaw("AVG((julianday(users.created_at) - julianday(ref.created_at))) as avg_days")
             ->value('avg_days');
