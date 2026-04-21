@@ -38,6 +38,7 @@ class UserApiController extends Controller
             'email' => 'required|email|unique:users,email',
             'password' => 'required|string|min:6',
             'ref' => 'nullable|string|max:16',
+            'accept_terms' => 'accepted',
         ]);
 
         // Block multi-account abuse: one free account per IP per 7 days.
@@ -65,6 +66,7 @@ class UserApiController extends Controller
             'email_verified_at' => now(),
             'referred_by_user_id' => $referrer?->id,
             'registration_ip' => $ip,
+            'terms_accepted_at' => now(),
         ]);
 
         // Credit policy:

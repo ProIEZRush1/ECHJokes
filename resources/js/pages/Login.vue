@@ -28,9 +28,20 @@
             placeholder="******" />
         </div>
 
+        <label v-if="isRegister" class="flex items-start gap-2 text-[11px] text-gray-400 leading-relaxed cursor-pointer">
+          <input type="checkbox" v-model="acceptedTerms" class="mt-0.5 accent-[#39FF14] shrink-0" />
+          <span>
+            Acepto los
+            <router-link to="/terms" target="_blank" class="text-neon hover:underline">términos</router-link>
+            y la
+            <router-link to="/privacy" target="_blank" class="text-neon hover:underline">política de privacidad</router-link>.
+            Entiendo que las llamadas son bromas ficticias entre amigos y me hago responsable del consentimiento de la persona que reciba la broma.
+          </span>
+        </label>
+
         <p v-if="error" class="text-red-400 text-xs">{{ error }}</p>
 
-        <button @click="submit" :disabled="loading"
+        <button @click="submit" :disabled="loading || (isRegister && !acceptedTerms)"
           class="w-full py-2.5 rounded-lg bg-neon text-matrix-900 font-bold text-sm hover:shadow-neon transition disabled:opacity-50">
           {{ loading ? '...' : (isRegister ? 'Crear cuenta' : 'Entrar') }}
         </button>
@@ -63,6 +74,7 @@ const email = ref('')
 const password = ref('')
 const error = ref('')
 const loading = ref(false)
+const acceptedTerms = ref(false)
 
 async function submit() {
   error.value = ''
@@ -71,7 +83,7 @@ async function submit() {
     const endpoint = isRegister.value ? '/user-api/register' : '/user-api/login'
     const refCode = route.query.ref || localStorage.getItem('vacilada_ref') || ''
     const payload = isRegister.value
-      ? { name: name.value, email: email.value, password: password.value, ref: refCode }
+      ? { name: name.value, email: email.value, password: password.value, ref: refCode, accept_terms: acceptedTerms.value }
       : { email: email.value, password: password.value }
     await axios.post(endpoint, payload)
     router.push('/dashboard')

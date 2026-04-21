@@ -47,6 +47,8 @@ Route::get('/press', fn() => view('press'))->name('press');
 // SPA catch-all routes (Vue Router handles these)
 Route::get('/pricing', fn() => view('app'))->name('pricing');
 Route::get('/login', fn() => view('app'))->name('login');
+Route::get('/terms', fn() => view('app'))->name('terms');
+Route::get('/privacy', fn() => view('app'))->name('privacy');
 Route::get('/dashboard/{any?}', fn() => view('app'))->where('any', '.*')->name('dashboard');
 
 // Auth (magic link)

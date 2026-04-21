@@ -155,8 +155,8 @@ class JokeCallController extends Controller
     private function wrapJoke(string $joke, string $lang): string
     {
         if ($lang !== 'es') return $joke;
-        $openers = ['Oye, que tal, fijate que te tengo un chiste bien bueno... ', 'Ey, hola, aguantame tantito, te voy a contar un chistorete... ', 'Bueno, oye, ya que agarre el telefono, checate este chiste... ', 'Aja, mira, no es por nada pero me acorde de un chiste, va... ', 'Hola, este, te hablo porque me acorde de un chiste bien chistoso, escucha... '];
-        $closers = [' ... Jaja, no manches verdad? Bueno, ya, adios!', ' ... Ay, no, que risa. Bueno, pos ya, nos vemos!', ' ... Jajaja, ta bueno eh? Orale, cuidate!', ' ... Ay wey, que chistoso. Bueno, hasta luego!', ' ... Jaja, chale. Bueno ya, bye!'];
+        $openers = ['Oye, qué tal, fíjate que te tengo un chiste bien bueno... ', 'Ey, hola, aguántame tantito, te voy a contar un chistorete... ', 'Bueno, oye, ya que agarré el teléfono, chécate este chiste... ', 'Ajá, mira, no es por nada pero me acordé de un chiste, va... ', 'Hola, este, te hablo porque me acordé de un chiste bien chistoso, escucha... '];
+        $closers = [' ... Jaja, no manches, ¿verdad? Bueno, ya, adiós!', ' ... Ay, no, qué risa. Bueno, pos ya, nos vemos!', ' ... Jajaja, ¿tá bueno, eh? Órale, cuídate!', ' ... Ay wey, qué chistoso. Bueno, hasta luego!', ' ... Jaja, chale. Bueno, ya, bye!'];
         return $openers[array_rand($openers)] . $joke . $closers[array_rand($closers)];
     }
 

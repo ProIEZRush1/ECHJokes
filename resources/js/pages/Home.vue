@@ -223,6 +223,17 @@
         </div>
 
         </div>
+
+        <footer class="w-full mt-12 py-6 px-4 border-t border-matrix-700 text-center">
+            <div class="flex items-center justify-center gap-4 text-xs text-gray-500">
+                <router-link to="/terms" class="hover:text-neon transition">Términos</router-link>
+                <span class="text-gray-700">·</span>
+                <router-link to="/privacy" class="hover:text-neon transition">Privacidad</router-link>
+                <span class="text-gray-700">·</span>
+                <a href="mailto:soporte@vacilada.com" class="hover:text-neon transition">Soporte</a>
+            </div>
+            <p class="text-[10px] text-gray-600 mt-2">© 2026 Vacilada. Sólo para bromas consensuadas entre amigos.</p>
+        </footer>
     </div>
 </template>
 

@@ -10,6 +10,8 @@ import CallComplete from './pages/CallComplete.vue';
 import Share from './pages/Share.vue';
 import Pricing from './pages/Pricing.vue';
 import Login from './pages/Login.vue';
+import Terms from './pages/Terms.vue';
+import Privacy from './pages/Privacy.vue';
 
 // User dashboard
 import UserLayout from './user/UserLayout.vue';
@@ -49,6 +51,8 @@ const router = createRouter({
         { path: '/v/:slug', name: 'share.v', component: Share },
         { path: '/pricing', name: 'pricing', component: Pricing },
         { path: '/login', name: 'login', component: Login },
+        { path: '/terms', name: 'terms', component: Terms },
+        { path: '/privacy', name: 'privacy', component: Privacy },
 
         // User dashboard
         {

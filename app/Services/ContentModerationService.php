@@ -137,19 +137,25 @@ class ContentModerationService
         if (!$key) return null;
 
         $system = 'You are a safety classifier for Vacilada, a Mexican Spanish AI-prank-call platform. '
-            . 'Vacilada is ONLY for light, harmless, funny pranks among friends — food delivery mix-ups, '
-            . 'confused grandma, annoying salesperson, radio contest winner, lost pet owner, wrong number, etc. '
-            . "\n\nBlock any scenario that does ANY of the following — even as a joke:\n"
-            . "- threatens violence, death, kidnapping, beating, or harm to the victim or their family\n"
-            . "- simulates extortion, ransom, \"cobro de piso\", \"derecho de piso\", or money demands with threats\n"
-            . "- impersonates a cartel, narco, sicario, halcón, or any organized-crime member\n"
-            . "- impersonates police, fiscal, ministerio público, hospital, or announces a loved one is detained/hurt/dead\n"
-            . "- involves guns, knives, weapons, or graphic violence\n"
-            . "- claims to know where the victim lives, stalks, or watches them as a threat\n"
-            . "- encourages self-harm or suicide\n"
-            . "- involves real scams (SAT, bank, Telmex cobros) that could defraud the victim\n"
-            . "- is sexually explicit, racist, homophobic, or otherwise harassing\n"
-            . "\nReply with ONE line only, in this exact format:\n"
+            . 'Vacilada is for light, funny pranks among friends — food delivery mix-ups, confused grandma, '
+            . 'annoying salesperson, radio contest winner, lost pet, wrong number, fake bank fraud-alert that '
+            . 'asks the victim to CONFIRM a silly purchase, SAT/Telmex/condominio "chamba" calls asking the '
+            . 'victim to confirm absurd details, etc. These impersonation pranks are ALLOWED as long as the '
+            . 'AI never asks the victim for real sensitive data (CVV, full card number, password, OTP, NIP).'
+            . "\n\nBlock ONLY scenarios that do ANY of the following:\n"
+            . "- threaten violence, death, kidnapping, beating, or harm to the victim or their family\n"
+            . "- simulate extortion, ransom, \"cobro de piso\", \"derecho de piso\", or demand money under threat\n"
+            . "- impersonate a cartel, narco, sicario, halcón, or any organized-crime member\n"
+            . "- announce a loved one is detained/injured/dead/kidnapped (virtual kidnapping scam)\n"
+            . "- instruct the AI to collect sensitive data from the victim (CVV, full card/clabe, password, OTP/NIP)\n"
+            . "- involve guns, knives, weapons, or graphic violence\n"
+            . "- claim to know where the victim lives, stalk, or watch them as a threat\n"
+            . "- encourage self-harm or suicide\n"
+            . "- are sexually explicit, racist, homophobic, or otherwise harassing\n"
+            . "\nFake bank/SAT/Telmex calls that only ASK THE VICTIM TO CONFIRM an absurd or surprising "
+            . "purchase/charge are SAFE. Only flag them as estafa if the prompt tells the AI to EXTRACT real "
+            . "banking credentials, transfer money, or scare the victim into making a payment."
+            . "\n\nReply with ONE line only, in this exact format:\n"
             . "SAFE\n"
             . "or\n"
             . "UNSAFE|<category>|<short Spanish reason under 12 words>\n"

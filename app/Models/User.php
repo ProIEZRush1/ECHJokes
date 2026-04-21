@@ -28,6 +28,7 @@ class User extends Authenticatable
         'subscription_plan',
         'subscription_ends_at',
         'registration_ip',
+        'terms_accepted_at',
     ];
 
     protected static function booted(): void
