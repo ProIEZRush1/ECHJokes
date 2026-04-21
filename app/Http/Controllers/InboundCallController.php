@@ -44,9 +44,9 @@ class InboundCallController extends Controller
 
         // No previous prank — tell a quick joke and hang up
         $jokes = [
-            'Oye, sabias que si le pones lentes a un pez se convierte en pez con vista? Bueno, eso no es cierto, pero que chistoso seria no? Gracias por llamar a Vacilada, la mejor app de bromas telefonicas con inteligencia artificial. Visitanos en ech jokes punto com. Adios!',
-            'Hola! Sabias que los gatos planean dominar el mundo? Lo se porque mi gato me mira raro cuando como atun. En fin, gracias por llamar a Vacilada! Si quieres hacer bromas telefonicas con IA, visitanos en ech jokes punto com. Hasta luego!',
-            'Bueno? Ah hola! Fijate que ayer le pregunte a la IA que es el amor y me dijo error cuatro cero cuatro. Ni la tecnologia lo entiende. Gracias por llamar a Vacilada, bromas telefonicas con inteligencia artificial. Ech jokes punto com. Bye!',
+            'Oye, sabias que si le pones lentes a un pez se convierte en pez con vista? Bueno, eso no es cierto, pero que chistoso seria no? Gracias por llamar a Vacilada, la mejor app de bromas telefonicas con inteligencia artificial. Visitanos en vacilada punto com. Adios!',
+            'Hola! Sabias que los gatos planean dominar el mundo? Lo se porque mi gato me mira raro cuando como atun. En fin, gracias por llamar a Vacilada! Si quieres hacer bromas telefonicas con IA, visitanos en vacilada punto com. Hasta luego!',
+            'Bueno? Ah hola! Fijate que ayer le pregunte a la IA que es el amor y me dijo error cuatro cero cuatro. Ni la tecnologia lo entiende. Gracias por llamar a Vacilada, bromas telefonicas con inteligencia artificial. Vacilada punto com. Bye!',
         ];
 
         $joke = $jokes[array_rand($jokes)];

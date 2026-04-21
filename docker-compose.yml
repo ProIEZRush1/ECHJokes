@@ -30,7 +30,7 @@ services:
     labels:
       - "traefik.enable=false"
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8082"]
+      test: ["CMD", "wget", "-q", "-O-", "http://localhost:8082"]
       interval: 30s
       timeout: 10s
       retries: 5
