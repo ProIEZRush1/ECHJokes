@@ -169,6 +169,7 @@ Route::prefix('admin-api')->group(function () {
         Route::get('/stats', [\App\Http\Controllers\AdminApiController::class, 'stats']);
         Route::get('/calls', [\App\Http\Controllers\AdminApiController::class, 'calls']);
         Route::get('/calls/{jokeCall}', [\App\Http\Controllers\AdminApiController::class, 'call']);
+        Route::post('/calls/{jokeCall}/hangup', [\App\Http\Controllers\AdminApiController::class, 'hangupCall']);
         Route::post('/launch-call', [\App\Http\Controllers\AdminApiController::class, 'launchCall']);
         Route::get('/users', [\App\Http\Controllers\AdminApiController::class, 'users']);
         Route::get('/users/{user}', [\App\Http\Controllers\AdminApiController::class, 'userDetail']);

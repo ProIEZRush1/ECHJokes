@@ -539,6 +539,45 @@ class AdminApiController extends Controller
      * Hard-delete a user and every record tied to them (credits, calls,
      * referrals). Admin-only. Cannot self-delete, cannot delete another admin.
      */
+    /**
+     * Manually end a live call. Used from the admin call-detail page when
+     * something goes off the rails (AI loop, victim getting upset, etc.).
+     * Calls Twilio to force status=completed and marks the row accordingly.
+     */
+    public function hangupCall(JokeCall $jokeCall): JsonResponse
+    {
+        if (!$jokeCall->twilio_call_sid) {
+            return response()->json(['error' => 'Esta llamada no tiene Twilio SID.'], 400);
+        }
+        if ($jokeCall->status->isTerminal()) {
+            return response()->json(['error' => 'La llamada ya terminó.'], 400);
+        }
+
+        try {
+            $twilio = new \Twilio\Rest\Client(config('services.twilio.sid'), config('services.twilio.auth_token'));
+            $twilio->calls($jokeCall->twilio_call_sid)->update(['status' => 'completed']);
+        } catch (\Throwable $e) {
+            \Illuminate\Support\Facades\Log::warning('Admin hangup failed', [
+                'call_id' => $jokeCall->id,
+                'sid' => $jokeCall->twilio_call_sid,
+                'error' => $e->getMessage(),
+            ]);
+            return response()->json(['error' => 'No se pudo colgar: ' . $e->getMessage()], 500);
+        }
+
+        $jokeCall->update([
+            'status' => JokeCallStatus::Completed,
+            'failure_reason' => 'Colgada manualmente desde el panel',
+        ]);
+
+        \Illuminate\Support\Facades\Log::info('Admin hung up call', [
+            'call_id' => $jokeCall->id,
+            'sid' => $jokeCall->twilio_call_sid,
+        ]);
+
+        return response()->json(['ok' => true]);
+    }
+
     public function destroyUser(Request $request, User $user): JsonResponse
     {
         $currentAdmin = $request->user();

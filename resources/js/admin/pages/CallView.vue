@@ -27,6 +27,10 @@
         </span>
         <span class="text-red-400 font-semibold uppercase text-xs tracking-wider">Live</span>
       </span>
+      <button v-if="isLive" @click="hangup" :disabled="hangingUp"
+        class="ml-2 px-3 py-1.5 rounded-lg bg-red-500/10 border border-red-500/40 text-red-400 text-xs font-bold hover:bg-red-500/20 transition disabled:opacity-50">
+        {{ hangingUp ? 'Colgando...' : '⏹ Colgar' }}
+      </button>
     </div>
 
     <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -185,6 +189,20 @@ const canRetry = computed(() => {
 
 const isJokeCall = computed(() => call.value?.delivery_type === 'joke_call')
 const retrying = ref(false)
+const hangingUp = ref(false)
+
+async function hangup() {
+  if (!confirm('¿Colgar esta llamada ahora mismo?')) return
+  hangingUp.value = true
+  try {
+    await axios.post(`/admin-api/calls/${route.params.id}/hangup`)
+    await fetchCall()
+  } catch (e) {
+    alert(e.response?.data?.error || 'No se pudo colgar la llamada.')
+  } finally {
+    hangingUp.value = false
+  }
+}
 const retryJokeMode = ref('new')
 
 const shareUrl = computed(() => call.value?.session_id ? `${window.location.origin}/share/${call.value.session_id}` : '')
