@@ -29,6 +29,8 @@ import AdminPlans from './admin/pages/Plans.vue';
 import AdminBilling from './admin/pages/Billing.vue';
 import AdminUserDetail from './admin/pages/UserDetail.vue';
 import AdminPresets from './admin/pages/Presets.vue';
+import AdminReferrals from './admin/pages/Referrals.vue';
+import AdminBrand from './admin/pages/Brand.vue';
 
 // Axios defaults
 axios.defaults.headers.common['X-Requested-With'] = 'XMLHttpRequest';
@@ -73,6 +75,8 @@ const router = createRouter({
                 { path: 'plans', name: 'admin.plans', component: AdminPlans },
                 { path: 'billing', name: 'admin.billing', component: AdminBilling },
                 { path: 'presets', name: 'admin.presets', component: AdminPresets },
+                { path: 'referrals', name: 'admin.referrals', component: AdminReferrals },
+                { path: 'brand', name: 'admin.brand', component: AdminBrand },
             ],
         },
     ],

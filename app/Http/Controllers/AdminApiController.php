@@ -420,6 +420,34 @@ class AdminApiController extends Controller
         return response()->json(Preset::orderBy('sort_order')->get());
     }
 
+    public function referrals(): JsonResponse
+    {
+        $total = \App\Models\User::count();
+        $withReferrer = \App\Models\User::whereNotNull('referred_by_user_id')->count();
+        $credited = \App\Models\User::whereNotNull('referral_credited_at')->count();
+
+        $top = \App\Models\User::leftJoin('users as referred', 'referred.referred_by_user_id', '=', 'users.id')
+            ->select('users.id', 'users.name', 'users.email', 'users.referral_code')
+            ->selectRaw('COUNT(referred.id) as referred_count')
+            ->selectRaw('COUNT(CASE WHEN referred.referral_credited_at IS NOT NULL THEN 1 END) as converted_count')
+            ->groupBy('users.id', 'users.name', 'users.email', 'users.referral_code')
+            ->having('referred_count', '>', 0)
+            ->orderByDesc('converted_count')
+            ->orderByDesc('referred_count')
+            ->limit(25)
+            ->get();
+
+        return response()->json([
+            'stats' => [
+                'total_users' => $total,
+                'with_referrer' => $withReferrer,
+                'credited' => $credited,
+                'credits_given' => $credited * 4,
+            ],
+            'top' => $top,
+        ]);
+    }
+
     public function createPreset(Request $request): JsonResponse
     {
         $data = $request->validate([

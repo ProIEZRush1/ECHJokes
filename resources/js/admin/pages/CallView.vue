@@ -78,6 +78,21 @@
           <audio controls class="w-full" :src="call.recording_url" preload="metadata"
             style="filter: hue-rotate(100deg) saturate(2);"></audio>
         </div>
+
+        <!-- Share this call -->
+        <div v-if="call.session_id && call.recording_url" class="bg-matrix-800 border border-matrix-600 rounded-xl p-5">
+          <h2 class="text-sm font-semibold text-gray-400 uppercase mb-3">Share this call</h2>
+          <div class="flex gap-2 items-center mb-3">
+            <input :value="shareUrl" readonly class="flex-1 bg-matrix-900 border border-matrix-600 rounded-lg px-3 py-2 text-xs font-mono text-gray-300" />
+            <button @click="copyShareUrl" class="px-3 py-2 rounded-lg bg-neon text-matrix-900 font-semibold text-xs hover:shadow-neon transition">{{ shareCopied ? 'Copied!' : 'Copy' }}</button>
+          </div>
+          <div class="grid grid-cols-3 gap-2">
+            <a :href="whatsappShare" target="_blank" rel="noopener" class="text-center py-2 rounded-lg bg-[#25D366] hover:bg-[#1ebe5a] text-white text-xs font-semibold transition">WhatsApp</a>
+            <a :href="twitterShare" target="_blank" rel="noopener" class="text-center py-2 rounded-lg bg-[#1da1f2] hover:bg-[#0d8fd9] text-white text-xs font-semibold transition">Twitter</a>
+            <a :href="shareUrl" target="_blank" rel="noopener" class="text-center py-2 rounded-lg bg-matrix-700 hover:bg-matrix-600 text-white text-xs font-semibold transition border border-matrix-600">Open</a>
+          </div>
+          <a :href="downloadUrl" download class="block text-center mt-2 text-xs text-gray-400 hover:text-neon">Download watermarked MP3</a>
+        </div>
       </div>
 
       <!-- Right: Transcript + Listen -->
@@ -163,6 +178,19 @@ const canRetry = computed(() => {
 const isJokeCall = computed(() => call.value?.delivery_type === 'joke_call')
 const retrying = ref(false)
 const retryJokeMode = ref('new')
+
+const shareUrl = computed(() => call.value?.session_id ? `${window.location.origin}/share/${call.value.session_id}` : '')
+const downloadUrl = computed(() => call.value?.session_id ? `/share/${call.value.session_id}/audio.mp3` : '')
+const shareCaption = computed(() => `Escucha esta broma telefonica que hice con IA 😂 ${shareUrl.value}`)
+const whatsappShare = computed(() => `https://wa.me/?text=${encodeURIComponent(shareCaption.value)}`)
+const twitterShare = computed(() => `https://twitter.com/intent/tweet?text=${encodeURIComponent(shareCaption.value)}`)
+const shareCopied = ref(false)
+function copyShareUrl() {
+  if (!navigator.clipboard || !shareUrl.value) return
+  navigator.clipboard.writeText(shareUrl.value)
+  shareCopied.value = true
+  setTimeout(() => { shareCopied.value = false }, 2000)
+}
 
 async function retryCall() {
   if (!call.value) return

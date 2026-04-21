@@ -156,6 +156,7 @@ Route::prefix('admin-api')->group(function () {
         Route::post('/plans', [\App\Http\Controllers\AdminApiController::class, 'createPlan']);
         Route::put('/plans/{plan}', [\App\Http\Controllers\AdminApiController::class, 'updatePlan']);
         Route::delete('/plans/{plan}', [\App\Http\Controllers\AdminApiController::class, 'deletePlan']);
+        Route::get('/referrals', [\App\Http\Controllers\AdminApiController::class, 'referrals']);
     });
 });
 

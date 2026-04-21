@@ -74,6 +74,8 @@ const nav = [
   { to: '/admin/plans', icon: '💰', label: 'Plans' },
   { to: '/admin/presets', icon: '🎭', label: 'Presets' },
   { to: '/admin/billing', icon: '📈', label: 'Billing' },
+  { to: '/admin/referrals', icon: '🎁', label: 'Referrals' },
+  { to: '/admin/brand', icon: '🎨', label: 'Brand & Press' },
 ]
 
 onMounted(async () => {
