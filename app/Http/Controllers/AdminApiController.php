@@ -297,15 +297,20 @@ class AdminApiController extends Controller
         }
         $revenue = round($revenueMxn / 20, 2);
 
-        // OpenAI — balance is not exposed by a regular project API key.
-        // With an admin key (sk-admin-…) we can pull month-to-date cost from
-        // /v1/organization/costs; without one we return a link to the dashboard.
+        // OpenAI — balance is not exposed by any API key. With an admin key
+        // (sk-admin-…) we can pull month-to-date cost + usage breakdowns
+        // (completion tokens + audio transcription seconds). Without an admin
+        // key the regular project key returns 403 on every organization/*
+        // endpoint, so we just show a link to the dashboard.
         $openAiInfo = ['dashboard_url' => 'https://platform.openai.com/settings/organization/billing/overview'];
         $adminKey = env('OPENAI_ADMIN_KEY');
         if ($adminKey && str_starts_with($adminKey, 'sk-admin-')) {
+            $start = $thisMonth->timestamp;
+            $headers = ['Authorization' => 'Bearer ' . $adminKey];
+
+            // Month-to-date spend (USD) — from /v1/organization/costs.
             try {
-                $start = $thisMonth->timestamp;
-                $resp = \Illuminate\Support\Facades\Http::withHeaders(['Authorization' => 'Bearer ' . $adminKey])
+                $resp = \Illuminate\Support\Facades\Http::withHeaders($headers)
                     ->timeout(5)
                     ->get('https://api.openai.com/v1/organization/costs', [
                         'start_time' => $start,
@@ -320,9 +325,57 @@ class AdminApiController extends Controller
                         }
                     }
                     $openAiInfo['spent_month_usd'] = round($totalCents / 100, 2);
+                } else {
+                    $openAiInfo['costs_error'] = 'HTTP ' . $resp->status();
                 }
             } catch (\Throwable $e) {
-                $openAiInfo['error'] = substr($e->getMessage(), 0, 120);
+                $openAiInfo['costs_error'] = substr($e->getMessage(), 0, 120);
+            }
+
+            // Month-to-date token usage (LLM + Realtime text).
+            try {
+                $resp = \Illuminate\Support\Facades\Http::withHeaders($headers)
+                    ->timeout(5)
+                    ->get('https://api.openai.com/v1/organization/usage/completions', [
+                        'start_time' => $start,
+                        'bucket_width' => '1d',
+                        'limit' => 31,
+                    ]);
+                if ($resp->ok()) {
+                    $inputTokens = 0; $outputTokens = 0;
+                    foreach ($resp->json('data') ?? [] as $bucket) {
+                        foreach ($bucket['results'] ?? [] as $row) {
+                            $inputTokens += (int) ($row['input_tokens'] ?? 0);
+                            $outputTokens += (int) ($row['output_tokens'] ?? 0);
+                        }
+                    }
+                    $openAiInfo['input_tokens_month'] = $inputTokens;
+                    $openAiInfo['output_tokens_month'] = $outputTokens;
+                }
+            } catch (\Throwable $e) {
+                // Non-fatal
+            }
+
+            // Month-to-date audio transcription seconds (Whisper + Realtime STT).
+            try {
+                $resp = \Illuminate\Support\Facades\Http::withHeaders($headers)
+                    ->timeout(5)
+                    ->get('https://api.openai.com/v1/organization/usage/audio_transcriptions', [
+                        'start_time' => $start,
+                        'bucket_width' => '1d',
+                        'limit' => 31,
+                    ]);
+                if ($resp->ok()) {
+                    $seconds = 0;
+                    foreach ($resp->json('data') ?? [] as $bucket) {
+                        foreach ($bucket['results'] ?? [] as $row) {
+                            $seconds += (int) ($row['seconds'] ?? $row['num_seconds'] ?? 0);
+                        }
+                    }
+                    $openAiInfo['audio_seconds_month'] = $seconds;
+                }
+            } catch (\Throwable $e) {
+                // Non-fatal
             }
         }
         // Also mark last AI failure (from storage/logs) to flag quota issues.

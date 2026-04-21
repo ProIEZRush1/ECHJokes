@@ -27,12 +27,26 @@
               ${{ data.openai.spent_month_usd.toFixed(2) }}
             </p>
             <p class="text-xs text-gray-500 mt-1">gastado este mes</p>
+            <div v-if="data.openai.input_tokens_month !== undefined" class="mt-2 text-[10px] text-gray-500 space-y-0.5 border-t border-matrix-700 pt-2">
+              <div class="flex justify-between">
+                <span>tokens entrada</span>
+                <span class="font-mono text-gray-400">{{ formatNum(data.openai.input_tokens_month) }}</span>
+              </div>
+              <div class="flex justify-between">
+                <span>tokens salida</span>
+                <span class="font-mono text-gray-400">{{ formatNum(data.openai.output_tokens_month) }}</span>
+              </div>
+              <div v-if="data.openai.audio_seconds_month" class="flex justify-between">
+                <span>audio procesado</span>
+                <span class="font-mono text-gray-400">{{ Math.round(data.openai.audio_seconds_month / 60) }} min</span>
+              </div>
+            </div>
           </template>
           <template v-else>
             <p class="text-sm text-gray-500 mt-1">Balance no expuesto por la API</p>
             <p class="text-[10px] text-gray-600 mt-1">
               Añade <code class="text-gray-400">OPENAI_ADMIN_KEY</code>
-              (sk-admin-...) para ver gasto del mes.
+              (sk-admin-...) para ver gasto + tokens del mes.
             </p>
           </template>
           <p v-if="openAiQuotaFail" class="text-xs text-red-400 mt-2">
@@ -191,6 +205,13 @@ const openAiQuotaFail = computed(() => {
   if (!ts) return false
   return (Date.now() - new Date(ts).getTime()) < 24 * 60 * 60 * 1000
 })
+
+function formatNum(n) {
+  if (n === undefined || n === null) return '0'
+  if (n >= 1_000_000) return (n / 1_000_000).toFixed(1) + 'M'
+  if (n >= 1_000) return (n / 1_000).toFixed(1) + 'K'
+  return String(n)
+}
 
 const lastFailRelative = computed(() => {
   const ts = data.value.openai?.last_ai_failure_at
