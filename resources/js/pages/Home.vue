@@ -59,10 +59,21 @@
                     <label class="block text-sm font-medium text-gray-400 mb-2">Numero</label>
                     <div class="flex items-center bg-matrix-700 border border-matrix-600 rounded-xl overflow-hidden focus-within:border-neon/50 transition-colors">
                         <span class="px-3 py-3 text-gray-400 font-mono border-r border-matrix-600 text-sm">+52</span>
-                        <input v-model="jokePhone" type="tel" maxlength="10" placeholder="55 1234 5678"
-                            class="flex-1 bg-transparent px-3 py-3 text-white font-mono outline-none placeholder:text-gray-600"
-                            @input="jokePhone = $event.target.value.replace(/\D/g, '').slice(0, 10)" />
+                        <input ref="jokePhoneInput" v-model="jokePhone" type="tel" maxlength="10" placeholder="55 1234 5678"
+                            inputmode="numeric" autocomplete="tel-national"
+                            class="flex-1 min-w-0 bg-transparent px-3 py-3 text-white font-mono outline-none placeholder:text-gray-600"
+                            @input="jokePhone = $event.target.value.replace(/\D/g, '').slice(0, 10)"
+                            @paste="onJokePhonePaste" />
+                        <button type="button" @click="pickJokeContact"
+                            title="Seleccionar de tus contactos"
+                            class="shrink-0 px-3 py-3 border-l border-matrix-600 text-gray-400 hover:text-neon active:text-neon transition-colors min-h-[44px] flex items-center justify-center">
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                    d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                            </svg>
+                        </button>
                     </div>
+                    <p v-if="contactPickerHint" class="mt-1.5 text-[11px] text-gray-500">{{ contactPickerHint }}</p>
                 </div>
                 <div class="mb-4">
                     <label class="block text-sm font-medium text-gray-400 mb-2">Idioma del chiste</label>
@@ -96,19 +107,20 @@
                         <span class="px-3 md:px-4 py-3 text-gray-400 font-mono border-r border-matrix-600 flex items-center gap-1.5 text-sm">
                             <span class="text-base">&#x1F1F2;&#x1F1FD;</span> +52
                         </span>
-                        <input v-model="phone" type="tel" maxlength="10" placeholder="55 1234 5678"
+                        <input ref="phoneInput" v-model="phone" type="tel" maxlength="10" placeholder="55 1234 5678"
                             inputmode="numeric" autocomplete="tel-national"
-                            class="flex-1 bg-transparent px-3 md:px-4 py-3 text-white font-mono text-base md:text-lg outline-none placeholder:text-gray-600"
+                            class="flex-1 min-w-0 bg-transparent px-3 md:px-4 py-3 text-white font-mono text-base md:text-lg outline-none placeholder:text-gray-600"
                             @input="formatPhone" @paste="onPhonePaste" />
-                        <button v-if="contactPickerSupported" type="button" @click="pickContact"
+                        <button type="button" @click="pickContact"
                             title="Seleccionar de tus contactos"
-                            class="px-3 md:px-4 py-3 border-l border-matrix-600 text-gray-400 hover:text-neon transition-colors">
+                            class="shrink-0 px-3 md:px-4 py-3 border-l border-matrix-600 text-gray-400 hover:text-neon active:text-neon transition-colors min-h-[44px] flex items-center justify-center">
                             <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                                     d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
                             </svg>
                         </button>
                     </div>
+                    <p v-if="contactPickerHint" class="mt-1.5 text-[11px] text-gray-500">{{ contactPickerHint }}</p>
                     <p v-if="errors.phone" class="mt-2 text-sm text-red-400">{{ errors.phone }}</p>
                 </div>
 
@@ -326,27 +338,69 @@ function onPhonePaste(e) {
     }
 }
 
+const phoneInput = ref(null);
+const jokePhoneInput = ref(null);
+
+function onJokePhonePaste(e) {
+    const pasted = (e.clipboardData || window.clipboardData)?.getData('text') || '';
+    const normalized = normalizeMxPhone(pasted);
+    if (normalized) { e.preventDefault(); jokePhone.value = normalized; }
+}
+
+async function pickJokeContact() {
+    if (contactPickerSupported) {
+        try {
+            const picked = await navigator.contacts.select(['tel'], { multiple: false });
+            if (!picked || !picked.length) return;
+            const tels = picked[0].tel || [];
+            let normalized = null;
+            for (const t of tels) { normalized = normalizeMxPhone(t); if (normalized) break; }
+            if (!normalized) { alert('Solo se aceptan números de México (+52).'); return; }
+            jokePhone.value = normalized;
+        } catch (err) {
+            if (err?.name !== 'AbortError') alert('No se pudo acceder a contactos.');
+        }
+        return;
+    }
+    if (jokePhoneInput.value) jokePhoneInput.value.focus();
+}
 const contactPickerSupported = typeof navigator !== 'undefined' && 'contacts' in navigator && 'ContactsManager' in window;
+const isIOS = typeof navigator !== 'undefined' && /iPad|iPhone|iPod/.test(navigator.userAgent);
+const contactPickerHint = isIOS
+    ? 'Toca el campo y elige un contacto del teclado.'
+    : (contactPickerSupported ? '' : 'Pega o escribe el número (10 dígitos).');
 
 async function pickContact() {
     errors.phone = '';
-    try {
-        const picked = await navigator.contacts.select(['tel'], { multiple: false });
-        if (!picked || !picked.length) return;
-        const tels = picked[0].tel || [];
-        let normalized = null;
-        for (const t of tels) {
-            normalized = normalizeMxPhone(t);
-            if (normalized) break;
+    if (contactPickerSupported) {
+        try {
+            const picked = await navigator.contacts.select(['tel'], { multiple: false });
+            if (!picked || !picked.length) return;
+            const tels = picked[0].tel || [];
+            let normalized = null;
+            for (const t of tels) {
+                normalized = normalizeMxPhone(t);
+                if (normalized) break;
+            }
+            if (!normalized) {
+                errors.phone = 'Solo se aceptan números de México (+52).';
+                return;
+            }
+            phone.value = normalized;
+        } catch (err) {
+            if (err?.name !== 'AbortError') {
+                errors.phone = 'No se pudo acceder a contactos.';
+            }
         }
-        if (!normalized) {
-            errors.phone = 'Solo se aceptan numeros de Mexico (+52).';
-            return;
-        }
-        phone.value = normalized;
-    } catch (err) {
-        if (err?.name !== 'AbortError') {
-            errors.phone = 'No se pudo acceder a contactos.';
+        return;
+    }
+    // Fallback: focus the input so the device's native contact autofill/keyboard surfaces.
+    if (phoneInput.value) {
+        phoneInput.value.focus();
+        if (isIOS) {
+            errors.phone = 'En iPhone: toca las sugerencias arriba del teclado para elegir un contacto.';
+        } else {
+            errors.phone = 'Esta función solo funciona en Chrome de Android. Escribe el número manualmente.';
         }
     }
 }

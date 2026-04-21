@@ -54,9 +54,9 @@
               inputmode="numeric" autocomplete="tel-national"
               class="flex-1 bg-transparent px-3 py-2.5 text-sm text-white placeholder-gray-500 focus:outline-none"
               @input="formatPhone" @paste="onPhonePaste" />
-            <button v-if="contactPickerSupported" type="button" @click="pickContact"
+            <button type="button" @click="pickContact"
               title="Seleccionar de tus contactos"
-              class="px-3 border-l border-matrix-600 text-gray-400 hover:text-neon transition">
+              class="shrink-0 px-3 border-l border-matrix-600 text-gray-400 hover:text-neon active:text-neon transition min-h-[44px] flex items-center justify-center">
               <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                   d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
@@ -228,18 +228,25 @@ function onPhonePaste(e) {
 }
 
 const contactPickerSupported = typeof navigator !== 'undefined' && 'contacts' in navigator && 'ContactsManager' in window
+const isIOS = typeof navigator !== 'undefined' && /iPad|iPhone|iPod/.test(navigator.userAgent)
 
 async function pickContact() {
-  try {
-    const picked = await navigator.contacts.select(['tel'], { multiple: false })
-    if (!picked || !picked.length) return
-    const tels = picked[0].tel || []
-    let normalized = null
-    for (const t of tels) { normalized = normalizeMxPhone(t); if (normalized) break }
-    if (!normalized) { alert('Solo se aceptan numeros de Mexico (+52).'); return }
-    form.phone_number = normalized
-  } catch (err) {
-    if (err?.name !== 'AbortError') alert('No se pudo acceder a contactos.')
+  if (contactPickerSupported) {
+    try {
+      const picked = await navigator.contacts.select(['tel'], { multiple: false })
+      if (!picked || !picked.length) return
+      const tels = picked[0].tel || []
+      let normalized = null
+      for (const t of tels) { normalized = normalizeMxPhone(t); if (normalized) break }
+      if (!normalized) { alert('Solo se aceptan números de México (+52).'); return }
+      form.phone_number = normalized
+    } catch (err) {
+      if (err?.name !== 'AbortError') alert('No se pudo acceder a contactos.')
+    }
+    return
   }
+  alert(isIOS
+    ? 'En iPhone: toca el campo del número y elige un contacto desde las sugerencias del teclado.'
+    : 'Esta función sólo funciona en Chrome de Android. Escribe el número manualmente.')
 }
 </script>
