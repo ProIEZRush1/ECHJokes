@@ -2,6 +2,39 @@
   <div class="max-w-6xl mx-auto px-4 py-8 space-y-6">
     <h1 class="text-3xl font-bold text-white">Crecimiento Viral</h1>
 
+    <div v-if="me" class="bg-matrix-800 border border-neon/30 rounded-xl p-5">
+      <div class="flex justify-between items-center mb-3">
+        <h2 class="text-sm font-semibold text-neon uppercase">Tu link personal</h2>
+        <span class="text-xs text-gray-500">Código: <strong class="font-mono text-neon">{{ me.code }}</strong></span>
+      </div>
+      <div class="flex gap-2 items-center mb-4">
+        <input :value="me.link" readonly class="flex-1 bg-matrix-900 border border-matrix-600 rounded-lg px-3 py-2 text-xs font-mono text-gray-200" />
+        <button @click="copyLink" class="px-4 py-2 rounded-lg bg-neon text-matrix-900 font-semibold text-xs hover:shadow-neon transition">{{ copied ? '✓' : 'Copiar' }}</button>
+      </div>
+      <div class="grid grid-cols-2 md:grid-cols-5 gap-2">
+        <div class="bg-matrix-900 rounded-lg p-3 text-center">
+          <div class="text-2xl font-bold text-neon">{{ me.clicks }}</div>
+          <div class="text-[10px] text-gray-500 uppercase mt-1">Clicks totales</div>
+        </div>
+        <div class="bg-matrix-900 rounded-lg p-3 text-center">
+          <div class="text-2xl font-bold text-white">{{ me.unique_visitors }}</div>
+          <div class="text-[10px] text-gray-500 uppercase mt-1">Únicos</div>
+        </div>
+        <div class="bg-matrix-900 rounded-lg p-3 text-center">
+          <div class="text-2xl font-bold text-white">{{ me.signups }}</div>
+          <div class="text-[10px] text-gray-500 uppercase mt-1">Se registraron</div>
+        </div>
+        <div class="bg-matrix-900 rounded-lg p-3 text-center">
+          <div class="text-2xl font-bold text-neon">{{ me.converted }}</div>
+          <div class="text-[10px] text-gray-500 uppercase mt-1">Convertidos (+2 c/u)</div>
+        </div>
+        <div class="bg-matrix-900 rounded-lg p-3 text-center">
+          <div class="text-2xl font-bold text-white">{{ me.conversion_rate }}%</div>
+          <div class="text-[10px] text-gray-500 uppercase mt-1">Tasa registro</div>
+        </div>
+      </div>
+    </div>
+
     <div v-if="stats" class="grid grid-cols-2 md:grid-cols-4 gap-3">
       <div class="bg-matrix-800 border border-matrix-600 rounded-xl p-4">
         <div class="text-3xl font-bold text-neon">{{ stats.k_factor }}</div>
@@ -103,6 +136,15 @@ import axios from 'axios';
 const stats = ref(null);
 const top = ref([]);
 const viral = ref(null);
+const me = ref(null);
+const copied = ref(false);
+
+function copyLink() {
+  if (!me.value || !navigator.clipboard) return;
+  navigator.clipboard.writeText(me.value.link);
+  copied.value = true;
+  setTimeout(() => { copied.value = false; }, 2000);
+}
 
 onMounted(async () => {
   try {
@@ -112,6 +154,7 @@ onMounted(async () => {
     ]);
     stats.value = r.stats;
     top.value = r.top || [];
+    me.value = r.me || null;
     viral.value = v;
   } catch (e) {
     console.error(e);

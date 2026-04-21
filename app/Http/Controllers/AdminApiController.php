@@ -420,8 +420,22 @@ class AdminApiController extends Controller
         return response()->json(Preset::orderBy('sort_order')->get());
     }
 
-    public function referrals(): JsonResponse
+    public function referrals(\Illuminate\Http\Request $request): JsonResponse
     {
+        $me = $request->user();
+        $myCode = $me?->referral_code;
+        $myClicks = 0;
+        $myUniques = 0;
+        $mySignups = 0;
+        $myConverted = 0;
+        if ($myCode) {
+            $base = '%/r/' . $myCode . '%';
+            $myClicks = \Illuminate\Support\Facades\DB::table('visitor_touchpoints')->where('landing_page', 'like', $base)->count();
+            $myUniques = \Illuminate\Support\Facades\DB::table('visitor_touchpoints')->where('landing_page', 'like', $base)->distinct('visitor_id')->count('visitor_id');
+            $mySignups = \App\Models\User::where('referred_by_user_id', $me->id)->count();
+            $myConverted = \App\Models\User::where('referred_by_user_id', $me->id)->whereNotNull('referral_credited_at')->count();
+        }
+
         $total = \App\Models\User::count();
         $withReferrer = \App\Models\User::whereNotNull('referred_by_user_id')->count();
         $credited = \App\Models\User::whereNotNull('referral_credited_at')->count();
@@ -455,6 +469,15 @@ class AdminApiController extends Controller
                 'active_users' => $activeUsers,
                 'k_factor' => $kFactor,
                 'avg_cycle_days' => $avgCycleDays ? round($avgCycleDays, 1) : null,
+            ],
+            'me' => [
+                'code' => $myCode,
+                'link' => $myCode ? url('/r/' . $myCode) : null,
+                'clicks' => $myClicks,
+                'unique_visitors' => $myUniques,
+                'signups' => $mySignups,
+                'converted' => $myConverted,
+                'conversion_rate' => $myClicks > 0 ? round(($mySignups / $myClicks) * 100, 1) : 0,
             ],
             'top' => $top,
         ]);
