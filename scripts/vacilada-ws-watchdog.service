@@ -1,0 +1,7 @@
+[Unit]
+Description=Vacilada WebSocket Traefik Watchdog
+After=docker.service
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/bin/vacilada-ws-watchdog.sh
