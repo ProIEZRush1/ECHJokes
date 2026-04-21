@@ -164,20 +164,9 @@ class TwilioWebhookController extends Controller
         ]);
         broadcast(new JokeCallStatusUpdated($jokeCall));
 
-        // Refund policy:
-        //   - no-answer / busy: victim's phone rang, Twilio charged us → credit stays consumed.
-        //   - failed / canceled / no_connection: carrier/system issue, not the victim's
-        //     fault → refund.
-        $refundableReasons = ['failed', 'canceled', 'no_connection'];
-        if (in_array($reason, $refundableReasons, true)) {
-            $this->refundCredit($jokeCall);
-        } else {
-            Log::info('Call not refunded (victim did not answer)', [
-                'call_id' => $jokeCall->id,
-                'reason' => $reason,
-                'user_id' => $jokeCall->user_id,
-            ]);
-        }
+        // Refund credit for paid calls that failed (includes no-answer, busy,
+        // failed, canceled, and 0-second completions).
+        $this->refundCredit($jokeCall);
 
         // Dispatch outcome handler for refunds/retries
         \App\Jobs\HandleCallOutcomeJob::dispatch($jokeCall, $reason);
