@@ -183,7 +183,7 @@ function elevenLabsTTS(text, voiceId, callback) {
   const postData = JSON.stringify({
     text: text,
     model_id: 'eleven_turbo_v2_5',
-    voice_settings: { stability: 0.42, similarity_boost: 0.85, style: 0.45, use_speaker_boost: true }
+    voice_settings: { stability: 0.42, similarity_boost: 0.85, style: 0.45, use_speaker_boost: true, speed: 1.1 }
   });
 
   const options = {
