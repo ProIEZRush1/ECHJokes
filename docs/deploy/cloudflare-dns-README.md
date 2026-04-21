@@ -1,57 +1,71 @@
 # Cloudflare DNS setup for vacilada.com
 
-Import `cloudflare-dns.csv` via Cloudflare dashboard → DNS → Import.
+## How to import
+
+Cloudflare's "Import DNS" expects a **BIND zone file** (not CSV).
+
+1. Cloudflare dashboard → Select `vacilada.com` → DNS → Records
+2. Click **"Import and Export"** → **"Import DNS records"**
+3. Upload **`vacilada.com.zone`** (not the CSV)
+4. Confirm the preview, import.
+
+## ⚠️ After import — toggle "Proxied" manually
+
+The zone file format can't specify Cloudflare proxy status. After import, verify in the DNS tab:
+
+| Record | Name | Proxied (orange cloud)? |
+|---|---|---|
+| A | `@` (vacilada.com) | ✅ **ON** |
+| A | `www` | ✅ **ON** |
+| A | `ws` | ❌ **OFF** (grey cloud — websocket on port 8443 needs raw passthrough) |
+| MX | `@` | ❌ OFF (MX can't be proxied) |
+| TXT | all | ❌ OFF (TXT can't be proxied) |
+| CAA | all | ❌ OFF (CAA can't be proxied) |
 
 ## Record breakdown
 
-| Record | Purpose | Proxied? |
-|---|---|---|
-| `A @ → 93.127.142.243` | Main site (app) | ✅ Yes (orange cloud) |
-| `A www → 93.127.142.243` | www redirect | ✅ Yes |
-| `A ws → 93.127.142.243` | Websocket server (port 8443) | ❌ NO — CF proxy blocks custom ports |
-| `CAA` | Allow Let's Encrypt + Cloudflare to issue SSL certs | ❌ |
-| `TXT SPF` | Email sender policy (Google Workspace by default — change if different) | ❌ |
-| `TXT DMARC` | Email authentication policy | ❌ |
-| `MX` | Cloudflare Email Routing (free email forwarding) | ❌ |
+| Record | Purpose |
+|---|---|
+| `A @ → 93.127.142.243` | Main site — proxied through Cloudflare SSL |
+| `A www → 93.127.142.243` | www → same server |
+| `A ws → 93.127.142.243` | Websocket server (port 8443, direct) |
+| `CAA` | Allow Let's Encrypt + Cloudflare to issue SSL certs |
+| `MX` | Cloudflare Email Routing (default placeholder) |
+| `TXT SPF` | Email sender policy |
+| `TXT DMARC` | Email authentication |
 
-## After importing
+## Email setup after import
 
-### 1. Verify HTTPS works on app
-Visit `https://vacilada.com` — should show your app over Cloudflare SSL.
+**Option A — Cloudflare Email Routing (free forwarding):**
+1. Cloudflare → Email → Email Routing → Enable
+2. Add forward: `hola@vacilada.com` → your personal email
+3. CF validates the MX records automatically
 
-### 2. Websocket — important
-`ws.vacilada.com` is **unproxied** (grey cloud) so port 8443 passes through raw to the server. Cloudflare free plan doesn't proxy arbitrary ports.
+**Option B — Google Workspace (~$6 USD/user/month):**
+Delete the CF `MX` records and add:
+```
+MX @ 1  ASPMX.L.GOOGLE.COM
+MX @ 5  ALT1.ASPMX.L.GOOGLE.COM
+MX @ 5  ALT2.ASPMX.L.GOOGLE.COM
+MX @ 10 ALT3.ASPMX.L.GOOGLE.COM
+MX @ 10 ALT4.ASPMX.L.GOOGLE.COM
+```
+Update SPF: `v=spf1 include:_spf.google.com ~all`
+Add DKIM from Google Admin console.
 
-### 3. Email setup
-Two options:
+## Cloudflare SSL settings
 
-**Option A — Cloudflare Email Routing (free, forwarding only):**
-1. Cloudflare dashboard → Email → Email Routing → Enable
-2. Add forwarding: `hola@vacilada.com` → your personal email
-3. CF auto-adds the correct MX records (you can delete my placeholder ones)
+After import:
+1. SSL/TLS → Overview → **Full (strict)** (once Coolify renews cert for vacilada.com)
+2. SSL/TLS → Edge Certificates → **Always Use HTTPS: ON**
+3. SSL/TLS → Edge Certificates → **Automatic HTTPS Rewrites: ON**
+4. SSL/TLS → Edge Certificates → **Minimum TLS: 1.2**
 
-**Option B — Google Workspace ($6/user/month):**
-1. Buy Google Workspace for vacilada.com
-2. Replace MX records with:
-   ```
-   MX @ ASPMX.L.GOOGLE.COM 1
-   MX @ ALT1.ASPMX.L.GOOGLE.COM 5
-   MX @ ALT2.ASPMX.L.GOOGLE.COM 5
-   MX @ ALT3.ASPMX.L.GOOGLE.COM 10
-   MX @ ALT4.ASPMX.L.GOOGLE.COM 10
-   ```
-3. Update SPF: `v=spf1 include:_spf.google.com ~all` (already set)
-4. Add DKIM from Google Admin console (generate + paste TXT).
+## After DNS propagates (5–30 min)
 
-### 4. SSL settings (Cloudflare dashboard)
-- SSL/TLS mode: **Full (strict)** once Coolify renews the cert for vacilada.com
-- Always Use HTTPS: **ON**
-- Automatic HTTPS Rewrites: **ON**
-- Min TLS Version: **1.2**
-
-### 5. After DNS propagates (5-30 min)
-Tell me, and I'll:
-1. Add `vacilada.com` + `ws.vacilada.com` as custom domains in Coolify
+Tell me, and I'll do the prod switch:
+1. Add `vacilada.com` + `ws.vacilada.com` as custom domains in Coolify (via API/SSH)
 2. Update `APP_URL=https://vacilada.com` in Coolify env
-3. Update all Twilio phone numbers' voice webhooks to point at `https://vacilada.com/inbound`
-4. Set up 301 redirect from old `echjokes.overcloud.us` → `vacilada.com`
+3. Update all Twilio phone numbers' voice webhooks: `echjokes.overcloud.us` → `vacilada.com`
+4. Update websocket URLs in code: `ws.echjokes.overcloud.us` → `ws.vacilada.com`
+5. Set up a 301 redirect from `echjokes.overcloud.us` → `vacilada.com`
