@@ -3,11 +3,15 @@
 namespace App\Http\Controllers;
 
 use App\Enums\JokeCallStatus;
+use App\Mail\OtpVerificationMail;
+use App\Mail\WelcomeMail;
 use App\Models\JokeCall;
 use App\Models\Plan;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Str;
 use Stripe\Checkout\Session as StripeSession;
 use Stripe\Stripe;
@@ -59,22 +63,24 @@ class UserApiController extends Controller
             $referrer = \App\Models\User::where('referral_code', strtoupper($refCode))->first();
         }
 
+        $code = (string) random_int(100000, 999999);
         $user = \App\Models\User::create([
             'name' => $request->name,
             'email' => $request->email,
             'password' => $request->password,
-            'email_verified_at' => now(),
+            'email_verified_at' => null, // stays null until OTP is entered
             'referred_by_user_id' => $referrer?->id,
             'registration_ip' => $ip,
             'terms_accepted_at' => now(),
+            'otp_code' => $code,
+            'otp_expires_at' => now()->addMinutes(10),
+            'otp_attempts' => 0,
+            'otp_last_sent_at' => now(),
         ]);
 
-        // Credit policy:
-        //   - No referral → 0 credits. Landing-page visitors get the 1-per-IP
-        //     anonymous /trial call; they have to buy a plan or use a referral
-        //     link to get more.
-        //   - With referral → 2 credits on signup. When they make their first
-        //     paid call, the referrer gets +2 (see makeCall).
+        // Credits are provisioned now but the account can't log in until the
+        // OTP is verified. Keeps the credit math predictable even if the user
+        // abandons verification.
         $signupCredits = $referrer ? 2 : 0;
         \App\Models\UserCredit::create([
             'user_id' => $user->id,
@@ -83,14 +89,108 @@ class UserApiController extends Controller
             'jokes_reset_at' => now()->addMonth(),
         ]);
 
+        $this->sendOtpMail($user, $code);
+
+        return response()->json([
+            'status' => 'pending_verification',
+            'email' => $user->email,
+            'message' => 'Te enviamos un código de 6 dígitos a ' . $user->email . '. Ingrésalo para activar tu cuenta.',
+        ]);
+    }
+
+    public function verifyOtp(Request $request): JsonResponse
+    {
+        $request->validate([
+            'email' => 'required|email',
+            'code' => 'required|string|size:6',
+        ]);
+
+        $user = \App\Models\User::where('email', $request->email)->first();
+        if (!$user) {
+            return response()->json(['error' => 'No encontramos una cuenta con ese correo.'], 404);
+        }
+
+        if ($user->email_verified_at) {
+            return response()->json(['error' => 'Este correo ya está verificado. Inicia sesión.'], 409);
+        }
+
+        if (!$user->otp_code || !$user->otp_expires_at || $user->otp_expires_at->isPast()) {
+            return response()->json(['error' => 'El código venció. Pide uno nuevo.'], 410);
+        }
+
+        if ($user->otp_attempts >= 5) {
+            return response()->json(['error' => 'Demasiados intentos fallidos. Pide un nuevo código.'], 429);
+        }
+
+        if (!hash_equals((string) $user->otp_code, (string) $request->code)) {
+            $user->increment('otp_attempts');
+            return response()->json(['error' => 'Código incorrecto. Revisa el correo e inténtalo de nuevo.'], 422);
+        }
+
+        $user->update([
+            'email_verified_at' => now(),
+            'otp_code' => null,
+            'otp_expires_at' => null,
+            'otp_attempts' => 0,
+        ]);
+
         Auth::login($user, true);
+
+        try {
+            Mail::to($user->email)->send(new WelcomeMail(
+                $user->name,
+                $user->credit?->credits_remaining ?? 0,
+                $user->referral_code
+            ));
+        } catch (\Throwable $e) {
+            Log::warning('Welcome email failed', ['error' => $e->getMessage(), 'user_id' => $user->id]);
+        }
 
         return response()->json(['user' => [
             'id' => $user->id,
             'name' => $user->name,
             'email' => $user->email,
-            'credits' => $signupCredits,
+            'credits' => $user->credit?->credits_remaining ?? 0,
         ]]);
+    }
+
+    public function resendOtp(Request $request): JsonResponse
+    {
+        $request->validate(['email' => 'required|email']);
+
+        $user = \App\Models\User::where('email', $request->email)->first();
+        if (!$user) {
+            return response()->json(['error' => 'No encontramos una cuenta con ese correo.'], 404);
+        }
+        if ($user->email_verified_at) {
+            return response()->json(['error' => 'Este correo ya está verificado.'], 409);
+        }
+
+        // Cooldown: 60 seconds between resends.
+        if ($user->otp_last_sent_at && $user->otp_last_sent_at->diffInSeconds(now()) < 60) {
+            $wait = 60 - $user->otp_last_sent_at->diffInSeconds(now());
+            return response()->json(['error' => "Espera {$wait}s antes de pedir otro código."], 429);
+        }
+
+        $code = (string) random_int(100000, 999999);
+        $user->update([
+            'otp_code' => $code,
+            'otp_expires_at' => now()->addMinutes(10),
+            'otp_attempts' => 0,
+            'otp_last_sent_at' => now(),
+        ]);
+
+        $this->sendOtpMail($user, $code);
+        return response()->json(['ok' => true, 'message' => 'Enviamos un nuevo código a ' . $user->email]);
+    }
+
+    private function sendOtpMail(\App\Models\User $user, string $code): void
+    {
+        try {
+            Mail::to($user->email)->send(new OtpVerificationMail($user->name, $code));
+        } catch (\Throwable $e) {
+            Log::error('OTP email failed', ['error' => $e->getMessage(), 'email' => $user->email]);
+        }
     }
 
     public function login(Request $request): JsonResponse
@@ -105,6 +205,16 @@ class UserApiController extends Controller
         }
 
         $user = Auth::user();
+
+        // Block login for accounts that never completed OTP verification.
+        if (!$user->email_verified_at) {
+            Auth::logout();
+            return response()->json([
+                'error' => 'Tu correo todavía no está verificado.',
+                'pending_verification' => true,
+                'email' => $user->email,
+            ], 403);
+        }
         return response()->json(['user' => [
             'id' => $user->id,
             'name' => $user->name,

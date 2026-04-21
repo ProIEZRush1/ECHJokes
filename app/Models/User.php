@@ -29,6 +29,10 @@ class User extends Authenticatable
         'subscription_ends_at',
         'registration_ip',
         'terms_accepted_at',
+        'otp_code',
+        'otp_expires_at',
+        'otp_attempts',
+        'otp_last_sent_at',
     ];
 
     protected static function booted(): void
@@ -56,6 +60,9 @@ class User extends Authenticatable
             'is_admin' => 'boolean',
             'subscription_ends_at' => 'datetime',
             'referral_credited_at' => 'datetime',
+            'terms_accepted_at' => 'datetime',
+            'otp_expires_at' => 'datetime',
+            'otp_last_sent_at' => 'datetime',
         ];
     }
 

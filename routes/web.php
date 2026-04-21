@@ -136,6 +136,8 @@ Route::get('/conversation/audio/{filename}', [\App\Http\Controllers\Conversation
 // User API
 Route::prefix('user-api')->group(function () {
     Route::post('/register', [\App\Http\Controllers\UserApiController::class, 'register']);
+    Route::post('/verify-otp', [\App\Http\Controllers\UserApiController::class, 'verifyOtp']);
+    Route::post('/resend-otp', [\App\Http\Controllers\UserApiController::class, 'resendOtp']);
     Route::post('/login', [\App\Http\Controllers\UserApiController::class, 'login']);
     Route::post('/logout', [\App\Http\Controllers\UserApiController::class, 'logout']);
     Route::get('/plans', [\App\Http\Controllers\UserApiController::class, 'plans']);

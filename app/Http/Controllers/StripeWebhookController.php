@@ -109,6 +109,23 @@ class StripeWebhookController extends Controller
             'credits_added' => $callsIncluded,
             'total_credits' => $credit->fresh()->credits_remaining,
         ]);
+
+        try {
+            $amountMxn = isset($session->amount_total) ? ((int) $session->amount_total) / 100 : 0;
+            $planName = ucfirst((string) $planSlug);
+            if ($plan = \App\Models\Plan::where('slug', $planSlug)->first()) {
+                $planName = $plan->name;
+            }
+            \Illuminate\Support\Facades\Mail::to($user->email)->send(new \App\Mail\PaymentReceiptMail(
+                name: $user->name,
+                planName: $planName,
+                callsIncluded: $callsIncluded,
+                totalCreditsNow: $credit->fresh()->credits_remaining,
+                amountMxn: $amountMxn,
+            ));
+        } catch (\Throwable $e) {
+            Log::warning('Payment receipt email failed', ['error' => $e->getMessage(), 'user_id' => $userId]);
+        }
     }
 
     private function handleCallPurchase(string $jokeCallId, object $session): void
