@@ -40,14 +40,14 @@ class UserApiController extends Controller
             'ref' => 'nullable|string|max:16',
         ]);
 
-        // Block multi-account abuse: max 2 free accounts per IP per 7 days
+        // Block multi-account abuse: one free account per IP per 7 days.
         $ip = $request->ip();
         $recentFromIp = \App\Models\User::where('registration_ip', $ip)
             ->where('created_at', '>=', now()->subDays(7))
             ->count();
-        if ($recentFromIp >= 2) {
+        if ($recentFromIp >= 1) {
             return response()->json([
-                'error' => 'Ya tienes una cuenta activa. Inicia sesión o compra un plan para más llamadas.',
+                'error' => 'Ya existe una cuenta creada desde este dispositivo. Inicia sesión o compra un plan.',
                 'show_plans' => true,
             ], 429);
         }
@@ -67,10 +67,16 @@ class UserApiController extends Controller
             'registration_ip' => $ip,
         ]);
 
-        // Grant 2 free prank-call credits + 5 joke credits on signup
+        // Credit policy:
+        //   - No referral → 0 credits. Landing-page visitors get the 1-per-IP
+        //     anonymous /trial call; they have to buy a plan or use a referral
+        //     link to get more.
+        //   - With referral → 2 credits on signup. When they make their first
+        //     paid call, the referrer gets +2 (see makeCall).
+        $signupCredits = $referrer ? 2 : 0;
         \App\Models\UserCredit::create([
             'user_id' => $user->id,
-            'credits_remaining' => 2,
+            'credits_remaining' => $signupCredits,
             'jokes_remaining' => 5,
             'jokes_reset_at' => now()->addMonth(),
         ]);
@@ -81,7 +87,7 @@ class UserApiController extends Controller
             'id' => $user->id,
             'name' => $user->name,
             'email' => $user->email,
-            'credits' => 2,
+            'credits' => $signupCredits,
         ]]);
     }
 
@@ -305,12 +311,15 @@ class UserApiController extends Controller
             $credit->decrement('credits_remaining');
         }
 
-        // Referral reward: first successful call credits both referrer and referee
+        // Referral reward: the referee already got their 2 credits on signup.
+        // When they make their first paid call, the REFERRER gets +2 as thanks.
         if ($user->referred_by_user_id && !$user->referral_credited_at) {
             $referrer = \App\Models\User::find($user->referred_by_user_id);
             if ($referrer) {
-                \App\Models\UserCredit::firstOrCreate(['user_id' => $referrer->id], ['credits_remaining' => 0])->increment('credits_remaining', 2);
-                \App\Models\UserCredit::firstOrCreate(['user_id' => $user->id], ['credits_remaining' => 0])->increment('credits_remaining', 2);
+                \App\Models\UserCredit::firstOrCreate(
+                    ['user_id' => $referrer->id],
+                    ['credits_remaining' => 0, 'jokes_remaining' => 0, 'jokes_reset_at' => now()->addMonth()]
+                )->increment('credits_remaining', 2);
                 $user->referral_credited_at = now();
                 $user->save();
             }

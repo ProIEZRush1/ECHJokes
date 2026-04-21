@@ -28,6 +28,13 @@ return Application::configure(basePath: dirname(__DIR__))
             'test/*',
         ]);
         $middleware->web(append: [\App\Http\Middleware\TrackVisitor::class]);
+        // We run behind Traefik inside Docker. Trust the reverse proxy so
+        // $request->ip() returns the real client IP from X-Forwarded-For
+        // (required for trial and registration IP rate-limits).
+        $middleware->trustProxies(at: '*', headers: \Illuminate\Http\Request::HEADER_X_FORWARDED_FOR |
+            \Illuminate\Http\Request::HEADER_X_FORWARDED_HOST |
+            \Illuminate\Http\Request::HEADER_X_FORWARDED_PORT |
+            \Illuminate\Http\Request::HEADER_X_FORWARDED_PROTO);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
         //
