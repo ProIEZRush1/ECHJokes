@@ -383,6 +383,8 @@ class AdminApiController extends Controller
         return response()->json([
             'user' => $user,
             'credits' => $credit?->credits_remaining ?? 0,
+            'jokes' => $credit?->jokes_remaining ?? 0,
+            'jokes_reset_at' => $credit?->jokes_reset_at,
             'calls' => $calls,
             'call_stats' => [
                 'total' => JokeCall::where('user_id', $user->id)->count(),
@@ -397,16 +399,23 @@ class AdminApiController extends Controller
     {
         $data = $request->validate([
             'credits' => 'nullable|integer|min:0',
+            'jokes' => 'nullable|integer|min:0',
             'subscription_plan' => 'nullable|string',
             'is_admin' => 'nullable|boolean',
         ]);
 
-        if (isset($data['credits'])) {
+        if (isset($data['credits']) || isset($data['jokes'])) {
             $credit = \App\Models\UserCredit::firstOrCreate(
                 ['user_id' => $user->id],
-                ['credits_remaining' => 0]
+                ['credits_remaining' => 0, 'jokes_remaining' => 0, 'jokes_reset_at' => now()->addMonth()]
             );
-            $credit->update(['credits_remaining' => $data['credits']]);
+            $patch = [];
+            if (isset($data['credits'])) $patch['credits_remaining'] = $data['credits'];
+            if (isset($data['jokes'])) {
+                $patch['jokes_remaining'] = $data['jokes'];
+                $patch['jokes_reset_at'] = now()->addMonth();
+            }
+            $credit->update($patch);
         }
 
         if (array_key_exists('subscription_plan', $data)) {

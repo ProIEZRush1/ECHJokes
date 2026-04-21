@@ -97,8 +97,17 @@
                             <span class="text-base">&#x1F1F2;&#x1F1FD;</span> +52
                         </span>
                         <input v-model="phone" type="tel" maxlength="10" placeholder="55 1234 5678"
+                            inputmode="numeric" autocomplete="tel-national"
                             class="flex-1 bg-transparent px-3 md:px-4 py-3 text-white font-mono text-base md:text-lg outline-none placeholder:text-gray-600"
-                            @input="formatPhone" />
+                            @input="formatPhone" @paste="onPhonePaste" />
+                        <button v-if="contactPickerSupported" type="button" @click="pickContact"
+                            title="Seleccionar de tus contactos"
+                            class="px-3 md:px-4 py-3 border-l border-matrix-600 text-gray-400 hover:text-neon transition-colors">
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                    d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                            </svg>
+                        </button>
                     </div>
                     <p v-if="errors.phone" class="mt-2 text-sm text-red-400">{{ errors.phone }}</p>
                 </div>
@@ -296,6 +305,51 @@ async function generateStyle() {
 }
 
 function formatPhone(e) { phone.value = e.target.value.replace(/\D/g, '').slice(0, 10); }
+
+// Normalize any phone format to a Mexican 10-digit number, or null if not MX.
+function normalizeMxPhone(raw) {
+    if (!raw) return null;
+    let d = String(raw).replace(/\D/g, '');
+    if (d.startsWith('00')) d = d.slice(2);      // 00 international prefix
+    if (d.startsWith('521') && d.length === 13) d = d.slice(3); // legacy +52 1 mobile
+    else if (d.startsWith('52') && d.length === 12) d = d.slice(2);
+    if (d.length === 10 && /^[1-9]/.test(d)) return d;
+    return null;
+}
+
+function onPhonePaste(e) {
+    const pasted = (e.clipboardData || window.clipboardData)?.getData('text') || '';
+    const normalized = normalizeMxPhone(pasted);
+    if (normalized) {
+        e.preventDefault();
+        phone.value = normalized;
+    }
+}
+
+const contactPickerSupported = typeof navigator !== 'undefined' && 'contacts' in navigator && 'ContactsManager' in window;
+
+async function pickContact() {
+    errors.phone = '';
+    try {
+        const picked = await navigator.contacts.select(['tel'], { multiple: false });
+        if (!picked || !picked.length) return;
+        const tels = picked[0].tel || [];
+        let normalized = null;
+        for (const t of tels) {
+            normalized = normalizeMxPhone(t);
+            if (normalized) break;
+        }
+        if (!normalized) {
+            errors.phone = 'Solo se aceptan numeros de Mexico (+52).';
+            return;
+        }
+        phone.value = normalized;
+    } catch (err) {
+        if (err?.name !== 'AbortError') {
+            errors.phone = 'No se pudo acceder a contactos.';
+        }
+    }
+}
 
 async function handleSubmit() {
     errors.phone = ''; errors.scenario = ''; errors.general = '';

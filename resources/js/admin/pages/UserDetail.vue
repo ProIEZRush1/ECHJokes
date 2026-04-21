@@ -19,6 +19,13 @@
             <div><span class="text-gray-500">Joined:</span> <span class="text-white">{{ new Date(data.user.created_at).toLocaleDateString() }}</span></div>
             <div><span class="text-gray-500">Plan:</span> <span class="text-neon font-mono">{{ data.user.subscription_plan || 'None' }}</span></div>
             <div><span class="text-gray-500">Credits:</span> <span class="text-neon font-mono text-lg">{{ data.credits }}</span></div>
+            <div>
+              <span class="text-gray-500">Chistes:</span>
+              <span class="text-neon font-mono text-lg ml-1">{{ data.jokes }}</span>
+              <span v-if="data.jokes_reset_at" class="text-[10px] text-gray-500 ml-2">
+                reset {{ new Date(data.jokes_reset_at).toLocaleDateString() }}
+              </span>
+            </div>
           </div>
         </div>
 
@@ -67,6 +74,14 @@
                 <input v-model.number="editCredits" type="number" min="0"
                   class="flex-1 bg-matrix-700 border border-matrix-600 rounded-lg px-3 py-2 text-sm text-white" />
                 <button @click="setCredits" class="px-3 py-2 rounded-lg bg-neon text-matrix-900 text-xs font-bold">Set</button>
+              </div>
+            </div>
+            <div>
+              <label class="block text-xs text-gray-500 mb-1">Set Chistes</label>
+              <div class="flex gap-2">
+                <input v-model.number="editJokes" type="number" min="0"
+                  class="flex-1 bg-matrix-700 border border-matrix-600 rounded-lg px-3 py-2 text-sm text-white" />
+                <button @click="setJokes" class="px-3 py-2 rounded-lg bg-neon text-matrix-900 text-xs font-bold">Set</button>
               </div>
             </div>
             <div>
@@ -145,6 +160,7 @@ const route = useRoute()
 const data = ref(null)
 const plans = ref([])
 const editCredits = ref(0)
+const editJokes = ref(0)
 const editPlan = ref('')
 const editAdmin = ref(false)
 
@@ -156,6 +172,7 @@ onMounted(async () => {
   data.value = u.data
   plans.value = p.data
   editCredits.value = u.data.credits
+  editJokes.value = u.data.jokes ?? 0
   editPlan.value = u.data.user.subscription_plan || ''
   editAdmin.value = u.data.user.is_admin
 })
@@ -163,6 +180,11 @@ onMounted(async () => {
 async function setCredits() {
   await axios.put(`/admin-api/users/${route.params.id}`, { credits: editCredits.value })
   data.value.credits = editCredits.value
+}
+
+async function setJokes() {
+  await axios.put(`/admin-api/users/${route.params.id}`, { jokes: editJokes.value })
+  data.value.jokes = editJokes.value
 }
 
 async function setPlan() {

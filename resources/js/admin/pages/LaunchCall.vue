@@ -48,9 +48,22 @@
       <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div>
           <label class="block text-xs text-gray-400 uppercase tracking-wider mb-1.5">Phone Number</label>
-          <input v-model="form.phone_number" required placeholder="+525512345678"
-            class="w-full bg-matrix-800 border border-matrix-600 rounded-lg px-3 py-2.5 text-sm text-white placeholder-gray-500 focus:outline-none focus:border-neon/50 transition" />
-          <p class="text-[10px] text-gray-500 mt-1">Without +52 it's added automatically</p>
+          <div class="flex items-stretch bg-matrix-800 border border-matrix-600 rounded-lg overflow-hidden focus-within:border-neon/50 transition">
+            <span class="px-3 py-2.5 text-gray-400 font-mono border-r border-matrix-600 text-sm">+52</span>
+            <input v-model="form.phone_number" required placeholder="5512345678" maxlength="10"
+              inputmode="numeric" autocomplete="tel-national"
+              class="flex-1 bg-transparent px-3 py-2.5 text-sm text-white placeholder-gray-500 focus:outline-none"
+              @input="formatPhone" @paste="onPhonePaste" />
+            <button v-if="contactPickerSupported" type="button" @click="pickContact"
+              title="Seleccionar de tus contactos"
+              class="px-3 border-l border-matrix-600 text-gray-400 hover:text-neon transition">
+              <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                  d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+              </svg>
+            </button>
+          </div>
+          <p class="text-[10px] text-gray-500 mt-1">Solo numeros de Mexico (10 digitos)</p>
         </div>
         <div>
           <label class="block text-xs text-gray-400 uppercase tracking-wider mb-1.5">Voice</label>
@@ -192,5 +205,41 @@ async function launch() {
   } catch (e) {
     result.value = { ok: false, message: e.response?.data?.error || 'Failed' }
   } finally { loading.value = false }
+}
+
+function normalizeMxPhone(raw) {
+  if (!raw) return null
+  let d = String(raw).replace(/\D/g, '')
+  if (d.startsWith('00')) d = d.slice(2)
+  if (d.startsWith('521') && d.length === 13) d = d.slice(3)
+  else if (d.startsWith('52') && d.length === 12) d = d.slice(2)
+  if (d.length === 10 && /^[1-9]/.test(d)) return d
+  return null
+}
+
+function formatPhone(e) {
+  form.phone_number = e.target.value.replace(/\D/g, '').slice(0, 10)
+}
+
+function onPhonePaste(e) {
+  const pasted = (e.clipboardData || window.clipboardData)?.getData('text') || ''
+  const normalized = normalizeMxPhone(pasted)
+  if (normalized) { e.preventDefault(); form.phone_number = normalized }
+}
+
+const contactPickerSupported = typeof navigator !== 'undefined' && 'contacts' in navigator && 'ContactsManager' in window
+
+async function pickContact() {
+  try {
+    const picked = await navigator.contacts.select(['tel'], { multiple: false })
+    if (!picked || !picked.length) return
+    const tels = picked[0].tel || []
+    let normalized = null
+    for (const t of tels) { normalized = normalizeMxPhone(t); if (normalized) break }
+    if (!normalized) { alert('Solo se aceptan numeros de Mexico (+52).'); return }
+    form.phone_number = normalized
+  } catch (err) {
+    if (err?.name !== 'AbortError') alert('No se pudo acceder a contactos.')
+  }
 }
 </script>
