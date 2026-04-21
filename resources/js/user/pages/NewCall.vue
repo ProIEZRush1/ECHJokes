@@ -161,11 +161,21 @@ async function launchJoke() {
   jokeError.value = ''; jokeOk.value = ''
   jokeLoading.value = true
   try {
-    const { data } = await axios.post('/user-api/joke-call', { phone_number: jokePhone.value, language: jokeLang.value, source: 'paid' })
+    const { data } = await axios.post('/user-api/joke-call',
+      { phone_number: jokePhone.value, language: jokeLang.value, source: 'paid' },
+      { timeout: 45000 }
+    )
     const j = data.joke
     jokeOk.value = j?.type === 'single' ? j.joke : `${j?.setup} ... ${j?.delivery}`
-  } catch (e) { jokeError.value = e.response?.data?.error || 'Error' }
-  finally { jokeLoading.value = false }
+  } catch (e) {
+    if (e.code === 'ECONNABORTED') {
+      jokeError.value = 'La solicitud tardó demasiado. Intenta de nuevo en un momento.'
+    } else if (e.response?.status >= 500 || !e.response) {
+      jokeError.value = 'El servidor está ocupado. Intenta de nuevo en unos segundos.'
+    } else {
+      jokeError.value = e.response?.data?.error || 'Error'
+    }
+  } finally { jokeLoading.value = false }
 }
 
 const voiceOptions = [

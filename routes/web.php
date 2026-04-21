@@ -195,12 +195,22 @@ Route::post('/api/call-ai-failed', function (\Illuminate\Http\Request $request) 
     if (!$callSid) return response('OK');
 
     $jokeCall = \App\Models\JokeCall::where('twilio_call_sid', $callSid)->first();
-    if (!$jokeCall || $jokeCall->status->isTerminal()) return response('OK');
+    if (!$jokeCall) return response('OK');
+
+    // If Twilio already marked this call Completed in the race, we still want
+    // to overwrite to Failed (AI errored mid-call → recipient heard nothing).
+    // Only skip if it's already been marked Failed or Refunded.
+    if (in_array($jokeCall->status, [\App\Enums\JokeCallStatus::Failed, \App\Enums\JokeCallStatus::Refunded], true)) {
+        return response('OK');
+    }
+
+    $previouslyCompleted = $jokeCall->status === \App\Enums\JokeCallStatus::Completed;
 
     \Illuminate\Support\Facades\Log::warning('AI session failed mid-call', [
         'call_id' => $jokeCall->id,
         'call_sid' => $callSid,
         'reason' => $reason,
+        'previous_status' => $jokeCall->status->value,
     ]);
 
     $jokeCall->update([
@@ -208,7 +218,8 @@ Route::post('/api/call-ai-failed', function (\Illuminate\Http\Request $request) 
         'failure_reason' => 'IA no disponible: ' . substr($reason, 0, 180),
     ]);
 
-    // Refund the credit for paid calls.
+    // Refund the credit for paid calls (idempotent: only if we didn't
+    // already refund in a prior webhook path).
     if ($jokeCall->joke_source === 'paid' && $jokeCall->user_id) {
         if ($credit = \App\Models\UserCredit::where('user_id', $jokeCall->user_id)->first()) {
             $credit->increment('credits_remaining');

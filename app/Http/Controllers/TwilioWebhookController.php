@@ -140,9 +140,11 @@ class TwilioWebhookController extends Controller
     {
         $duration = (int) $request->input('CallDuration', 0);
 
-        // 0-second call = never connected (busy, rejected, blocked). Treat as failed + refund.
-        if ($duration === 0) {
-            $this->handleFailed($jokeCall, 'no_connection');
+        // Sub-2-second "completed" calls = never really connected (busy, rejected,
+        // blocked) OR the AI died on first message (quota). Treat as failed + refund
+        // so these don't silently burn a credit.
+        if ($duration < 2) {
+            $this->handleFailed($jokeCall, $duration === 0 ? 'no_connection' : 'short_call');
             return;
         }
 
