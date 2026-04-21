@@ -22,6 +22,7 @@ return Application::configure(basePath: dirname(__DIR__))
             'trial-joke',
             'conversation/*',
             'api/call-transcript',
+            'api/call-ai-failed',
             'trial',
             'user-api/*',
             'admin-api/*',

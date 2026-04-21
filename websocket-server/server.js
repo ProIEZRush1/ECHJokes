@@ -59,6 +59,26 @@ function broadcastEvent(callSid, event, data) {
   }
 }
 
+function postCallAiFailed(callSid, reason) {
+  if (!callSid) return;
+  const data = JSON.stringify({ call_sid: callSid, reason: String(reason).slice(0, 500) });
+  const url = new URL(`${APP_INTERNAL_URL}/api/call-ai-failed`);
+  const isHttps = url.protocol === 'https:';
+  const opts = {
+    hostname: url.hostname,
+    port: url.port || (isHttps ? 443 : 80),
+    path: url.pathname,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'Content-Length': Buffer.byteLength(data) },
+  };
+  const req = (isHttps ? https : http).request(opts, (res) => {
+    console.log(`[ai-failed] POST → ${res.statusCode} reason="${reason}"`);
+  });
+  req.on('error', (e) => console.error('[ai-failed] error:', e.message));
+  req.write(data);
+  req.end();
+}
+
 function postTranscript(callSid, role, text) {
   if (!callSid) { console.log(`[transcript] skip: no callSid (role=${role} text="${text?.slice(0,30)}")`); return; }
   if (!text) return;
@@ -473,6 +493,7 @@ COMO ACTUAR:
 
         case 'error':
           console.error('OpenAI error:', response.error?.message || JSON.stringify(response));
+          if (callSid) postCallAiFailed(callSid, response.error?.message || 'openai_error');
           break;
       }
     } catch (e) {
@@ -480,7 +501,10 @@ COMO ACTUAR:
     }
   });
 
-  openAiWs.on('error', (e) => console.error('OpenAI WS error:', e.message));
+  openAiWs.on('error', (e) => {
+    console.error('OpenAI WS error:', e.message);
+    if (callSid) postCallAiFailed(callSid, e.message || 'openai_ws_error');
+  });
   openAiWs.on('close', () => {
     console.log('OpenAI disconnected');
     stopAmbienceStream();

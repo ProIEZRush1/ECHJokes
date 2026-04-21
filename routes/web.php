@@ -186,6 +186,46 @@ Route::prefix('admin-api')->group(function () {
 // Admin SPA catch-all (Vue handles routing)
 Route::get('/admin/{any?}', fn() => view('app'))->where('any', '.*')->name('admin');
 
+// Internal: websocket server signals that the AI session died mid-call
+// (OpenAI quota, auth error, network). We mark the call as Failed, refund
+// the credit, and hang up Twilio so the caller isn't left listening to dead air.
+Route::post('/api/call-ai-failed', function (\Illuminate\Http\Request $request) {
+    $callSid = $request->input('call_sid');
+    $reason = (string) $request->input('reason', 'ai_service_error');
+    if (!$callSid) return response('OK');
+
+    $jokeCall = \App\Models\JokeCall::where('twilio_call_sid', $callSid)->first();
+    if (!$jokeCall || $jokeCall->status->isTerminal()) return response('OK');
+
+    \Illuminate\Support\Facades\Log::warning('AI session failed mid-call', [
+        'call_id' => $jokeCall->id,
+        'call_sid' => $callSid,
+        'reason' => $reason,
+    ]);
+
+    $jokeCall->update([
+        'status' => \App\Enums\JokeCallStatus::Failed,
+        'failure_reason' => 'IA no disponible: ' . substr($reason, 0, 180),
+    ]);
+
+    // Refund the credit for paid calls.
+    if ($jokeCall->joke_source === 'paid' && $jokeCall->user_id) {
+        if ($credit = \App\Models\UserCredit::where('user_id', $jokeCall->user_id)->first()) {
+            $credit->increment('credits_remaining');
+        }
+    }
+
+    // Hang up the Twilio call so the recipient doesn't stay on dead air.
+    try {
+        $twilio = new \Twilio\Rest\Client(config('services.twilio.sid'), config('services.twilio.auth_token'));
+        $twilio->calls($callSid)->update(['status' => 'completed']);
+    } catch (\Throwable $e) {
+        \Illuminate\Support\Facades\Log::warning('Could not hang up AI-failed call', ['error' => $e->getMessage()]);
+    }
+
+    return response('OK');
+})->name('call.ai_failed');
+
 // Live transcript API (called by websocket server)
 Route::post('/api/call-transcript', function (\Illuminate\Http\Request $request) {
     $callSid = $request->input('call_sid');
