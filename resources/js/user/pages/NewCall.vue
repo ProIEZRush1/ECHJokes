@@ -16,6 +16,14 @@
 
     <!-- JOKE MODE -->
     <template v-if="callMode === 'joke'">
+      <div v-if="jokesRemaining !== null" class="flex items-center gap-2 p-3 rounded-xl bg-matrix-800 border border-matrix-600 mb-4">
+        <span class="text-neon font-bold font-mono text-lg">{{ jokesRemaining }}</span>
+        <span class="text-sm text-gray-400">chistes este mes</span>
+        <span v-if="jokesResetAt" class="text-[10px] text-gray-500 ml-auto">
+          reset {{ new Date(jokesResetAt).toLocaleDateString() }}
+        </span>
+        <router-link v-if="jokesRemaining === 0" to="/pricing" class="text-neon text-sm hover:underline">Más</router-link>
+      </div>
       <form @submit.prevent="launchJoke" class="space-y-4">
         <div>
           <label class="block text-xs text-gray-400 uppercase mb-1.5">Numero</label>
@@ -176,6 +184,8 @@ const scenario = ref('')
 const style = ref('')
 const generating = ref(false)
 const credits = ref(null)
+const jokesRemaining = ref(null)
+const jokesResetAt = ref(null)
 const loading = ref(false)
 const error = ref('')
 const presets = ref([])
@@ -188,6 +198,8 @@ onMounted(async () => {
       axios.get('/api/presets'),
     ])
     credits.value = me.data.user.credits
+    jokesRemaining.value = me.data.user.jokes_remaining ?? 0
+    jokesResetAt.value = me.data.user.jokes_reset_at || null
     presets.value = pr.data
   } catch {}
 })

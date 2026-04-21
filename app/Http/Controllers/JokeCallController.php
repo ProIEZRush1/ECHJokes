@@ -192,58 +192,110 @@ class JokeCallController extends Controller
     }
 
     /**
-     * Primary joke source: api-ninjas.com/api/jokes. Every fetched joke is
-     * persisted to jokes_cache so we can keep serving jokes offline or when
-     * the upstream rate-limit hits. English-only upstream.
+     * Primary joke source: api-ninjas.com/api/jokes (English). For any other
+     * language we translate the fetched joke via Claude Haiku and cache both
+     * versions so the upstream rate-limit falls back to a random local joke
+     * in the requested language.
      */
     private function fetchJoke(string $lang): ?array
     {
+        $lang = $lang ?: 'es';
         $apiKey = config('services.api_ninjas.key');
+
+        // 1. Fetch + cache an English joke from api-ninjas.
+        $englishJoke = null;
         if ($apiKey) {
             try {
-                // Free tier only returns 1 joke per call; ?limit= is premium-only.
                 $resp = Http::withHeaders(['X-Api-Key' => $apiKey])
                     ->timeout(5)
                     ->get('https://api.api-ninjas.com/v1/jokes');
-
                 if ($resp->ok() && is_array($resp->json()) && !isset($resp->json()['error'])) {
-                    $firstJoke = null;
                     foreach ($resp->json() as $row) {
                         $text = trim((string) ($row['joke'] ?? ''));
                         if ($text === '') continue;
                         \App\Models\JokeCache::firstOrCreate(
-                            ['joke_hash' => hash('sha256', mb_strtolower($text))],
-                            [
-                                'joke_text' => $text,
-                                'language' => 'en',
-                                'source' => 'api-ninjas',
-                                'fetched_at' => now(),
-                            ]
+                            ['joke_hash' => hash('sha256', 'en|' . mb_strtolower($text))],
+                            ['joke_text' => $text, 'language' => 'en', 'source' => 'api-ninjas', 'fetched_at' => now()]
                         );
-                        $firstJoke ??= $text;
-                    }
-                    if ($firstJoke) {
-                        return ['type' => 'single', 'joke' => $firstJoke, 'category' => 'any'];
+                        $englishJoke ??= $text;
                     }
                 } else {
-                    Log::info('api-ninjas non-2xx; using cache fallback', [
-                        'status' => $resp->status(),
-                        'body' => substr($resp->body(), 0, 200),
-                    ]);
+                    Log::info('api-ninjas non-2xx', ['status' => $resp->status(), 'body' => substr($resp->body(), 0, 200)]);
                 }
             } catch (\Throwable $e) {
-                Log::warning('api-ninjas fetch error; using cache fallback', ['error' => $e->getMessage()]);
+                Log::warning('api-ninjas fetch error', ['error' => $e->getMessage()]);
             }
         }
 
-        // Fallback: random joke from the local cache.
-        $cached = \App\Models\JokeCache::orderByRaw('use_count ASC, RANDOM()')->first();
+        // 2. If caller wants English, return immediately.
+        if ($lang === 'en' && $englishJoke) {
+            return ['type' => 'single', 'joke' => $englishJoke, 'category' => 'any'];
+        }
+
+        // 3. For other languages: translate + cache.
+        if ($englishJoke) {
+            $translated = $this->translateJoke($englishJoke, $lang);
+            if ($translated) {
+                \App\Models\JokeCache::firstOrCreate(
+                    ['joke_hash' => hash('sha256', $lang . '|' . mb_strtolower($translated))],
+                    ['joke_text' => $translated, 'language' => $lang, 'source' => 'translation', 'fetched_at' => now()]
+                );
+                return ['type' => 'single', 'joke' => $translated, 'category' => 'any'];
+            }
+        }
+
+        // 4. Fallback: random cached joke in the requested language, then any.
+        $cached = \App\Models\JokeCache::where('language', $lang)->orderByRaw('use_count ASC, RANDOM()')->first()
+            ?: \App\Models\JokeCache::orderByRaw('use_count ASC, RANDOM()')->first();
         if ($cached) {
             $cached->increment('use_count');
+            // If the cached one isn't in the requested language, try to translate it.
+            if ($cached->language !== $lang) {
+                $translated = $this->translateJoke($cached->joke_text, $lang);
+                if ($translated) {
+                    \App\Models\JokeCache::firstOrCreate(
+                        ['joke_hash' => hash('sha256', $lang . '|' . mb_strtolower($translated))],
+                        ['joke_text' => $translated, 'language' => $lang, 'source' => 'translation', 'fetched_at' => now()]
+                    );
+                    return ['type' => 'single', 'joke' => $translated, 'category' => 'cached'];
+                }
+            }
             return ['type' => 'single', 'joke' => $cached->joke_text, 'category' => 'cached'];
         }
 
         return null;
+    }
+
+    private function translateJoke(string $text, string $lang): ?string
+    {
+        $key = config('services.anthropic.api_key');
+        if (!$key) return null;
+        $langNames = [
+            'es' => 'Mexican Spanish (casual, natural, as told by a friend)',
+            'pt' => 'Brazilian Portuguese (casual)',
+            'fr' => 'French (casual)',
+            'de' => 'German (casual)',
+            'en' => 'English',
+        ];
+        $langName = $langNames[$lang] ?? $lang;
+        try {
+            $resp = Http::timeout(8)->withHeaders([
+                'x-api-key' => $key,
+                'anthropic-version' => '2023-06-01',
+                'content-type' => 'application/json',
+            ])->post('https://api.anthropic.com/v1/messages', [
+                'model' => 'claude-haiku-4-5-20251001',
+                'max_tokens' => 300,
+                'temperature' => 0.7,
+                'system' => "Translate the joke I give you to {$langName}. Keep it funny — if the pun doesn't translate, rewrite it with an equivalent pun that lands in the target language. Return ONLY the translated joke, no quotes, no explanation.",
+                'messages' => [['role' => 'user', 'content' => $text]],
+            ]);
+            $out = trim((string) $resp->json('content.0.text'));
+            return $out !== '' ? $out : null;
+        } catch (\Throwable $e) {
+            Log::warning('Joke translation failed', ['error' => $e->getMessage(), 'lang' => $lang]);
+            return null;
+        }
     }
 
     private function clean(string $text): string

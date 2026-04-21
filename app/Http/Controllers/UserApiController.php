@@ -23,14 +23,18 @@ class UserApiController extends Controller
         $user = Auth::user();
         if (!$user) return response()->json(['error' => 'Not authenticated'], 401);
 
+        $credit = $user->credit;
         return response()->json([
             'user' => [
                 'id' => $user->id,
                 'name' => $user->name,
                 'email' => $user->email,
                 'credits' => $user->creditsRemaining(),
+                'jokes_remaining' => $credit?->jokes_remaining ?? 0,
+                'jokes_reset_at' => $credit?->jokes_reset_at,
                 'plan' => $user->subscription_plan,
                 'is_admin' => $user->is_admin,
+                'referral_code' => $user->referral_code,
             ],
         ]);
     }
