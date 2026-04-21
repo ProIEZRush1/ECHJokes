@@ -77,6 +77,11 @@ class ContentModerationService
         'crimen_organizado' => 'referencias a cárteles o crimen organizado',
         'suicidio_autolesion' => 'autolesión',
         'suplantacion_emergencia' => 'suplantación de autoridades o emergencias falsas',
+        'acoso' => 'acoso o intimidación',
+        'estafa' => 'estafas o fraude',
+        'sexual' => 'contenido sexual',
+        'discriminacion' => 'contenido discriminatorio u ofensivo',
+        'otro' => 'contenido fuera del estilo de Vacilada',
         'ai_flagged' => 'contenido que asusta o amenaza a la víctima',
     ];
 
@@ -90,6 +95,16 @@ class ContentModerationService
             return $this->ok();
         }
 
+        // Primary: every scenario goes through Claude Haiku. It understands context
+        // and paraphrases the brittle regex can't.
+        $ai = $this->aiClassify($text);
+        if ($ai !== null) {
+            return $ai;
+        }
+
+        // Fallback: regex only runs when the AI is unreachable, so obvious
+        // extortion/cartel/weapon phrases still get blocked even if Anthropic
+        // is down.
         foreach (self::BLOCKED_PATTERNS as $category => $patterns) {
             foreach ($patterns as $pattern) {
                 if (@preg_match('/' . $pattern . '/iu', $text, $m)) {
@@ -103,12 +118,6 @@ class ContentModerationService
             }
         }
 
-        // Second layer: Claude Haiku classification for anything regex missed.
-        $ai = $this->aiClassify($text);
-        if ($ai && !$ai['allowed']) {
-            return $ai;
-        }
-
         return $this->ok();
     }
 
@@ -118,28 +127,37 @@ class ContentModerationService
     }
 
     /**
-     * Ask Claude Haiku to classify borderline scenarios.
-     * Returns null on any API error (fail-open — regex already caught the clear cases).
+     * Ask Claude Haiku to classify a scenario.
+     * Returns a populated result (allowed true/false) when the API responds,
+     * or null only on API errors so the caller can fall back to regex.
      */
     private function aiClassify(string $text): ?array
     {
         $key = config('services.anthropic.api_key');
         if (!$key) return null;
 
-        $system = 'You are a safety classifier for a Mexican Spanish AI-prank-call platform called Vacilada. '
-            . 'Vacilada is for LIGHT, HARMLESS pranks among friends — like pretending to be a food delivery, '
-            . 'a lost relative, an annoying salesperson, a confused grandma, a radio contest, etc. '
-            . "\n\nBLOCK any scenario that: "
-            . '(1) threatens the victim with violence, death, kidnapping, or harm to their family; '
-            . '(2) simulates extortion, ransom, "cobro de piso", or demands money under threat; '
-            . '(3) impersonates cartels, narcos, sicarios, organized crime; '
-            . '(4) impersonates authorities announcing a loved one is detained/hospitalized/dead; '
-            . '(5) involves weapons, stalking, or claims to know where the victim lives as a threat; '
-            . '(6) encourages self-harm. '
-            . "\n\nAnswer with ONLY one word: SAFE or UNSAFE. No explanation.";
+        $system = 'You are a safety classifier for Vacilada, a Mexican Spanish AI-prank-call platform. '
+            . 'Vacilada is ONLY for light, harmless, funny pranks among friends — food delivery mix-ups, '
+            . 'confused grandma, annoying salesperson, radio contest winner, lost pet owner, wrong number, etc. '
+            . "\n\nBlock any scenario that does ANY of the following — even as a joke:\n"
+            . "- threatens violence, death, kidnapping, beating, or harm to the victim or their family\n"
+            . "- simulates extortion, ransom, \"cobro de piso\", \"derecho de piso\", or money demands with threats\n"
+            . "- impersonates a cartel, narco, sicario, halcón, or any organized-crime member\n"
+            . "- impersonates police, fiscal, ministerio público, hospital, or announces a loved one is detained/hurt/dead\n"
+            . "- involves guns, knives, weapons, or graphic violence\n"
+            . "- claims to know where the victim lives, stalks, or watches them as a threat\n"
+            . "- encourages self-harm or suicide\n"
+            . "- involves real scams (SAT, bank, Telmex cobros) that could defraud the victim\n"
+            . "- is sexually explicit, racist, homophobic, or otherwise harassing\n"
+            . "\nReply with ONE line only, in this exact format:\n"
+            . "SAFE\n"
+            . "or\n"
+            . "UNSAFE|<category>|<short Spanish reason under 12 words>\n"
+            . "Where <category> is one of: extorsion, violencia, armas, crimen_organizado, "
+            . "suplantacion_emergencia, acoso, estafa, sexual, discriminacion, suicidio_autolesion, otro.";
 
         try {
-            $resp = Http::timeout(5)
+            $resp = Http::timeout(6)
                 ->withHeaders([
                     'x-api-key' => $key,
                     'anthropic-version' => '2023-06-01',
@@ -147,7 +165,7 @@ class ContentModerationService
                 ])
                 ->post('https://api.anthropic.com/v1/messages', [
                     'model' => 'claude-haiku-4-5-20251001',
-                    'max_tokens' => 8,
+                    'max_tokens' => 64,
                     'system' => $system,
                     'messages' => [[
                         'role' => 'user',
@@ -155,22 +173,39 @@ class ContentModerationService
                     ]],
                 ]);
 
-            if (!$resp->successful()) return null;
+            if (!$resp->successful()) {
+                Log::warning('Moderation AI non-2xx', ['status' => $resp->status(), 'body' => $resp->body()]);
+                return null;
+            }
 
-            $verdict = strtoupper(trim($resp->json('content.0.text') ?? ''));
-            if (str_starts_with($verdict, 'UNSAFE')) {
+            $verdict = trim($resp->json('content.0.text') ?? '');
+            $upper = strtoupper($verdict);
+
+            if (str_starts_with($upper, 'SAFE')) {
+                return $this->ok();
+            }
+
+            if (str_starts_with($upper, 'UNSAFE')) {
+                $parts = explode('|', $verdict, 3);
+                $category = strtolower(trim($parts[1] ?? 'otro')) ?: 'otro';
+                $reason = trim($parts[2] ?? '');
+                $label = self::CATEGORY_LABELS[$category]
+                    ?? ($reason !== '' ? $reason : 'contenido que asusta o amenaza a la víctima');
+
                 return [
                     'allowed' => false,
-                    'category' => 'ai_flagged',
-                    'label' => self::CATEGORY_LABELS['ai_flagged'],
-                    'matched' => null,
+                    'category' => $category,
+                    'label' => $label,
+                    'matched' => $reason ?: null,
                 ];
             }
+
+            Log::warning('Moderation AI unparseable verdict', ['verdict' => $verdict]);
+            return null;
         } catch (\Throwable $e) {
             Log::warning('Moderation AI check failed', ['error' => $e->getMessage()]);
+            return null;
         }
-
-        return null;
     }
 
     /**
