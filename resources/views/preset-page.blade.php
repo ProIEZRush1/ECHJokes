@@ -15,14 +15,10 @@
     <meta name="twitter:card" content="summary" />
 
     <script type="application/ld+json">
-    {
-      "@context": "https://schema.org",
-      "@type": "Product",
-      "name": "{{ $preset->label }} — Broma telefonica",
-      "description": "{{ addslashes(Str::limit($preset->scenario, 300)) }}",
-      "brand": {"@type":"Brand","name":"Vacilada"},
-      "offers": {"@type":"Offer","priceCurrency":"MXN","price":"35","availability":"https://schema.org/InStock"}
-    }
+    @verbatim {"@context":"https://schema.org","@type":"Product", @endverbatim
+    "name": "{{ $preset->label }} — Broma telefonica",
+    "description": "{{ addslashes(Str::limit($preset->scenario, 300)) }}",
+    @verbatim "brand":{"@type":"Brand","name":"Vacilada"},"offers":{"@type":"Offer","priceCurrency":"MXN","price":"35","availability":"https://schema.org/InStock"}} @endverbatim
     </script>
 
     <link rel="preconnect" href="https://fonts.googleapis.com">
