@@ -167,10 +167,25 @@ async function generateStyle() {
   if (!form.scenario.trim() || generating.value) return
   generating.value = true
   try {
-    const { data } = await axios.post('/api/generate-style', { scenario: form.scenario.trim() })
-    if (data.style) form.character = data.style
+    const { data } = await axios.post('/api/generate-style',
+      { scenario: form.scenario.trim() },
+      { timeout: 12000 }
+    )
+    // Defensive: strip any stray markdown fences the backend might not have caught.
+    const clean = String(data.style || '').replace(/```(?:json)?/g, '').trim()
+    if (clean) form.character = clean
     if (data.voice) form.voice = data.voice
-  } catch {} finally { generating.value = false }
+    if (!clean) result.value = { ok: false, message: 'Auto IA no generó un estilo. Escríbelo manualmente.' }
+  } catch (e) {
+    result.value = {
+      ok: false,
+      message: e.code === 'ECONNABORTED'
+        ? 'Auto IA tardó demasiado. Escribe el estilo manualmente.'
+        : (e.response?.data?.error || 'Auto IA no está disponible. Escribe el estilo manualmente.'),
+    }
+  } finally {
+    generating.value = false
+  }
 }
 const voices = [
   { id: 'ash', emoji: '\uD83D\uDC68', label: 'Casual' },
@@ -200,10 +215,17 @@ function usePreset(p) {
 async function launch() {
   loading.value = true; result.value = null
   try {
-    const { data } = await axios.post('/admin-api/launch-call', form)
+    const { data } = await axios.post('/admin-api/launch-call', form, { timeout: 45000 })
     result.value = { ok: true, message: `Call initiated! SID: ${data.call_sid}`, callId: data.call_id }
   } catch (e) {
-    result.value = { ok: false, message: e.response?.data?.error || 'Failed' }
+    let msg = e.response?.data?.error
+    if (!msg) {
+      if (e.code === 'ECONNABORTED') msg = 'La solicitud tardó demasiado. Intenta de nuevo.'
+      else if (!e.response) msg = 'Sin conexión al servidor. Reintenta.'
+      else if (e.response.status >= 500) msg = `Servidor ocupado (${e.response.status}). Reintenta en unos segundos.`
+      else msg = `Error ${e.response.status}`
+    }
+    result.value = { ok: false, message: msg }
   } finally { loading.value = false }
 }
 
