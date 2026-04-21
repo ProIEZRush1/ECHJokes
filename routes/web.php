@@ -74,7 +74,7 @@ Route::post('/api/generate-style', function (\Illuminate\Http\Request $request) 
             'x-api-key' => config('services.anthropic.api_key'),
             'anthropic-version' => '2023-06-01',
         ])->timeout(8)->post('https://api.anthropic.com/v1/messages', [
-            'model' => 'claude-3-haiku-20240307',
+            'model' => 'claude-haiku-4-5-20251001',
             'max_tokens' => 60,
             'temperature' => 0.7,
             'system' => 'Basado en el escenario de broma telefonica, genera:

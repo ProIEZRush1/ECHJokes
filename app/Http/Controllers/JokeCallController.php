@@ -197,7 +197,7 @@ class JokeCallController extends Controller
                 'x-api-key' => config('services.anthropic.api_key'),
                 'anthropic-version' => '2023-06-01',
             ])->timeout(10)->post('https://api.anthropic.com/v1/messages', [
-                'model' => 'claude-3-haiku-20240307',
+                'model' => 'claude-haiku-4-5-20251001',
                 'max_tokens' => 200,
                 'temperature' => 1.0,
                 'system' => "Eres un comediante mexicano que hace chistes ORIGINALES, cortos, ocurrentes.
