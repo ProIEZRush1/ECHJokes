@@ -233,12 +233,14 @@ async function retryCall() {
       const res = await axios.post('/admin-api/joke-call', payload)
       data = res.data
     } else {
-      // Prank call retry
+      // Prank call retry — carry over victim_name + character so the new
+      // call has the same context as the original.
       const res = await axios.post('/admin-api/launch-call', {
         phone_number: call.value.phone_number,
         scenario: call.value.custom_joke_prompt || '',
-        character: '',
+        character: call.value.character || '',
         voice: call.value.voice || 'ash',
+        victim_name: call.value.victim_name || '',
       })
       data = res.data
     }
