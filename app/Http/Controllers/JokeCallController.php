@@ -177,17 +177,71 @@ class JokeCallController extends Controller
         $langName = $langNames[$lang] ?? 'Spanish';
 
         $topics = [
-            'abuelitas mexicanas', 'suegras', 'el doctor', 'el mecánico', 'los tacos',
-            'la tiendita de la esquina', 'el tráfico de CDMX', 'los gatos traviesos',
-            'los perritos', 'el bebé de la familia', 'la vecina chismosa',
-            'el albañil', 'los mariachis', 'los políticos genéricos', 'el uber',
-            'el pedido de pizza', 'el calor extremo', 'la lluvia inoportuna',
-            'el partido de fútbol', 'los niños en la escuela', 'la boda',
-            'el gimnasio', 'el súper mercado', 'el cine', 'la playa',
-            'el carnicero', 'el tianguis', 'las vacaciones', 'la aerolínea',
-            'el taxista', 'los pajaritos en el parque', 'el novio celoso',
-            'la quinceañera', 'el pariente lejano', 'la fiesta familiar',
-            'el elote con chile', 'el agua de horchata', 'el pan dulce',
+            // Familia
+            'abuelitas mexicanas', 'abuelitos', 'suegras', 'tíos chismosos', 'primos lejanos',
+            'hermanos que no se bañan', 'el bebé de la familia', 'papás regañones', 'mamás preocuponas',
+            'la quinceañera', 'la boda', 'la primera comunión', 'el bautizo', 'el cumpleaños',
+            'la posada', 'el pariente borracho', 'la reunión familiar', 'herencias peleadas',
+
+            // Trabajo y oficinas
+            'el jefe insoportable', 'el compañero que huele feo', 'la junta que pudo ser un correo',
+            'el empleado que llega tarde', 'viernes de quincena', 'el contador', 'el vendedor de seguros',
+            'recursos humanos', 'el nuevo becario', 'el office manager', 'fin de semana laboral',
+
+            // Servicios
+            'el doctor', 'el dentista', 'el psicólogo', 'el veterinario', 'el abogado', 'el contador',
+            'el mecánico', 'el plomero', 'el electricista', 'el albañil', 'el carpintero',
+            'el barbero', 'la manicurista', 'la estilista', 'el masajista',
+
+            // Comida y bebida
+            'los tacos al pastor', 'las tortas', 'los elotes', 'el pozole', 'las enchiladas',
+            'la birria', 'el mole', 'las chilaquiles', 'el aguachile', 'los tamales',
+            'el agua de horchata', 'el atole', 'el tejuino', 'el mezcal', 'la cerveza fría',
+            'el pan dulce', 'los churros', 'las paletas de hielo', 'el raspado',
+
+            // Transporte
+            'el tráfico de CDMX', 'el tráfico de Monterrey', 'el metro lleno', 'el pesero',
+            'el uber', 'el didi', 'el taxista chismoso', 'el viaje compartido incómodo',
+            'los baches del DF', 'el segundo piso del periférico', 'las vías rápidas',
+
+            // Ciudad y barrios
+            'la tiendita de la esquina', 'el tianguis', 'el mercado', 'el súper mercado',
+            'el abarrotes', 'el OXXO a las 3am', 'el lavado de autos', 'la peluquería de barrio',
+            'el mercado sobre ruedas', 'la plaza del centro',
+
+            // Amigos y pareja
+            'el novio celoso', 'la novia celosa', 'el ex mensajero', 'la mejor amiga entrometida',
+            'el amigo que nunca paga', 'el roomate caótico', 'las despedidas de soltero',
+            'los compas de la prepa', 'las tardes de chelas',
+
+            // Niños y escuela
+            'los niños en la escuela', 'el maestro estricto', 'la tarea imposible', 'el recreo',
+            'las cooperativas escolares', 'el padre de familia pesado', 'las juntas de padres',
+
+            // Animales
+            'los perritos', 'los gatos traviesos', 'los pájaros del parque', 'el loro hablador',
+            'el pez que se murió', 'el perrito callejero', 'el gato del vecino',
+
+            // Deportes y cultura
+            'el partido del Tri', 'el América vs Chivas', 'los mariachis', 'la banda del pueblo',
+            'el concierto de fresa', 'la ópera en Bellas Artes', 'la lucha libre',
+
+            // Tecnología (sin programación)
+            'el WhatsApp de la familia', 'los memes de internet', 'TikTok para papás',
+            'el celular sin batería', 'el wifi lento', 'Netflix compartido', 'el video de YouTube de 10 horas',
+
+            // Eventos
+            'las vacaciones', 'la aerolínea que pierde maletas', 'el hotel todo incluido',
+            'el crucero', 'el viaje de fin de año', 'el concierto cancelado', 'la fiesta sin invitados',
+
+            // Absurdo cotidiano
+            'el calor extremo', 'la lluvia inoportuna', 'el corte de luz', 'el silbato del camotero',
+            'el afilador de cuchillos', 'el tamalero en la madrugada', 'el camión de la basura',
+            'las alarmas sísmicas', 'el fin del mundo',
+
+            // Chistes de situación mexicana
+            'ahorita lo arreglo', 'se me hizo tarde', 'es que no me dijeron', 'siempre sí voy',
+            'luego te pago', 'mañana sin falta', 'está bien ahí',
         ];
         $topic = $topics[array_rand($topics)];
         $seed = mt_rand(1, 99999);
