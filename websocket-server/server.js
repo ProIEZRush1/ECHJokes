@@ -60,7 +60,8 @@ function broadcastEvent(callSid, event, data) {
 }
 
 function postTranscript(callSid, role, text) {
-  if (!callSid || !text) return;
+  if (!callSid) { console.log(`[transcript] skip: no callSid (role=${role} text="${text?.slice(0,30)}")`); return; }
+  if (!text) return;
   const data = JSON.stringify({ call_sid: callSid, role, text });
   const url = new URL(`${APP_INTERNAL_URL}/api/call-transcript`);
   const isHttps = url.protocol === 'https:';
@@ -71,8 +72,10 @@ function postTranscript(callSid, role, text) {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', 'Content-Length': Buffer.byteLength(data) },
   };
-  const req = (isHttps ? https : http).request(opts, () => {});
-  req.on('error', (e) => console.error('postTranscript error:', e.message));
+  const req = (isHttps ? https : http).request(opts, (res) => {
+    console.log(`[transcript] POST ${role} len=${text.length} → ${res.statusCode}`);
+  });
+  req.on('error', (e) => console.error('[transcript] error:', e.message));
   req.write(data);
   req.end();
 }
@@ -349,7 +352,7 @@ COMO ACTUAR:
     openAiWs.send(JSON.stringify({
       type: 'session.update',
       session: {
-        turn_detection: { type: 'server_vad', threshold: 0.72, silence_duration_ms: 900, prefix_padding_ms: 250, create_response: false, interrupt_response: false },
+        turn_detection: { type: 'server_vad', threshold: 0.6, silence_duration_ms: 500, prefix_padding_ms: 250, create_response: false, interrupt_response: false },
         input_audio_format: 'g711_ulaw',
         // === ELEVENLABS MODE: text only output, no OpenAI audio ===
         ...(USE_ELEVENLABS ? {} : { output_audio_format: 'g711_ulaw', voice: voice }),
@@ -394,6 +397,15 @@ COMO ACTUAR:
         case 'input_audio_buffer.speech_started':
           console.log('Speech started (waiting for transcript before interrupting)');
           if (callSid) broadcastEvent(callSid, 'speech_started');
+          break;
+
+        case 'input_audio_buffer.committed':
+          // VAD just committed the user's turn. Trigger response immediately so
+          // we don't wait for Whisper transcription to come back before starting
+          // Claude — saves 500-1500ms per turn.
+          if (openAiWs?.readyState === WebSocket.OPEN && !isSpeaking) {
+            openAiWs.send(JSON.stringify({ type: 'response.create' }));
+          }
           break;
 
         // === Text output (used by both modes, but ElevenLabs sends to TTS) ===
@@ -457,9 +469,8 @@ COMO ACTUAR:
               console.log(`[Human]: ${t}`);
               postTranscript(callSid, 'human', t);
               if (callSid) broadcastEvent(callSid, 'human_text', { text: t });
-              if (openAiWs?.readyState === WebSocket.OPEN) {
-                openAiWs.send(JSON.stringify({ type: 'response.create' }));
-              }
+              // Response already triggered on input_audio_buffer.committed —
+              // don't fire again here.
             }
           }
           break;
