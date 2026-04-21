@@ -136,13 +136,20 @@ class TwilioWebhookController extends Controller
 
     private function handleCompleted(JokeCall $jokeCall, Request $request): void
     {
+        $duration = (int) $request->input('CallDuration', 0);
+
+        // 0-second call = never connected (busy, rejected, blocked). Treat as failed + refund.
+        if ($duration === 0) {
+            $this->handleFailed($jokeCall, 'no_connection');
+            return;
+        }
+
         $jokeCall->update([
             'status' => JokeCallStatus::Completed,
-            'call_duration_seconds' => (int) $request->input('CallDuration', 0),
+            'call_duration_seconds' => $duration,
         ]);
         broadcast(new JokeCallStatusUpdated($jokeCall));
 
-        // Post-call jobs
         \App\Jobs\ClassifyReactionSentimentJob::dispatch($jokeCall);
         app(\App\Services\CostTrackingService::class)->updateCost($jokeCall);
     }
