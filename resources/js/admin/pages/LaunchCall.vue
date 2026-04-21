@@ -219,6 +219,11 @@ async function launch() {
     result.value = { ok: true, message: `Call initiated! SID: ${data.call_sid}`, callId: data.call_id }
   } catch (e) {
     let msg = e.response?.data?.error
+    // Laravel validation errors come back as { errors: { field: ['msg'] } }.
+    if (!msg && e.response?.data?.errors) {
+      msg = Object.values(e.response.data.errors).flat().join(' · ')
+    }
+    if (!msg) msg = e.response?.data?.message
     if (!msg) {
       if (e.code === 'ECONNABORTED') msg = 'La solicitud tardó demasiado. Intenta de nuevo.'
       else if (!e.response) msg = 'Sin conexión al servidor. Reintenta.'

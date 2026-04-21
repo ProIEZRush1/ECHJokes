@@ -102,7 +102,7 @@ class AdminApiController extends Controller
             'phone_number' => 'required|string',
             'scenario' => 'required|string',
             'character' => 'nullable|string',
-            'voice' => 'nullable|in:ash,coral',
+            'voice' => 'nullable|in:ash,ballad,verse,echo,coral,sage,shimmer',
         ]);
 
         $phone = $request->input('phone_number');
