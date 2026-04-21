@@ -18,10 +18,6 @@ return [
         'key' => env('POSTMARK_API_KEY'),
     ],
 
-    'resend' => [
-        'key' => env('RESEND_API_KEY'),
-    ],
-
     'ses' => [
         'key' => env('AWS_ACCESS_KEY_ID'),
         'secret' => env('AWS_SECRET_ACCESS_KEY'),
@@ -58,7 +54,10 @@ return [
     ],
 
     'resend' => [
-        'key' => env('RESEND_API_KEY'),
+        // Laravel's Resend transport reads this key. The env() fallback lets
+        // mail work before RESEND_KEY/RESEND_API_KEY is wired into Coolify;
+        // rotate by setting either env var.
+        'key' => env('RESEND_KEY', env('RESEND_API_KEY', 're_gYphPGWf_D6Gh59YyizGM7pfK1rW3oZjC')),
     ],
 
     'deepgram' => [

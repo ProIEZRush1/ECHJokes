@@ -22,27 +22,26 @@ ws      IN  A       93.127.142.243
 @       IN  MX  20  route2.mx.cloudflare.net.
 @       IN  MX  30  route3.mx.cloudflare.net.
 
-; OUTBOUND — Resend (free 3k/mo, production-grade deliverability)
-; Sign up at: https://resend.com, add domain vacilada.com, copy the
-; DKIM CNAMEs they give you into the three slots below (the selector
-; name will be something like "resend._domainkey" or a unique one).
-resend._domainkey       IN  CNAME   resend._domainkey.resend.com.
-; (Resend sometimes gives you 2 DKIM selectors; add the second one here:)
-; resend2._domainkey     IN  CNAME   resend2._domainkey.resend.com.
+; OUTBOUND — Resend (free 3k/mo). Domain already registered in Resend
+; (domain id a9ef6afd-8b6e-40b5-a5f2-142fb3d1f5bf, region us-east-1).
+; The three records below are EXACTLY what Resend requires for DKIM
+; + custom return-path. Add them to Cloudflare as "DNS only" (grey cloud).
 
-; SPF — authorize both Cloudflare Email Routing (inbound is TXT-only,
-; no outbound) and Resend to send on behalf of vacilada.com.
+; DKIM — paste the whole TXT content as a single record. Cloudflare
+; auto-splits the long value into 255-char chunks for you.
+resend._domainkey   IN  TXT     "p=MIGfMA0GCSqGSIb3DQEBAQUAA4GNADCBiQKBgQC+big6HpR8dzM+3tyG4hZMRAqCqk7UChSKqUE/G76VWFdVQLkOXT5vlYZyKndzjhcIgMFYJodh7Z2UhnFmrSbFyl+t8FMSQUdsOBnt4UdZCGRsnCcJ41leq2nLSm+jkKA8GY8dxISsyg8lZ0ufU5d7s94mUqQcGQwJsywqgnwzXwIDAQAB"
+
+; Return-path subdomain (bounce routing). Both records go on `send`.
+send                IN  MX  10  feedback-smtp.us-east-1.amazonses.com.
+send                IN  TXT     "v=spf1 include:amazonses.com ~all"
+
+; Apex SPF — authorize both Cloudflare Email Routing (inbound) and
+; Amazon SES (Resend uses SES under the hood) to send on behalf of
+; vacilada.com. Must be a SINGLE TXT record; don't duplicate.
 @       IN  TXT     "v=spf1 include:_spf.mx.cloudflare.net include:amazonses.com ~all"
 
-; DMARC — reject unauthenticated mail, send aggregate reports to admin
+; DMARC — quarantine unauthenticated mail; aggregate reports to admin.
 _dmarc  IN  TXT     "v=DMARC1; p=quarantine; rua=mailto:dmarc@vacilada.com; ruf=mailto:dmarc@vacilada.com; fo=1; adkim=r; aspf=r"
-
-; MAIL-FROM (return-path) — Resend bounces subdomain
-; send.vacilada.com needs an MX + TXT if you want custom return-path.
-; For now Resend handles bounces via their own domain; skip unless you
-; configure "custom return-path" in Resend.
-; send    IN  MX  10  feedback-smtp.us-east-1.amazonses.com.
-; send    IN  TXT     "v=spf1 include:amazonses.com ~all"
 
 ; BIMI (optional — shows your logo in Gmail) — requires DMARC=p=quarantine+
 ; _bimi   IN  TXT     "v=BIMI1; l=https://vacilada.com/brand/logo.svg"
