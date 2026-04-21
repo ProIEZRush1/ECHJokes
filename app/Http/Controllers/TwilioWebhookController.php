@@ -82,44 +82,48 @@ class TwilioWebhookController extends Controller
      */
     public function status(Request $request): Response
     {
-        $callSid = $request->input('CallSid');
-        $callStatus = $request->input('CallStatus');
+        try {
+            $callSid = $request->input('CallSid');
+            $callStatus = $request->input('CallStatus');
 
-        $jokeCall = JokeCall::where('twilio_call_sid', $callSid)->first();
+            $jokeCall = JokeCall::where('twilio_call_sid', $callSid)->first();
 
-        if (! $jokeCall) {
-            Log::warning('Twilio status callback: JokeCall not found', ['call_sid' => $callSid]);
-            return response('OK', 200);
-        }
-
-        // Handle async AMD (machine detection) result
-        $answeredBy = $request->input('AnsweredBy');
-        // Only detect voicemail on definitive signals (beep/fax), not machine_start which is unreliable
-        if ($answeredBy && in_array($answeredBy, ['machine_end_beep', 'fax'])) {
-            $jokeCall->update(['status' => JokeCallStatus::Voicemail, 'failure_reason' => 'Buzon de voz']);
-            // Refund credit for voicemail
-            $this->refundCredit($jokeCall);
-            // Hang up the call
-            try {
-                $twilio = new \Twilio\Rest\Client(config('services.twilio.sid'), config('services.twilio.auth_token'));
-                $twilio->calls($callSid)->update(['status' => 'completed']);
-            } catch (\Throwable $e) {
-                Log::warning('Could not hang up voicemail call', ['error' => $e->getMessage()]);
+            if (! $jokeCall) {
+                Log::warning('Twilio status callback: JokeCall not found', ['call_sid' => $callSid]);
+                return response('OK', 200);
             }
-            return response('OK', 200);
-        }
 
-        // Don't overwrite terminal statuses (voicemail, etc.)
-        if ($jokeCall->status->isTerminal()) {
-            return response('OK', 200);
-        }
+            $answeredBy = $request->input('AnsweredBy');
+            if ($answeredBy && in_array($answeredBy, ['machine_end_beep', 'fax'])) {
+                $jokeCall->update(['status' => JokeCallStatus::Voicemail, 'failure_reason' => 'Buzon de voz']);
+                $this->refundCredit($jokeCall);
+                try {
+                    $twilio = new \Twilio\Rest\Client(config('services.twilio.sid'), config('services.twilio.auth_token'));
+                    $twilio->calls($callSid)->update(['status' => 'completed']);
+                } catch (\Throwable $e) {
+                    Log::warning('Could not hang up voicemail call', ['error' => $e->getMessage()]);
+                }
+                return response('OK', 200);
+            }
 
-        match ($callStatus) {
-            'in-progress' => $this->handleInProgress($jokeCall),
-            'completed' => $this->handleCompleted($jokeCall, $request),
-            'busy', 'no-answer', 'failed', 'canceled' => $this->handleFailed($jokeCall, $callStatus),
-            default => null,
-        };
+            if ($jokeCall->status->isTerminal()) {
+                return response('OK', 200);
+            }
+
+            match ($callStatus) {
+                'in-progress' => $this->handleInProgress($jokeCall),
+                'completed' => $this->handleCompleted($jokeCall, $request),
+                'busy', 'no-answer', 'failed', 'canceled' => $this->handleFailed($jokeCall, $callStatus),
+                default => null,
+            };
+        } catch (\Throwable $e) {
+            Log::error('Twilio status callback exception', [
+                'error' => $e->getMessage(),
+                'call_sid' => $request->input('CallSid'),
+                'status' => $request->input('CallStatus'),
+            ]);
+            // ALWAYS return OK so Twilio doesn't think our webhook is broken
+        }
 
         return response('OK', 200);
     }
