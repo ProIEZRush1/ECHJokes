@@ -432,8 +432,11 @@ COMO ACTUAR:
         case 'input_audio_buffer.committed':
           // VAD just committed the user's turn. Trigger response immediately so
           // we don't wait for Whisper transcription to come back before starting
-          // Claude — saves 500-1500ms per turn.
-          if (openAiWs?.readyState === WebSocket.OPEN && !isSpeaking) {
+          // Claude — saves 500-1500ms per turn. Guard against firing while a
+          // prior response is still generating (OpenAI rejects with "active
+          // response in progress"). responseActive covers the text-gen phase,
+          // isSpeaking covers the ElevenLabs TTS phase.
+          if (openAiWs?.readyState === WebSocket.OPEN && !responseActive && !isSpeaking) {
             openAiWs.send(JSON.stringify({ type: 'response.create' }));
           }
           break;
@@ -498,7 +501,11 @@ COMO ACTUAR:
 
         case 'error':
           console.error('OpenAI error:', response.error?.message || JSON.stringify(response));
-          if (callSid) postCallAiFailed(callSid, response.error?.message || 'openai_error');
+          // Recoverable: "active response in progress" — the existing response
+          // will finish fine. Don't kill the call, just log it.
+          if (callSid && !/active response in progress/i.test(response.error?.message || '')) {
+            postCallAiFailed(callSid, response.error?.message || 'openai_error');
+          }
           break;
       }
     } catch (e) {
