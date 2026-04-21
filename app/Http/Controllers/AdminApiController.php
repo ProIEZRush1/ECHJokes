@@ -115,6 +115,13 @@ class AdminApiController extends Controller
             return response()->json(app(\App\Services\ContentModerationService::class)->rejectionResponse($moderation), 422);
         }
 
+        \Illuminate\Support\Facades\Log::info('launchCall request', [
+            'phone' => $phone,
+            'victim_name' => $request->input('victim_name'),
+            'character' => $request->input('character'),
+            'voice' => $request->input('voice'),
+        ]);
+
         $jokeCall = JokeCall::create([
             'session_id' => Str::ulid()->toBase32(),
             'phone_number' => $phone,

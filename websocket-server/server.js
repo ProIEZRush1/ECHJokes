@@ -288,7 +288,7 @@ function handleTwilioStream(twilioWs, req) {
   } catch (e) {
     console.log('Could not decode params, using defaults');
   }
-  console.log(`Call connected: scenario="${scenario}" character="${character}" voice=${voice} tts=${USE_ELEVENLABS ? 'ElevenLabs' : 'OpenAI'}`);
+  console.log(`Call connected: scenario="${scenario}" character="${character}" voice=${voice} victim="${victimName || '(none)'}" tts=${USE_ELEVENLABS ? 'ElevenLabs' : 'OpenAI'}`);
 
   let streamSid = null;
   let callSid = null;
@@ -334,7 +334,10 @@ TU PERSONAJE:
 ${character || 'Una persona que llama por un asunto importante'}
 
 PERSONA A QUIEN LLAMAS:
-${victimName ? `Se llama ${victimName}. Usa su nombre cuando le hables.` : 'NO SABES su nombre. NUNCA inventes un nombre. Simplemente pregunta "hablo con el encargado?" o "buenas tardes, le hablo porque..." sin mencionar ningun nombre.'}
+${victimName ? `⚠️ SE LLAMA: ${victimName} ⚠️
+En tu PRIMER saludo DEBES preguntar "¿se encuentra ${victimName}?" o "¿hablo con ${victimName}?".
+SIEMPRE dirígete a la persona por su nombre (${victimName}) durante toda la conversación: "Mire ${victimName}...", "Oiga ${victimName}...", "Como le decía ${victimName}...".
+NO PREGUNTES por "el encargado" ni por otra persona — sabes exactamente a quién llamas.` : 'NO SABES su nombre. NUNCA inventes un nombre. Simplemente pregunta "hablo con el encargado?" o "buenas tardes, le hablo porque..." sin mencionar ningun nombre.'}
 
 SITUACION / CONTEXTO DE LA LLAMADA:
 ${scenario || 'Llamada importante que debes llevar a cabo'}
@@ -517,7 +520,7 @@ COMO ACTUAR:
     openAiWs.send(JSON.stringify({
       type: 'conversation.item.create',
       item: { type: 'message', role: 'user',
-        content: [{ type: 'input_text', text: `[La persona contesto el telefono y dijo "bueno"]. Responde con "Bueno, buenas tardes"${victimName ? ` y pregunta "se encuentra ${victimName}?"` : ' y presentate segun tu personaje'}. Sigue el protocolo mexicano de llamada telefonica.` }] }
+        content: [{ type: 'input_text', text: `[La persona contesto el telefono y dijo "bueno"]. Responde con "Bueno, buenas tardes"${victimName ? `. DEBES preguntar textualmente "¿se encuentra ${victimName}?" — NUNCA preguntes por "el encargado" ni por otra persona` : ' y presentate segun tu personaje'}. Sigue el protocolo mexicano de llamada telefonica.` }] }
     }));
     openAiWs.send(JSON.stringify({ type: 'response.create' }));
   }
