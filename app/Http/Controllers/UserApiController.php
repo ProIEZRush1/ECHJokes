@@ -41,8 +41,9 @@ class UserApiController extends Controller
         ]);
 
         $referrer = null;
-        if ($request->ref) {
-            $referrer = \App\Models\User::where('referral_code', strtoupper($request->ref))->first();
+        $refCode = $request->ref ?: $request->cookie('vacilada_ref') ?: session('echjokes_ref');
+        if ($refCode) {
+            $referrer = \App\Models\User::where('referral_code', strtoupper($refCode))->first();
         }
 
         $user = \App\Models\User::create([

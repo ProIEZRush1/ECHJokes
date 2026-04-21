@@ -425,6 +425,15 @@ class AdminApiController extends Controller
         $total = \App\Models\User::count();
         $withReferrer = \App\Models\User::whereNotNull('referred_by_user_id')->count();
         $credited = \App\Models\User::whereNotNull('referral_credited_at')->count();
+        $activeUsers = \App\Models\User::whereHas('jokeCalls')->count();
+        $kFactor = $activeUsers > 0 ? round($credited / $activeUsers, 3) : 0;
+
+        // Viral cycle time: avg days between referrer.created_at and referee.created_at (for credited pairs)
+        $avgCycleDays = \App\Models\User::whereNotNull('referral_credited_at')
+            ->whereNotNull('referred_by_user_id')
+            ->join('users as ref', 'ref.id', '=', 'users.referred_by_user_id')
+            ->selectRaw("AVG((julianday(users.created_at) - julianday(ref.created_at))) as avg_days")
+            ->value('avg_days');
 
         $top = \App\Models\User::leftJoin('users as referred', 'referred.referred_by_user_id', '=', 'users.id')
             ->select('users.id', 'users.name', 'users.email', 'users.referral_code')
@@ -443,8 +452,59 @@ class AdminApiController extends Controller
                 'with_referrer' => $withReferrer,
                 'credited' => $credited,
                 'credits_given' => $credited * 4,
+                'active_users' => $activeUsers,
+                'k_factor' => $kFactor,
+                'avg_cycle_days' => $avgCycleDays ? round($avgCycleDays, 1) : null,
             ],
             'top' => $top,
+        ]);
+    }
+
+    public function viralMetrics(): JsonResponse
+    {
+        // Share funnel
+        $totalCalls = \App\Models\JokeCall::count();
+        $publicCalls = \App\Models\JokeCall::where('is_public', true)->count();
+        $callsWithViews = \App\Models\JokeCall::where('share_views', '>', 0)->count();
+        $totalShareViews = (int) \App\Models\JokeCall::sum('share_views');
+        $shareRate = $totalCalls > 0 ? round(($callsWithViews / $totalCalls) * 100, 1) : 0;
+
+        // UTM attribution
+        $channels = \Illuminate\Support\Facades\DB::table('visitor_touchpoints')
+            ->select('utm_source', \Illuminate\Support\Facades\DB::raw('COUNT(*) as touches'), \Illuminate\Support\Facades\DB::raw('COUNT(DISTINCT user_id) as users'))
+            ->whereNotNull('utm_source')
+            ->groupBy('utm_source')
+            ->orderByDesc('touches')
+            ->get();
+
+        // A/B test: WhatsApp variant CTR
+        $wa = \Illuminate\Support\Facades\DB::table('ab_test_events')
+            ->where('test_name', 'whatsapp_share_caption')
+            ->select('variant', 'event_type', \Illuminate\Support\Facades\DB::raw('COUNT(*) as n'))
+            ->groupBy('variant', 'event_type')
+            ->get()
+            ->groupBy('variant')
+            ->map(function ($events, $variant) {
+                $imp = (int) ($events->firstWhere('event_type', 'impression')?->n ?? 0);
+                $clk = (int) ($events->firstWhere('event_type', 'click')?->n ?? 0);
+                return [
+                    'variant' => $variant,
+                    'impressions' => $imp,
+                    'clicks' => $clk,
+                    'ctr' => $imp > 0 ? round(($clk / $imp) * 100, 1) : 0,
+                ];
+            })->values();
+
+        return response()->json([
+            'share_funnel' => [
+                'total_calls' => $totalCalls,
+                'public_calls' => $publicCalls,
+                'calls_with_views' => $callsWithViews,
+                'total_share_views' => $totalShareViews,
+                'share_rate' => $shareRate,
+            ],
+            'channels' => $channels,
+            'whatsapp_ab' => $wa,
         ]);
     }
 

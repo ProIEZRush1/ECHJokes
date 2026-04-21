@@ -4,6 +4,8 @@ use App\Http\Controllers\AudioController;
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\VaciladaController;
 use App\Http\Controllers\PresetPageController;
+use App\Http\Controllers\AbTestController;
+use App\Http\Controllers\ReferralLandingController;
 use App\Http\Controllers\ShareController;
 use App\Http\Controllers\SharedAudioController;
 use App\Http\Controllers\StripeWebhookController;
@@ -18,6 +20,15 @@ Route::get('/call/{jokeCall}/status', [VaciladaController::class, 'callStatus'])
 // Share page (public, with OG meta tags)
 Route::get('/share/{sessionId}', [ShareController::class, 'show'])->name('share.show');
 Route::get('/share/{sessionId}/audio.mp3', [SharedAudioController::class, 'stream'])->name('share.audio');
+
+// Public call page by short slug (preferred, from /v/{slug})
+Route::get('/v/{slug}', [ShareController::class, 'showBySlug'])->name('share.v');
+
+// Referrer landing page
+Route::get('/r/{code}', [ReferralLandingController::class, 'show'])->name('referral.landing');
+
+// A/B test event logging
+Route::post('/api/ab/event', [AbTestController::class, 'event'])->name('ab.event');
 
 // SEO — preset landing pages + sitemap
 Route::get('/bromas', [PresetPageController::class, 'index'])->name('presets.index');
@@ -157,6 +168,7 @@ Route::prefix('admin-api')->group(function () {
         Route::put('/plans/{plan}', [\App\Http\Controllers\AdminApiController::class, 'updatePlan']);
         Route::delete('/plans/{plan}', [\App\Http\Controllers\AdminApiController::class, 'deletePlan']);
         Route::get('/referrals', [\App\Http\Controllers\AdminApiController::class, 'referrals']);
+        Route::get('/viral-metrics', [\App\Http\Controllers\AdminApiController::class, 'viralMetrics']);
     });
 });
 

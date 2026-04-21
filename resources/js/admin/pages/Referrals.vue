@@ -1,25 +1,68 @@
 <template>
-  <div class="max-w-5xl mx-auto px-4 py-8">
-    <h1 class="text-3xl font-bold text-white mb-2">Referrals</h1>
-    <p class="text-gray-400 mb-6">Todos los usuarios que han referido o sido referidos.</p>
+  <div class="max-w-6xl mx-auto px-4 py-8 space-y-6">
+    <h1 class="text-3xl font-bold text-white">Crecimiento Viral</h1>
 
-    <div v-if="stats" class="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
+    <div v-if="stats" class="grid grid-cols-2 md:grid-cols-4 gap-3">
       <div class="bg-matrix-800 border border-matrix-600 rounded-xl p-4">
-        <div class="text-3xl font-bold text-neon">{{ stats.total_users }}</div>
-        <div class="text-xs text-gray-500 uppercase mt-1">Usuarios totales</div>
+        <div class="text-3xl font-bold text-neon">{{ stats.k_factor }}</div>
+        <div class="text-xs text-gray-500 uppercase mt-1">K-factor</div>
+        <div class="text-[10px] text-gray-600 mt-1">Meta: &gt; 1.0</div>
+      </div>
+      <div class="bg-matrix-800 border border-matrix-600 rounded-xl p-4">
+        <div class="text-3xl font-bold text-neon">{{ stats.active_users }}</div>
+        <div class="text-xs text-gray-500 uppercase mt-1">Usuarios activos</div>
       </div>
       <div class="bg-matrix-800 border border-matrix-600 rounded-xl p-4">
         <div class="text-3xl font-bold text-neon">{{ stats.with_referrer }}</div>
-        <div class="text-xs text-gray-500 uppercase mt-1">Con referidor</div>
+        <div class="text-xs text-gray-500 uppercase mt-1">Referidos (total)</div>
       </div>
       <div class="bg-matrix-800 border border-matrix-600 rounded-xl p-4">
-        <div class="text-3xl font-bold text-neon">{{ stats.credited }}</div>
-        <div class="text-xs text-gray-500 uppercase mt-1">Convertidos (+2 c/u)</div>
+        <div class="text-3xl font-bold text-neon">{{ stats.avg_cycle_days ?? '—' }}</div>
+        <div class="text-xs text-gray-500 uppercase mt-1">Cycle time (días)</div>
+        <div class="text-[10px] text-gray-600 mt-1">Meta: &lt; 7</div>
       </div>
-      <div class="bg-matrix-800 border border-matrix-600 rounded-xl p-4">
-        <div class="text-3xl font-bold text-neon">{{ stats.credits_given }}</div>
-        <div class="text-xs text-gray-500 uppercase mt-1">Créditos regalados</div>
+    </div>
+
+    <div v-if="viral" class="grid md:grid-cols-2 gap-4">
+      <div class="bg-matrix-800 border border-matrix-600 rounded-xl p-5">
+        <h2 class="text-sm font-semibold text-gray-400 uppercase mb-3">Share funnel</h2>
+        <div class="space-y-2 text-sm">
+          <div class="flex justify-between"><span class="text-gray-400">Llamadas totales</span><span class="text-white font-semibold">{{ viral.share_funnel.total_calls }}</span></div>
+          <div class="flex justify-between"><span class="text-gray-400">Llamadas públicas</span><span class="text-white font-semibold">{{ viral.share_funnel.public_calls }}</span></div>
+          <div class="flex justify-between"><span class="text-gray-400">Llamadas con vistas</span><span class="text-white font-semibold">{{ viral.share_funnel.calls_with_views }}</span></div>
+          <div class="flex justify-between"><span class="text-gray-400">Vistas totales</span><span class="text-neon font-bold">{{ viral.share_funnel.total_share_views }}</span></div>
+          <div class="flex justify-between"><span class="text-gray-400">Share rate</span><span class="text-neon font-bold">{{ viral.share_funnel.share_rate }}%</span></div>
+        </div>
+        <div class="text-xs text-gray-500 mt-3">Meta: share rate &gt; 40%</div>
       </div>
+
+      <div class="bg-matrix-800 border border-matrix-600 rounded-xl p-5">
+        <h2 class="text-sm font-semibold text-gray-400 uppercase mb-3">Tráfico por canal</h2>
+        <div v-if="viral.channels.length" class="space-y-2 text-sm">
+          <div v-for="c in viral.channels" :key="c.utm_source" class="flex justify-between">
+            <span class="text-gray-400">{{ c.utm_source }}</span>
+            <span class="text-white"><strong class="text-neon">{{ c.touches }}</strong> touches · {{ c.users }} users</span>
+          </div>
+        </div>
+        <div v-else class="text-gray-500 text-sm">Sin data aún. Comparte tu link con UTMs para empezar.</div>
+      </div>
+    </div>
+
+    <div v-if="viral?.whatsapp_ab?.length" class="bg-matrix-800 border border-matrix-600 rounded-xl p-5">
+      <h2 class="text-sm font-semibold text-gray-400 uppercase mb-3">A/B test — mensaje WhatsApp</h2>
+      <table class="w-full text-sm">
+        <thead class="text-xs text-gray-500 uppercase">
+          <tr><th class="text-left py-2">Variante</th><th class="text-right py-2">Vistas</th><th class="text-right py-2">Clicks</th><th class="text-right py-2">CTR</th></tr>
+        </thead>
+        <tbody>
+          <tr v-for="v in viral.whatsapp_ab" :key="v.variant" class="border-t border-matrix-700">
+            <td class="py-2 font-semibold text-neon">{{ v.variant }}</td>
+            <td class="py-2 text-right">{{ v.impressions }}</td>
+            <td class="py-2 text-right">{{ v.clicks }}</td>
+            <td class="py-2 text-right font-bold">{{ v.ctr }}%</td>
+          </tr>
+        </tbody>
+      </table>
     </div>
 
     <div class="bg-matrix-800 border border-matrix-600 rounded-xl p-4">
@@ -29,23 +72,21 @@
           <thead class="text-xs text-gray-500 uppercase">
             <tr>
               <th class="text-left py-2">#</th>
-              <th class="text-left py-2">Nombre</th>
-              <th class="text-left py-2">Email</th>
+              <th class="text-left py-2">Usuario</th>
               <th class="text-left py-2">Código</th>
               <th class="text-right py-2">Invitados</th>
               <th class="text-right py-2">Convertidos</th>
-              <th class="text-right py-2">Créditos ganados</th>
+              <th class="text-right py-2">Créditos</th>
             </tr>
           </thead>
           <tbody>
             <tr v-for="(u, i) in top" :key="u.id" class="border-t border-matrix-700">
-              <td class="py-3 text-gray-500">{{ i + 1 }}</td>
-              <td class="py-3 text-white">{{ u.name }}</td>
-              <td class="py-3 text-gray-400">{{ u.email }}</td>
-              <td class="py-3 text-neon font-mono">{{ u.referral_code }}</td>
-              <td class="py-3 text-right">{{ u.referred_count }}</td>
-              <td class="py-3 text-right">{{ u.converted_count }}</td>
-              <td class="py-3 text-right text-neon font-bold">{{ u.converted_count * 2 }}</td>
+              <td class="py-2 text-gray-500">{{ i + 1 }}</td>
+              <td class="py-2 text-white">{{ u.name }}<br><span class="text-xs text-gray-500">{{ u.email }}</span></td>
+              <td class="py-2 text-neon font-mono">{{ u.referral_code }}</td>
+              <td class="py-2 text-right">{{ u.referred_count }}</td>
+              <td class="py-2 text-right">{{ u.converted_count }}</td>
+              <td class="py-2 text-right text-neon font-bold">{{ u.converted_count * 2 }}</td>
             </tr>
           </tbody>
         </table>
@@ -61,12 +102,17 @@ import axios from 'axios';
 
 const stats = ref(null);
 const top = ref([]);
+const viral = ref(null);
 
 onMounted(async () => {
   try {
-    const { data } = await axios.get('/admin-api/referrals');
-    stats.value = data.stats;
-    top.value = data.top || [];
+    const [{ data: r }, { data: v }] = await Promise.all([
+      axios.get('/admin-api/referrals'),
+      axios.get('/admin-api/viral-metrics'),
+    ]);
+    stats.value = r.stats;
+    top.value = r.top || [];
+    viral.value = v;
   } catch (e) {
     console.error(e);
   }

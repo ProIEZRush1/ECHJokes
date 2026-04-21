@@ -46,6 +46,7 @@ const router = createRouter({
         { path: '/call/:id/status', name: 'call.status', component: CallStatus },
         { path: '/call/:id/complete', name: 'call.complete', component: CallComplete },
         { path: '/share/:sessionId', name: 'share', component: Share },
+        { path: '/v/:slug', name: 'share.v', component: Share },
         { path: '/pricing', name: 'pricing', component: Pricing },
         { path: '/login', name: 'login', component: Login },
 

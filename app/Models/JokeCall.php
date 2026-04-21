@@ -12,6 +12,10 @@ class JokeCall extends Model
 
     protected $fillable = [
         'session_id',
+        'share_slug',
+        'is_public',
+        'share_views',
+        'share_clicks',
         'phone_number',
         'joke_category',
         'joke_source',
@@ -51,8 +55,21 @@ class JokeCall extends Model
             'status' => JokeCallStatus::class,
             'ai_transcript' => 'array',
             'is_gift' => 'boolean',
+            'is_public' => 'boolean',
             'estimated_cost_usd' => 'decimal:4',
         ];
+    }
+
+    protected static function booted(): void
+    {
+        static::creating(function (JokeCall $call) {
+            if (empty($call->share_slug)) {
+                do {
+                    $slug = strtolower(\Illuminate\Support\Str::random(8));
+                } while (self::where('share_slug', $slug)->exists());
+                $call->share_slug = $slug;
+            }
+        });
     }
 
     public function updateStatus(JokeCallStatus $status): void

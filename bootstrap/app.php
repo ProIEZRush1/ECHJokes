@@ -16,6 +16,7 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->validateCsrfTokens(except: [
             'webhooks/*',
             'api/generate-style',
+            'api/ab/*',
             'inbound',
             'joke/*',
             'trial-joke',
@@ -26,6 +27,7 @@ return Application::configure(basePath: dirname(__DIR__))
             'admin-api/*',
             'test/*',
         ]);
+        $middleware->web(append: [\App\Http\Middleware\TrackVisitor::class]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
         //
