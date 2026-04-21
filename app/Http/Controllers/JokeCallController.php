@@ -191,124 +191,56 @@ class JokeCallController extends Controller
         return null;
     }
 
+    /**
+     * Primary joke source: api-ninjas.com/api/jokes. Every fetched joke is
+     * persisted to jokes_cache so we can keep serving jokes offline or when
+     * the upstream rate-limit hits. English-only upstream.
+     */
     private function fetchJoke(string $lang): ?array
     {
-        $langNames = ['es' => 'Spanish', 'en' => 'English', 'de' => 'German', 'pt' => 'Portuguese', 'fr' => 'French'];
-        $langName = $langNames[$lang] ?? 'Spanish';
+        $apiKey = config('services.api_ninjas.key');
+        if ($apiKey) {
+            try {
+                $resp = Http::withHeaders(['X-Api-Key' => $apiKey])
+                    ->timeout(5)
+                    ->get('https://api.api-ninjas.com/v1/jokes', ['limit' => 10]);
 
-        $topics = [
-            // Familia
-            'abuelitas mexicanas', 'abuelitos', 'suegras', 'tíos chismosos', 'primos lejanos',
-            'hermanos que no se bañan', 'el bebé de la familia', 'papás regañones', 'mamás preocuponas',
-            'la quinceañera', 'la boda', 'la primera comunión', 'el bautizo', 'el cumpleaños',
-            'la posada', 'el pariente borracho', 'la reunión familiar', 'herencias peleadas',
-
-            // Trabajo y oficinas
-            'el jefe insoportable', 'el compañero que huele feo', 'la junta que pudo ser un correo',
-            'el empleado que llega tarde', 'viernes de quincena', 'el contador', 'el vendedor de seguros',
-            'recursos humanos', 'el nuevo becario', 'el office manager', 'fin de semana laboral',
-
-            // Servicios
-            'el doctor', 'el dentista', 'el psicólogo', 'el veterinario', 'el abogado', 'el contador',
-            'el mecánico', 'el plomero', 'el electricista', 'el albañil', 'el carpintero',
-            'el barbero', 'la manicurista', 'la estilista', 'el masajista',
-
-            // Comida y bebida
-            'los tacos al pastor', 'las tortas', 'los elotes', 'el pozole', 'las enchiladas',
-            'la birria', 'el mole', 'las chilaquiles', 'el aguachile', 'los tamales',
-            'el agua de horchata', 'el atole', 'el tejuino', 'el mezcal', 'la cerveza fría',
-            'el pan dulce', 'los churros', 'las paletas de hielo', 'el raspado',
-
-            // Transporte
-            'el tráfico de CDMX', 'el tráfico de Monterrey', 'el metro lleno', 'el pesero',
-            'el uber', 'el didi', 'el taxista chismoso', 'el viaje compartido incómodo',
-            'los baches del DF', 'el segundo piso del periférico', 'las vías rápidas',
-
-            // Ciudad y barrios
-            'la tiendita de la esquina', 'el tianguis', 'el mercado', 'el súper mercado',
-            'el abarrotes', 'el OXXO a las 3am', 'el lavado de autos', 'la peluquería de barrio',
-            'el mercado sobre ruedas', 'la plaza del centro',
-
-            // Amigos y pareja
-            'el novio celoso', 'la novia celosa', 'el ex mensajero', 'la mejor amiga entrometida',
-            'el amigo que nunca paga', 'el roomate caótico', 'las despedidas de soltero',
-            'los compas de la prepa', 'las tardes de chelas',
-
-            // Niños y escuela
-            'los niños en la escuela', 'el maestro estricto', 'la tarea imposible', 'el recreo',
-            'las cooperativas escolares', 'el padre de familia pesado', 'las juntas de padres',
-
-            // Animales
-            'los perritos', 'los gatos traviesos', 'los pájaros del parque', 'el loro hablador',
-            'el pez que se murió', 'el perrito callejero', 'el gato del vecino',
-
-            // Deportes y cultura
-            'el partido del Tri', 'el América vs Chivas', 'los mariachis', 'la banda del pueblo',
-            'el concierto de fresa', 'la ópera en Bellas Artes', 'la lucha libre',
-
-            // Tecnología (sin programación)
-            'el WhatsApp de la familia', 'los memes de internet', 'TikTok para papás',
-            'el celular sin batería', 'el wifi lento', 'Netflix compartido', 'el video de YouTube de 10 horas',
-
-            // Eventos
-            'las vacaciones', 'la aerolínea que pierde maletas', 'el hotel todo incluido',
-            'el crucero', 'el viaje de fin de año', 'el concierto cancelado', 'la fiesta sin invitados',
-
-            // Absurdo cotidiano
-            'el calor extremo', 'la lluvia inoportuna', 'el corte de luz', 'el silbato del camotero',
-            'el afilador de cuchillos', 'el tamalero en la madrugada', 'el camión de la basura',
-            'las alarmas sísmicas', 'el fin del mundo',
-
-            // Chistes de situación mexicana
-            'ahorita lo arreglo', 'se me hizo tarde', 'es que no me dijeron', 'siempre sí voy',
-            'luego te pago', 'mañana sin falta', 'está bien ahí',
-        ];
-        $topic = $topics[array_rand($topics)];
-        $seed = mt_rand(1, 99999);
-
-        try {
-            $r = Http::withHeaders([
-                'x-api-key' => config('services.anthropic.api_key'),
-                'anthropic-version' => '2023-06-01',
-            ])->timeout(10)->post('https://api.anthropic.com/v1/messages', [
-                'model' => 'claude-haiku-4-5-20251001',
-                'max_tokens' => 200,
-                'temperature' => 1.0,
-                'system' => "Eres un comediante mexicano que hace chistes ORIGINALES, cortos, ocurrentes.
-
-REGLAS ESTRICTAS:
-- IDIOMA: {$langName}
-- TEMA OBLIGATORIO: {$topic}
-- PROHIBIDO: chistes de computadoras, programación, tecnología, IA, apps, bugs, debuggers
-- PROHIBIDO: palabras groseras, doble sentido sexual, insultos, escatológico
-- PROHIBIDO: chistes de 'Jaimito', '2 patos van por un río', chistes gastados tipo abecedario
-- EL CHISTE DEBE SER INNOVADOR: algo que nunca hayas oído antes, un twist inesperado
-- Formato: setup corto + remate. Máximo 40 palabras.
-- NO expliques el chiste. Solo el texto del chiste.
-
-Ejemplos del tono que quiero (pero DIFERENTES temas):
-'Mi abuelita me preguntó si internet viene por el cable de la luz. Le dije que sí. Ahora cada vez que se va la luz me reclama que le corté el WiFi.'
-'Fui al mecánico, me dijo que el problema era la bujía. Le pregunté cuál. Me dijo «la que está ahí». Llevo dos horas pagándole por señalar.'
-
-Seed único (ignora en el output, solo úsalo para variar): {$seed}",
-                'messages' => [['role' => 'user', 'content' => "Dame UN chiste nuevo sobre: {$topic}. Que sea ocurrente, familiar, sin groserías. Variante #{$seed}."]],
-            ]);
-            $text = trim($r->json('content.0.text') ?? '');
-            if ($text) {
-                return ['type' => 'single', 'joke' => $text, 'category' => $topic];
+                if ($resp->ok() && is_array($resp->json())) {
+                    $firstJoke = null;
+                    foreach ($resp->json() as $row) {
+                        $text = trim((string) ($row['joke'] ?? ''));
+                        if ($text === '') continue;
+                        \App\Models\JokeCache::firstOrCreate(
+                            ['joke_hash' => hash('sha256', mb_strtolower($text))],
+                            [
+                                'joke_text' => $text,
+                                'language' => 'en',
+                                'source' => 'api-ninjas',
+                                'fetched_at' => now(),
+                            ]
+                        );
+                        $firstJoke ??= $text;
+                    }
+                    if ($firstJoke) {
+                        return ['type' => 'single', 'joke' => $firstJoke, 'category' => 'any'];
+                    }
+                } else {
+                    Log::info('api-ninjas non-2xx; using cache fallback', [
+                        'status' => $resp->status(),
+                        'body' => substr($resp->body(), 0, 200),
+                    ]);
+                }
+            } catch (\Throwable $e) {
+                Log::warning('api-ninjas fetch error; using cache fallback', ['error' => $e->getMessage()]);
             }
-        } catch (\Throwable $e) {
-            Log::warning('AI joke generation failed', ['error' => $e->getMessage()]);
         }
 
-        // Fallback to JokeAPI
-        try {
-            $r = Http::timeout(5)->get("https://v2.jokeapi.dev/joke/Any", [
-                'lang' => $lang,
-                'blacklistFlags' => 'nsfw,religious,political,racist,sexist',
-            ]);
-            if ($r->ok() && !($r->json('error'))) return $r->json();
-        } catch (\Throwable $e) {}
+        // Fallback: random joke from the local cache.
+        $cached = \App\Models\JokeCache::orderByRaw('use_count ASC, RANDOM()')->first();
+        if ($cached) {
+            $cached->increment('use_count');
+            return ['type' => 'single', 'joke' => $cached->joke_text, 'category' => 'cached'];
+        }
 
         return null;
     }

@@ -50,6 +50,14 @@ return [
         'api_key' => env('ANTHROPIC_API_KEY'),
     ],
 
+    'api_ninjas' => [
+        'key' => env('API_NINJAS_KEY'),
+    ],
+
+    'resend' => [
+        'key' => env('RESEND_API_KEY'),
+    ],
+
     'deepgram' => [
         'api_key' => env('DEEPGRAM_API_KEY'),
     ],

@@ -1,24 +1,48 @@
 $ORIGIN vacilada.com.
 $TTL 3600
 
-; === A records ===
+; === A records (Traefik/Coolify) ===
 @       IN  A       93.127.142.243
 www     IN  A       93.127.142.243
 ws      IN  A       93.127.142.243
 
-; === CAA (allow Let's Encrypt and Cloudflare to issue certificates) ===
+; === CAA (who can issue certs) ===
 @       IN  CAA     0 issue "letsencrypt.org"
 @       IN  CAA     0 issue "pki.goog"
 @       IN  CAA     0 issue "cloudflare.com"
 @       IN  CAA     0 issuewild "letsencrypt.org"
 
-; === Email: Cloudflare Email Routing (free forwarding) ===
+; ============================================================
+; === EMAIL ===================================================
+; ============================================================
+
+; INBOUND — Cloudflare Email Routing (free forwarding to Gmail)
+; Enable at: Cloudflare dashboard → Email → Email Routing
 @       IN  MX  10  route1.mx.cloudflare.net.
 @       IN  MX  20  route2.mx.cloudflare.net.
 @       IN  MX  30  route3.mx.cloudflare.net.
 
-; === SPF (update when you pick email provider) ===
-@       IN  TXT     "v=spf1 include:_spf.mx.cloudflare.net ~all"
+; OUTBOUND — Resend (free 3k/mo, production-grade deliverability)
+; Sign up at: https://resend.com, add domain vacilada.com, copy the
+; DKIM CNAMEs they give you into the three slots below (the selector
+; name will be something like "resend._domainkey" or a unique one).
+resend._domainkey       IN  CNAME   resend._domainkey.resend.com.
+; (Resend sometimes gives you 2 DKIM selectors; add the second one here:)
+; resend2._domainkey     IN  CNAME   resend2._domainkey.resend.com.
 
-; === DMARC ===
-_dmarc  IN  TXT     "v=DMARC1; p=quarantine; rua=mailto:admin@vacilada.com; ruf=mailto:admin@vacilada.com; fo=1; adkim=r; aspf=r"
+; SPF — authorize both Cloudflare Email Routing (inbound is TXT-only,
+; no outbound) and Resend to send on behalf of vacilada.com.
+@       IN  TXT     "v=spf1 include:_spf.mx.cloudflare.net include:amazonses.com ~all"
+
+; DMARC — reject unauthenticated mail, send aggregate reports to admin
+_dmarc  IN  TXT     "v=DMARC1; p=quarantine; rua=mailto:dmarc@vacilada.com; ruf=mailto:dmarc@vacilada.com; fo=1; adkim=r; aspf=r"
+
+; MAIL-FROM (return-path) — Resend bounces subdomain
+; send.vacilada.com needs an MX + TXT if you want custom return-path.
+; For now Resend handles bounces via their own domain; skip unless you
+; configure "custom return-path" in Resend.
+; send    IN  MX  10  feedback-smtp.us-east-1.amazonses.com.
+; send    IN  TXT     "v=spf1 include:amazonses.com ~all"
+
+; BIMI (optional — shows your logo in Gmail) — requires DMARC=p=quarantine+
+; _bimi   IN  TXT     "v=BIMI1; l=https://vacilada.com/brand/logo.svg"
