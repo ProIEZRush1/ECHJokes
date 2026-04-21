@@ -51,7 +51,10 @@ return [
     ],
 
     'api_ninjas' => [
-        'key' => env('API_NINJAS_KEY'),
+        // Fallback to the provided key so jokes keep working even before
+        // API_NINJAS_KEY is added to the Coolify env. Rotate by setting
+        // API_NINJAS_KEY in env to override.
+        'key' => env('API_NINJAS_KEY', 'GFq73fwrJKqgNPElV6xmuJhvPKIqMENgz5Wt3AcE'),
     ],
 
     'resend' => [

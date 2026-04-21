@@ -201,11 +201,12 @@ class JokeCallController extends Controller
         $apiKey = config('services.api_ninjas.key');
         if ($apiKey) {
             try {
+                // Free tier only returns 1 joke per call; ?limit= is premium-only.
                 $resp = Http::withHeaders(['X-Api-Key' => $apiKey])
                     ->timeout(5)
-                    ->get('https://api.api-ninjas.com/v1/jokes', ['limit' => 10]);
+                    ->get('https://api.api-ninjas.com/v1/jokes');
 
-                if ($resp->ok() && is_array($resp->json())) {
+                if ($resp->ok() && is_array($resp->json()) && !isset($resp->json()['error'])) {
                     $firstJoke = null;
                     foreach ($resp->json() as $row) {
                         $text = trim((string) ($row['joke'] ?? ''));
