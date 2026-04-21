@@ -2,7 +2,7 @@
 
 use App\Http\Controllers\AudioController;
 use App\Http\Controllers\AuthController;
-use App\Http\Controllers\ECHJokesController;
+use App\Http\Controllers\VaciladaController;
 use App\Http\Controllers\PresetPageController;
 use App\Http\Controllers\ShareController;
 use App\Http\Controllers\SharedAudioController;
@@ -12,8 +12,8 @@ use App\Http\Middleware\VerifyTwilioSignature;
 use Illuminate\Support\Facades\Route;
 
 // App pages (Vue SPA) — catch-all for client-side routing
-Route::get('/', [ECHJokesController::class, 'index'])->name('home');
-Route::get('/call/{jokeCall}/status', [ECHJokesController::class, 'callStatus'])->name('call.status');
+Route::get('/', [VaciladaController::class, 'index'])->name('home');
+Route::get('/call/{jokeCall}/status', [VaciladaController::class, 'callStatus'])->name('call.status');
 
 // Share page (public, with OG meta tags)
 Route::get('/share/{sessionId}', [ShareController::class, 'show'])->name('share.show');
@@ -37,7 +37,7 @@ Route::get('/api/referrals/me', [AuthController::class, 'referralInfo'])->name('
 Route::post('/auth/logout', [AuthController::class, 'logout'])->name('auth.logout');
 
 // API
-Route::post('/checkout', [ECHJokesController::class, 'createCheckout'])
+Route::post('/checkout', [VaciladaController::class, 'createCheckout'])
     ->middleware('throttle:5,60')
     ->name('checkout');
 
@@ -79,12 +79,12 @@ Responde EXACTAMENTE en este formato JSON:
 Route::post('/trial-joke', [\App\Http\Controllers\JokeCallController::class, 'launch'])
     ->middleware('throttle:5,60');
 
-Route::post('/trial', [ECHJokesController::class, 'trialCall'])
+Route::post('/trial', [VaciladaController::class, 'trialCall'])
     ->middleware('throttle:3,60')
     ->name('trial');
 
 // Test mode: skip Stripe, directly process a call (local env only)
-Route::post('/test/call', [ECHJokesController::class, 'testCall'])
+Route::post('/test/call', [VaciladaController::class, 'testCall'])
     ->name('test.call');
 
 // Audio (signed URL)

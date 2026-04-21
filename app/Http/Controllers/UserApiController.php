@@ -157,7 +157,7 @@ class UserApiController extends Controller
                     'currency' => 'mxn',
                     'unit_amount' => (int) $finalPrice,
                     'product_data' => [
-                        'name' => "ECHJokes {$plan->name}" . ($discount > 0 ? " (Upgrade)" : ""),
+                        'name' => "Vacilada {$plan->name}" . ($discount > 0 ? " (Upgrade)" : ""),
                         'description' => "{$plan->calls_included} llamadas de broma" . ($discount > 0 ? " - Descuento de \${$discount} MXN aplicado" : ""),
                     ],
                 ],
@@ -211,7 +211,7 @@ class UserApiController extends Controller
                     'currency' => 'mxn',
                     'unit_amount' => (int) ($totalMxn * 100),
                     'product_data' => [
-                        'name' => "ECHJokes - {$calls} broma" . ($calls > 1 ? 's' : '') . " ({$minutes} min c/u)",
+                        'name' => "Vacilada - {$calls} broma" . ($calls > 1 ? 's' : '') . " ({$minutes} min c/u)",
                         'description' => "{$calls} llamadas de broma de hasta {$minutes} minutos",
                     ],
                 ],

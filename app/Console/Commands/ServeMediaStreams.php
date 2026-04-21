@@ -9,7 +9,7 @@ use React\Socket\SocketServer;
 
 class ServeMediaStreams extends Command
 {
-    protected $signature = 'echjokes:stream-server {--port=8081}';
+    protected $signature = 'vacilada:stream-server {--port=8081}';
     protected $description = 'Twilio Media Streams WebSocket server (raw TCP)';
 
     public function handle(): int

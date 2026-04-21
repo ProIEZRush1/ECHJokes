@@ -89,7 +89,7 @@ class TwilioCallService
     {
         try {
             $jokeText = $jokeCall->joke_text ?? '';
-            $body = "ECHJokes te manda un chiste:\n\n{$jokeText}\n\nQuieres mandar uno tu tambien? → echjokes.mx";
+            $body = "Vacilada te manda un chiste:\n\n{$jokeText}\n\nQuieres mandar uno tu tambien? → vacilada.mx";
 
             $message = $this->client->messages->create(
                 'whatsapp:' . $jokeCall->callablePhone(),

@@ -77,7 +77,7 @@ function copy() {
 async function shareNative() {
   if (!data.value) return;
   if (navigator.share) {
-    try { await navigator.share({ title: 'ECHJokes', text: data.value.share_text, url: data.value.link }); } catch (e) {}
+    try { await navigator.share({ title: 'Vacilada', text: data.value.share_text, url: data.value.link }); } catch (e) {}
   } else {
     copy();
   }

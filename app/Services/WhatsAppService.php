@@ -29,12 +29,12 @@ class WhatsAppService
         $opening = $prankScript['opening'] ?? '';
         $scenario = $jokeCall->custom_joke_prompt ?? '';
 
-        $body = "🎭 *ECHJokes* — Broma telefonica por WhatsApp\n\n"
+        $body = "🎭 *Vacilada* — Broma telefonica por WhatsApp\n\n"
             . "📞 *{$character}*:\n"
             . "\"{$opening}\"\n\n"
             . "---\n"
             . "Esta broma fue inspirada en: _{$scenario}_\n\n"
-            . "¿Quieres mandar una broma tu tambien? → echjokes.mx";
+            . "¿Quieres mandar una broma tu tambien? → vacilada.mx";
 
         if ($jokeCall->is_gift && $jokeCall->sender_name) {
             $body .= "\n\nEnviado por: {$jokeCall->sender_name}";

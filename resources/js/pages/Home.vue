@@ -2,7 +2,7 @@
     <div class="min-h-screen flex flex-col">
         <!-- Navbar -->
         <nav class="w-full px-4 md:px-8 py-4 flex items-center justify-between">
-            <router-link to="/" class="text-lg font-bold font-mono text-neon">ECHJokes</router-link>
+            <router-link to="/" class="text-lg font-bold font-mono text-neon">Vacilada</router-link>
             <div class="flex items-center gap-3 md:gap-5">
                 <router-link to="/pricing" class="text-sm text-gray-400 hover:text-neon transition">Precios</router-link>
                 <template v-if="user">
@@ -23,7 +23,7 @@
         <!-- Hero -->
         <div class="text-center mb-8 md:mb-12">
             <div class="text-5xl md:text-7xl mb-4 md:mb-6 animate-[ring_1s_ease-in-out_infinite]">&#x1F4DE;</div>
-            <h1 class="text-3xl md:text-6xl font-bold font-mono text-neon animate-[glow_1.5s_ease-in-out_infinite_alternate] mb-3 md:mb-4">ECHJokes</h1>
+            <h1 class="text-3xl md:text-6xl font-bold font-mono text-neon animate-[glow_1.5s_ease-in-out_infinite_alternate] mb-3 md:mb-4">Vacilada</h1>
             <p class="text-lg md:text-2xl text-gray-400 max-w-lg mx-auto px-2">Bromas telefonicas con IA. Tu describes la situacion, la IA hace la llamada.</p>
         </div>
 
@@ -267,7 +267,7 @@ const errors = reactive({ phone: '', scenario: '', general: '' });
 
 onMounted(async () => {
     const urlRef = new URLSearchParams(window.location.search).get('ref');
-    if (urlRef) localStorage.setItem('echjokes_ref', urlRef.toUpperCase());
+    if (urlRef) localStorage.setItem('vacilada_ref', urlRef.toUpperCase());
     try {
         const [pr, me] = await Promise.all([
             axios.get('/api/presets'),

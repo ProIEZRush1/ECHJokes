@@ -194,7 +194,7 @@ function translateFailure(reason) {
 
 function setupEcho() {
     if (!sessionId.value) return;
-    const config = window.__ECHJOKES__?.reverb || {};
+    const config = window.__VACILADA__?.reverb || {};
     window.Pusher = Pusher;
     echo = new Echo({
         broadcaster: 'reverb',

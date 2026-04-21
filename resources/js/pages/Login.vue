@@ -2,7 +2,7 @@
   <div class="min-h-screen flex items-center justify-center px-4">
     <div class="w-full max-w-sm">
       <div class="text-center mb-8">
-        <router-link to="/" class="text-3xl font-bold font-mono text-neon">ECHJokes</router-link>
+        <router-link to="/" class="text-3xl font-bold font-mono text-neon">Vacilada</router-link>
         <p class="text-gray-500 text-sm mt-1">{{ isRegister ? 'Crea tu cuenta' : 'Inicia sesion' }}</p>
       </div>
 
@@ -69,7 +69,7 @@ async function submit() {
   loading.value = true
   try {
     const endpoint = isRegister.value ? '/user-api/register' : '/user-api/login'
-    const refCode = route.query.ref || localStorage.getItem('echjokes_ref') || ''
+    const refCode = route.query.ref || localStorage.getItem('vacilada_ref') || ''
     const payload = isRegister.value
       ? { name: name.value, email: email.value, password: password.value, ref: refCode }
       : { email: email.value, password: password.value }

@@ -1,6 +1,6 @@
 <template>
   <div class="min-h-screen flex flex-col items-center px-4 py-12 md:py-16">
-    <router-link to="/" class="text-3xl font-bold font-mono text-neon mb-2">ECHJokes</router-link>
+    <router-link to="/" class="text-3xl font-bold font-mono text-neon mb-2">Vacilada</router-link>
     <p class="text-gray-400 mb-8 md:mb-12 text-center max-w-md">
       Bromas telefonicas con IA. Elige tu plan y empieza a bromear.
     </p>

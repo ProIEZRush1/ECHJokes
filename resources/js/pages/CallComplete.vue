@@ -65,7 +65,7 @@ const pollCount = ref(0);
 let pollInterval = null;
 
 const shareUrl = computed(() => jokeCall.value ? `${window.location.origin}/share/${jokeCall.value.session_id}` : '');
-const whatsappShareUrl = computed(() => `https://wa.me/?text=${encodeURIComponent('Escucha esta broma telefonica de ECHJokes! ' + shareUrl.value)}`);
+const whatsappShareUrl = computed(() => `https://wa.me/?text=${encodeURIComponent('Escucha esta broma telefonica de Vacilada! ' + shareUrl.value)}`);
 
 function copyShareLink() {
     navigator.clipboard.writeText(shareUrl.value);

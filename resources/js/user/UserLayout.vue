@@ -3,7 +3,7 @@
     <!-- Top Nav -->
     <nav class="border-b border-matrix-600 bg-matrix-800">
       <div class="max-w-5xl mx-auto px-4 py-3 flex items-center justify-between">
-        <router-link to="/" class="text-lg font-bold font-mono text-neon">ECHJokes</router-link>
+        <router-link to="/" class="text-lg font-bold font-mono text-neon">Vacilada</router-link>
 
         <div class="flex items-center gap-4">
           <router-link v-for="item in nav" :key="item.to" :to="item.to"

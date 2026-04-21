@@ -2,7 +2,7 @@
     <div class="min-h-screen flex flex-col items-center justify-center px-4 py-12">
         <div class="w-full max-w-xl text-center">
             <div class="text-6xl mb-4">&#x1F3AD;</div>
-            <h1 class="text-3xl font-bold font-mono text-neon mb-2">ECHJokes</h1>
+            <h1 class="text-3xl font-bold font-mono text-neon mb-2">Vacilada</h1>
             <p class="text-gray-400 mb-6">Alguien te mando una broma telefonica!</p>
 
             <div v-if="scenario" class="bg-matrix-800 border border-matrix-600 rounded-xl p-4 text-left mb-4">
@@ -62,14 +62,14 @@ function copyLink() {
 
 async function shareNative() {
     if (navigator.share) {
-        try { await navigator.share({ title: 'Broma telefonica de ECHJokes', text: shareCaption.value, url: shareUrl.value }); } catch (e) {}
+        try { await navigator.share({ title: 'Broma telefonica de Vacilada', text: shareCaption.value, url: shareUrl.value }); } catch (e) {}
     } else {
         copyLink();
     }
 }
 
 onMounted(async () => {
-    const shareData = window.__ECHJOKES__?.shareData;
+    const shareData = window.__VACILADA__?.shareData;
     if (shareData) {
         scenario.value = shareData.scenario || shareData.joke_text || '';
         recordingUrl.value = shareData.recording_url || '';

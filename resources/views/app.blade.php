@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="csrf-token" content="{{ csrf_token() }}">
-    <title>ECHJokes - Bromas Telefonicas con IA</title>
+    <title>Vacilada - Bromas Telefonicas con IA</title>
     <meta name="description" content="Describe una situacion, la IA llama y hace una broma telefonica en tiempo real. Bromas personalizadas con inteligencia artificial.">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -15,7 +15,7 @@
     <div id="app"></div>
 
     <script>
-        window.__ECHJOKES__ = {
+        window.__VACILADA__ = {
             reverb: {
                 key: "{{ config('reverb.apps.0.key') }}",
                 host: "{{ config('reverb.apps.0.options.host', 'localhost') }}",

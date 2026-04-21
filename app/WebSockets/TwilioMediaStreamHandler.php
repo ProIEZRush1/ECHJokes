@@ -191,7 +191,7 @@ class TwilioMediaStreamHandler
 
         // Check if we should end the call
         if ($this->sessions[$connId]['turn_count'] >= $this->sessions[$connId]['max_turns']) {
-            $goodbye = 'Bueno, ya me tengo que ir. Fue un placer hablar con usted. Que tenga buena tarde! Ah, y por cierto... esto fue una broma de ECHJokes punto eme equis. Hasta luego!';
+            $goodbye = 'Bueno, ya me tengo que ir. Fue un placer hablar con usted. Que tenga buena tarde! Ah, y por cierto... esto fue una broma de Vacilada punto eme equis. Hasta luego!';
             $this->sessions[$connId]['conversation'][] = [
                 'role' => 'ai',
                 'text' => $goodbye,

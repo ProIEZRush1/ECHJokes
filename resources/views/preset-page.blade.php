@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="csrf-token" content="{{ csrf_token() }}">
-    <title>{{ $preset->emoji }} {{ $preset->label }} — Broma telefonica con IA | ECHJokes</title>
+    <title>{{ $preset->emoji }} {{ $preset->label }} — Broma telefonica con IA | Vacilada</title>
     <meta name="description" content="{{ Str::limit($preset->scenario, 155) }}" />
     <link rel="canonical" href="{{ url('/bromas/' . $preset->slug) }}" />
 
@@ -20,7 +20,7 @@
       "@type": "Product",
       "name": "{{ $preset->label }} — Broma telefonica",
       "description": "{{ addslashes(Str::limit($preset->scenario, 300)) }}",
-      "brand": {"@type":"Brand","name":"ECHJokes"},
+      "brand": {"@type":"Brand","name":"Vacilada"},
       "offers": {"@type":"Offer","priceCurrency":"MXN","price":"35","availability":"https://schema.org/InStock"}
     }
     </script>
@@ -32,7 +32,7 @@
 <body class="bg-matrix-900 text-white min-h-screen antialiased">
     <nav class="px-4 py-4 border-b border-matrix-700">
         <div class="max-w-4xl mx-auto flex justify-between items-center">
-            <a href="/" class="text-lg font-bold font-mono text-neon">ECHJokes</a>
+            <a href="/" class="text-lg font-bold font-mono text-neon">Vacilada</a>
             <a href="/" class="text-sm bg-neon text-matrix-900 font-bold px-4 py-2 rounded-lg">Hacer broma</a>
         </div>
     </nav>
@@ -81,7 +81,7 @@
     </main>
 
     <footer class="border-t border-matrix-700 py-8 text-center text-xs text-gray-500">
-        ECHJokes &middot; Bromas telefonicas con IA &middot; <a href="/bromas" class="hover:text-neon">Todas las bromas</a>
+        Vacilada &middot; Bromas telefonicas con IA &middot; <a href="/bromas" class="hover:text-neon">Todas las bromas</a>
     </footer>
 </body>
 </html>

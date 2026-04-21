@@ -2,7 +2,7 @@
   <div class="min-h-screen bg-matrix-900 text-white font-sans">
     <!-- Mobile header -->
     <div class="lg:hidden fixed top-0 left-0 right-0 h-14 bg-matrix-800 border-b border-matrix-600 flex items-center justify-between px-4 z-50">
-      <h1 class="text-base font-bold font-mono text-neon">ECHJokes</h1>
+      <h1 class="text-base font-bold font-mono text-neon">Vacilada</h1>
       <button @click="mobileOpen = !mobileOpen" class="p-2 text-gray-400">
         <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" :d="mobileOpen ? 'M6 18L18 6M6 6l12 12' : 'M4 6h16M4 12h16M4 18h16'" />
@@ -17,7 +17,7 @@
     <aside :class="['fixed left-0 top-0 h-screen w-56 bg-matrix-800 border-r border-matrix-600 flex flex-col z-50 transition-transform lg:translate-x-0',
       mobileOpen ? 'translate-x-0' : '-translate-x-full']">
       <div class="p-4 border-b border-matrix-600">
-        <h1 class="text-lg font-bold font-mono text-neon">ECHJokes</h1>
+        <h1 class="text-lg font-bold font-mono text-neon">Vacilada</h1>
         <p class="text-xs text-gray-500 mt-0.5">Admin Panel</p>
       </div>
 

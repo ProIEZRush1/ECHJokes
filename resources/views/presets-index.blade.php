@@ -3,10 +3,10 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Bromas telefonicas con IA — Lista completa | ECHJokes</title>
+    <title>Bromas telefonicas con IA — Lista completa | Vacilada</title>
     <meta name="description" content="Bromas telefonicas automaticas con IA en espanol. Elige una y llama a tu amigo. La IA habla como humano real." />
     <link rel="canonical" href="{{ url('/bromas') }}" />
-    <meta property="og:title" content="Bromas telefonicas con IA | ECHJokes" />
+    <meta property="og:title" content="Bromas telefonicas con IA | Vacilada" />
     <meta property="og:description" content="Elige tu broma, la IA llama. Espanol mexicano." />
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -15,7 +15,7 @@
 <body class="bg-matrix-900 text-white min-h-screen antialiased">
     <nav class="px-4 py-4 border-b border-matrix-700">
         <div class="max-w-4xl mx-auto flex justify-between items-center">
-            <a href="/" class="text-lg font-bold font-mono text-neon">ECHJokes</a>
+            <a href="/" class="text-lg font-bold font-mono text-neon">Vacilada</a>
             <a href="/" class="text-sm bg-neon text-matrix-900 font-bold px-4 py-2 rounded-lg">Hacer broma</a>
         </div>
     </nav>

@@ -8,4 +8,4 @@ Artisan::command('inspire', function () {
 })->purpose('Display an inspiring quote');
 
 // Cleanup old TTS audio files every hour
-\Illuminate\Support\Facades\Schedule::command('echjokes:cleanup-audio --hours=1')->hourly();
+\Illuminate\Support\Facades\Schedule::command('vacilada:cleanup-audio --hours=1')->hourly();

@@ -12,7 +12,7 @@ use Illuminate\Support\Str;
 use Stripe\Checkout\Session as StripeSession;
 use Stripe\Stripe;
 
-class ECHJokesController extends Controller
+class VaciladaController extends Controller
 {
     public function index()
     {

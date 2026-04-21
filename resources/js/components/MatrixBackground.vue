@@ -17,7 +17,7 @@
 </template>
 
 <script setup>
-const chars = 'ECHJOKESアイウエオカキクケコ01サシスセソ';
+const chars = 'VACILADAアイウエオカキクケコ01サシスセソ';
 
 function randomChars(len) {
     let result = '';

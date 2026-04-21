@@ -44,9 +44,9 @@ class AuthController extends Controller
 
         // Send email with magic link
         Mail::raw(
-            "Hola! Haz clic para iniciar sesion en ECHJokes:\n\n{$url}\n\nEste link expira en 15 minutos.",
+            "Hola! Haz clic para iniciar sesion en Vacilada:\n\n{$url}\n\nEste link expira en 15 minutos.",
             function ($message) use ($email) {
-                $message->to($email)->subject('Tu link magico de ECHJokes');
+                $message->to($email)->subject('Tu link magico de Vacilada');
             }
         );
 

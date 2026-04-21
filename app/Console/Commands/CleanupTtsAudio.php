@@ -7,7 +7,7 @@ use Illuminate\Support\Facades\Storage;
 
 class CleanupTtsAudio extends Command
 {
-    protected $signature = 'echjokes:cleanup-audio {--hours=1 : Delete files older than this many hours}';
+    protected $signature = 'vacilada:cleanup-audio {--hours=1 : Delete files older than this many hours}';
     protected $description = 'Delete old TTS audio files from storage';
 
     public function handle(): int

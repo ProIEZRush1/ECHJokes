@@ -2,7 +2,7 @@
   <div class="min-h-screen bg-matrix-900 flex items-center justify-center p-4">
     <div class="w-full max-w-sm">
       <div class="text-center mb-8">
-        <h1 class="text-3xl font-bold font-mono text-neon">ECHJokes</h1>
+        <h1 class="text-3xl font-bold font-mono text-neon">Vacilada</h1>
         <p class="text-gray-500 text-sm mt-1">Admin Panel</p>
       </div>
 
@@ -12,7 +12,7 @@
           <input v-model="email" type="email" required autofocus
             class="w-full bg-matrix-700 border border-matrix-600 rounded-lg px-3 py-2.5 text-sm text-white
                    placeholder-gray-500 focus:outline-none focus:border-neon/50 focus:ring-1 focus:ring-neon/30 transition"
-            placeholder="admin@echjokes.com" />
+            placeholder="admin@vacilada.com" />
         </div>
 
         <div>
