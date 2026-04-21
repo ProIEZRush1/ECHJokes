@@ -57,6 +57,14 @@
               <p class="text-xs text-gray-500 uppercase">Created</p>
               <p class="text-sm mt-1 text-gray-300">{{ formatDate(call.created_at) }}</p>
             </div>
+            <div v-if="call.victim_name">
+              <p class="text-xs text-gray-500 uppercase">Víctima</p>
+              <p class="text-sm mt-1 text-white font-medium">{{ call.victim_name }}</p>
+            </div>
+            <div v-if="call.voice">
+              <p class="text-xs text-gray-500 uppercase">Voz</p>
+              <p class="text-sm mt-1 text-gray-300 font-mono">{{ call.voice }}</p>
+            </div>
             <div v-if="call.failure_reason">
               <p class="text-xs text-gray-500 uppercase">Error</p>
               <p class="text-sm mt-1 text-red-400">{{ call.failure_reason }}</p>
