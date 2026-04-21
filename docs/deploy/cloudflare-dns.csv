@@ -1,0 +1,11 @@
+type,name,content,priority,ttl,proxied
+A,vacilada.com,93.127.142.243,,3600,true
+A,www,93.127.142.243,,3600,true
+A,ws,93.127.142.243,,3600,false
+CAA,vacilada.com,"0 issue ""letsencrypt.org""",,3600,false
+CAA,vacilada.com,"0 issue ""cloudflare.com""",,3600,false
+TXT,vacilada.com,"v=spf1 include:_spf.google.com ~all",,3600,false
+TXT,_dmarc,"v=DMARC1; p=quarantine; rua=mailto:admin@vacilada.com; ruf=mailto:admin@vacilada.com; fo=1",,3600,false
+MX,vacilada.com,route1.mx.cloudflare.net,10,3600,false
+MX,vacilada.com,route2.mx.cloudflare.net,20,3600,false
+MX,vacilada.com,route3.mx.cloudflare.net,30,3600,false
