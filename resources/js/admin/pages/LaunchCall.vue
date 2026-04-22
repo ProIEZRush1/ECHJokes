@@ -45,7 +45,7 @@
 
     <!-- Prank Call Form -->
     <form v-else @submit.prevent="launch" class="space-y-5">
-      <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+      <div>
         <div>
           <label class="block text-xs text-gray-400 uppercase tracking-wider mb-1.5">Phone Number</label>
           <div class="flex items-stretch bg-matrix-800 border border-matrix-600 rounded-lg overflow-hidden focus-within:border-neon/50 transition">
@@ -64,17 +64,6 @@
             </button>
           </div>
           <p class="text-[10px] text-gray-500 mt-1">Solo numeros de Mexico (10 digitos)</p>
-        </div>
-        <div>
-          <label class="block text-xs text-gray-400 uppercase tracking-wider mb-1.5">Voice</label>
-          <div class="grid grid-cols-4 gap-1.5">
-            <button v-for="v in voices" :key="v.id" type="button" @click="form.voice = v.id"
-              :class="['flex flex-col items-center p-2 rounded-lg border transition text-[11px]',
-                form.voice === v.id ? 'border-neon bg-neon/10 text-white' : 'border-matrix-600 text-gray-500']">
-              <span class="text-base mb-0.5">{{ v.emoji }}</span>
-              <span class="font-medium">{{ v.label }}</span>
-            </button>
-          </div>
         </div>
       </div>
 

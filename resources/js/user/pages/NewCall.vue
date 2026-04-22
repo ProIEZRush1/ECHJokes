@@ -82,17 +82,6 @@
         <p class="text-[10px] text-gray-500 mt-1">La broma sera mucho mas realista con el nombre</p>
       </div>
 
-      <div>
-        <label class="block text-xs text-gray-400 uppercase mb-1.5">Voz</label>
-        <div class="grid grid-cols-4 gap-1.5">
-          <button v-for="v in voiceOptions" :key="v.id" type="button" @click="voice = v.id"
-            :class="['flex flex-col items-center p-2 rounded-xl border transition text-[11px]',
-              voice === v.id ? 'border-neon bg-neon/10 text-white' : 'border-matrix-600 text-gray-500']">
-            <span class="text-base mb-0.5">{{ v.emoji }}</span>
-            <span class="font-medium">{{ v.label }}</span>
-          </button>
-        </div>
-      </div>
 
       <div>
         <label class="block text-xs text-gray-400 uppercase mb-1.5">Escenario</label>
