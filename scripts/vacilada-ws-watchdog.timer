@@ -1,11 +1,11 @@
 [Unit]
-Description=Run Vacilada WS watchdog every 30 seconds
+Description=Run Vacilada WS watchdog every 5 seconds
 Requires=vacilada-ws-watchdog.service
 
 [Timer]
-OnBootSec=30s
-OnUnitActiveSec=30s
-AccuracySec=5s
+OnBootSec=5s
+OnUnitActiveSec=5s
+AccuracySec=1s
 Unit=vacilada-ws-watchdog.service
 
 [Install]
