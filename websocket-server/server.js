@@ -207,7 +207,7 @@ function createAmbienceProfile() {
   };
 }
 
-const VOICE_GAIN = 2.4;
+const VOICE_GAIN = 1.6;
 const CLIP_KNEE = 16000;
 function softClip(x) {
   const a = Math.abs(x);
@@ -355,6 +355,7 @@ function handleTwilioStream(twilioWs, req) {
   let isSpeaking = false; // Track if ElevenLabs is currently speaking
   let ttsSessionId = 0; // Increment to invalidate in-flight TTS callbacks
   let ignoreNextTranscript = false; // Set when victim talks over AI — overlap is discarded
+  let ignoreTimeout = null; // Auto-clear the ignore flag so it can't get stuck
   // Sentence-level streaming to ElevenLabs
   let streamedOffset = 0;          // chars of currentAiText already dispatched to TTS
   let ttsQueue = [];               // pending sentence fragments for current response
@@ -485,6 +486,16 @@ COMO ACTUAR:
           // treated as overlap and discarded.
           if (responseActive || isSpeaking) {
             ignoreNextTranscript = true;
+            // Safety: if Whisper never returns this transcript (network /
+            // silence / etc.) we don't want the flag stuck forever silencing
+            // the AI. Auto-clear after 8s.
+            clearTimeout(ignoreTimeout);
+            ignoreTimeout = setTimeout(() => {
+              if (ignoreNextTranscript) {
+                console.log('[overlap-flag] auto-cleared after 8s timeout');
+                ignoreNextTranscript = false;
+              }
+            }, 8000);
           }
           break;
 
@@ -514,7 +525,11 @@ COMO ACTUAR:
               responseStartTimestamp = latestMediaTimestamp;
             }
             currentAiText += response.delta;
-            if (USE_ELEVENLABS) flushSentences(ttsSessionId);
+            // NOTE: no longer sentence-chunking (flushSentences). Splitting
+            // one Claude response into multiple ElevenLabs requests produced
+            // audible stitching artifacts between segments. We wait for the
+            // full response.done and do ONE TTS request per AI turn. ~1s
+            // slower but the voice sounds continuous instead of spliced.
           }
           break;
 
