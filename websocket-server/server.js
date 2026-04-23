@@ -152,7 +152,7 @@ const ambienceLoop = new Int16Array(AMBIENCE_LEN);
 function createAmbienceProfile() {
   return {
     pos: Math.floor(Math.random() * AMBIENCE_LEN),
-    gain: 0.01 + Math.random() * 0.02,
+    gain: 0.004 + Math.random() * 0.008,
   };
 }
 
@@ -205,8 +205,8 @@ function pcmToMulaw(pcmBuffer) {
 function elevenLabsTTS(text, voiceId, callback) {
   const postData = JSON.stringify({
     text: text,
-    model_id: 'eleven_flash_v2_5',
-    voice_settings: { stability: 0.58, similarity_boost: 0.85, style: 0.25, use_speaker_boost: true, speed: 1.1 }
+    model_id: 'eleven_turbo_v2_5',
+    voice_settings: { stability: 0.7, similarity_boost: 0.92, style: 0.12, use_speaker_boost: false, speed: 1.1 }
   });
 
   const options = {
@@ -382,7 +382,7 @@ COMO ACTUAR:
     openAiWs.send(JSON.stringify({
       type: 'session.update',
       session: {
-        turn_detection: { type: 'server_vad', threshold: 0.55, silence_duration_ms: 250, prefix_padding_ms: 200, create_response: false, interrupt_response: false },
+        turn_detection: { type: 'server_vad', threshold: 0.5, silence_duration_ms: 180, prefix_padding_ms: 100, create_response: false, interrupt_response: false },
         input_audio_format: 'g711_ulaw',
         // === ELEVENLABS MODE: text only output, no OpenAI audio ===
         ...(USE_ELEVENLABS ? {} : { output_audio_format: 'g711_ulaw', voice: voice }),
@@ -666,7 +666,7 @@ COMO ACTUAR:
 
   let ambienceInterval = null;
   let ambienceFrameCount = 0;
-  const STANDALONE_AMB_GAIN = 0.6;
+  const STANDALONE_AMB_GAIN = 0.3;
   function startAmbienceStream() {
     if (ambienceInterval) return;
     ambienceFrameCount = 0;
