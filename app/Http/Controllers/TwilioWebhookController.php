@@ -148,23 +148,48 @@ class TwilioWebhookController extends Controller
             return;
         }
 
-        // Post-call voicemail detection: if the human side never uttered a word
-        // for the entire call it's almost certainly a voicemail that Twilio's
-        // AMD missed (quiet greeting, music, unusual format). Tag + refund.
-        if ($jokeCall->delivery_type === 'call' && $duration >= 6 && $this->looksLikeVoicemail($jokeCall)) {
-            Log::info('Voicemail detected post-call (no human turns)', [
-                'call_id' => $jokeCall->id,
-                'duration' => $duration,
-            ]);
-            $jokeCall->update([
-                'status' => JokeCallStatus::Voicemail,
-                'failure_reason' => 'Buzón de voz (detectado por ausencia de voz humana)',
-                'call_duration_seconds' => $duration,
-            ]);
-            broadcast(new JokeCallStatusUpdated($jokeCall));
-            $this->refundCredit($jokeCall);
-            app(\App\Services\CostTrackingService::class)->updateCost($jokeCall);
-            return;
+        // Post-call fallbacks for prank calls that "completed" but nothing
+        // actually happened on the line.
+        if ($jokeCall->delivery_type === 'call' && $duration >= 5) {
+            $diag = $this->diagnoseTranscript($jokeCall);
+
+            // (a) Transcript completely empty — the WS never got connected or
+            // OpenAI/ElevenLabs died on the first message. Twilio played its
+            // default "Sorry, an application error has occurred" to the victim.
+            if ($diag === 'empty') {
+                Log::warning('Prank call completed with empty transcript — likely stream failure', [
+                    'call_id' => $jokeCall->id,
+                    'sid' => $jokeCall->twilio_call_sid,
+                    'duration' => $duration,
+                ]);
+                $jokeCall->update([
+                    'status' => JokeCallStatus::Failed,
+                    'failure_reason' => 'Error técnico: la IA no se conectó. Crédito reembolsado.',
+                    'call_duration_seconds' => $duration,
+                ]);
+                broadcast(new JokeCallStatusUpdated($jokeCall));
+                $this->refundCredit($jokeCall);
+                app(\App\Services\CostTrackingService::class)->updateCost($jokeCall);
+                return;
+            }
+
+            // (b) AI spoke but the human never did — voicemail that Twilio's
+            // AMD missed (quiet greeting, music, unusual format).
+            if ($diag === 'voicemail' && $duration >= 6) {
+                Log::info('Voicemail detected post-call (no human turns)', [
+                    'call_id' => $jokeCall->id,
+                    'duration' => $duration,
+                ]);
+                $jokeCall->update([
+                    'status' => JokeCallStatus::Voicemail,
+                    'failure_reason' => 'Buzón de voz (detectado por ausencia de voz humana)',
+                    'call_duration_seconds' => $duration,
+                ]);
+                broadcast(new JokeCallStatusUpdated($jokeCall));
+                $this->refundCredit($jokeCall);
+                app(\App\Services\CostTrackingService::class)->updateCost($jokeCall);
+                return;
+            }
         }
 
         $jokeCall->update([
@@ -178,23 +203,21 @@ class TwilioWebhookController extends Controller
     }
 
     /**
-     * Twilio's AMD misses voicemails with quiet greetings, music, or unusual
-     * formats. If the live transcript has zero human turns, the AI was talking
-     * into a mailbox.
+     * Classify a completed prank call by what's in its live transcript:
+     *   'empty'     — no turns at all (WS never connected / AI died).
+     *   'voicemail' — AI spoke but human never did (mailbox).
+     *   'normal'    — has at least one human turn.
      */
-    private function looksLikeVoicemail(JokeCall $jokeCall): bool
+    private function diagnoseTranscript(JokeCall $jokeCall): string
     {
         $raw = $jokeCall->live_transcript;
-        if (!$raw) return false;
+        if (!$raw) return 'empty';
         $turns = json_decode($raw, true);
-        if (!is_array($turns)) return false;
+        if (!is_array($turns) || count($turns) === 0) return 'empty';
         foreach ($turns as $t) {
-            if (($t['role'] ?? '') === 'human') return false;
+            if (($t['role'] ?? '') === 'human') return 'normal';
         }
-        // Only treat as voicemail if the AI actually said something. A totally
-        // empty transcript could also mean the WS never attached — don't refund
-        // for that pathological case here (handleFailed path handles it).
-        return count($turns) > 0;
+        return 'voicemail';
     }
 
     private function handleFailed(JokeCall $jokeCall, string $reason): void
