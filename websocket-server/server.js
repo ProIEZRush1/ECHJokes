@@ -433,7 +433,7 @@ COMO ACTUAR:
     openAiWs.send(JSON.stringify({
       type: 'session.update',
       session: {
-        turn_detection: { type: 'server_vad', threshold: 0.65, silence_duration_ms: 420, prefix_padding_ms: 150, create_response: false, interrupt_response: false },
+        turn_detection: { type: 'server_vad', threshold: 0.6, silence_duration_ms: 280, prefix_padding_ms: 150, create_response: false, interrupt_response: false },
         input_audio_format: 'g711_ulaw',
         // === ELEVENLABS MODE: text only output, no OpenAI audio ===
         ...(USE_ELEVENLABS ? {} : { output_audio_format: 'g711_ulaw', voice: voice }),
@@ -476,8 +476,28 @@ COMO ACTUAR:
           break;
 
         case 'input_audio_buffer.speech_started':
-          console.log('Speech started (waiting for transcript before interrupting)');
+          console.log('Speech started — interrupting AI if it is talking');
           if (callSid) broadcastEvent(callSid, 'speech_started');
+          // Barge-in: the victim started talking, stop the AI mid-sentence.
+          if (responseActive || isSpeaking) {
+            // 1. Stop the audio Twilio is buffering.
+            if (streamSid && twilioWs.readyState === WebSocket.OPEN) {
+              try { twilioWs.send(JSON.stringify({ event: 'clear', streamSid })); } catch(e) {}
+            }
+            // 2. Invalidate any in-flight ElevenLabs callbacks so they don't
+            //    keep streaming old audio after we said "clear".
+            ttsSessionId++;
+            ttsQueue = [];
+            ttsActive = false;
+            isSpeaking = false;
+            // 3. Cancel the OpenAI response that was still generating text.
+            if (openAiWs?.readyState === WebSocket.OPEN) {
+              try { openAiWs.send(JSON.stringify({ type: 'response.cancel' })); } catch(e) {}
+            }
+            responseActive = false;
+            streamedOffset = 0;
+            currentAiText = '';
+          }
           break;
 
         case 'input_audio_buffer.committed':
