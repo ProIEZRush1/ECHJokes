@@ -59,6 +59,57 @@ function broadcastEvent(callSid, event, data) {
   }
 }
 
+// Whisper confabulates on silence/noise. These are the phrases it most
+// often emits on Mexican-Spanish calls when there's no real speech.
+// Matching is case-insensitive substring on the cleaned transcript.
+const WHISPER_HALLUCINATIONS = [
+  'gracias por ver',
+  'gracias por mirar',
+  'suscríbete',
+  'suscribete',
+  'dale like',
+  'subtítulos',
+  'subtitulos',
+  'amara.org',
+  'amara .org',
+  'música',
+  'musica',
+  '[música]',
+  '[musica]',
+  '[ruido]',
+  '[aplausos]',
+  'silencio',
+  'continua',
+  'continuará',
+  'continuara',
+  'www.',
+  '.com',
+  '.org',
+];
+
+/**
+ * Returns true only if the transcript looks like real spoken words, not
+ * ambient noise. Filters out:
+ *   - Empty / <=1 letter strings (noise commits).
+ *   - Only punctuation / filler ("…", "mmm", "ah").
+ *   - Known Whisper hallucination seeds on quiet calls ("Gracias por ver",
+ *     "Subtítulos por Amara.org", standalone "Música", etc.).
+ */
+function isRealSpeech(text) {
+  if (!text) return false;
+  const clean = text.toLowerCase().trim().replace(/[.,!?¿¡…"'()\[\]]+/g, ' ').replace(/\s+/g, ' ').trim();
+  if (clean.length < 2) return false;
+  // Must contain at least 2 letter characters.
+  const letters = clean.replace(/[^a-záéíóúñü]/gi, '');
+  if (letters.length < 2) return false;
+  // Filler-only utterances.
+  if (/^(mmm+|ah+|eh+|uh+|um+|hm+|m+)$/i.test(clean)) return false;
+  for (const bad of WHISPER_HALLUCINATIONS) {
+    if (clean.includes(bad)) return false;
+  }
+  return true;
+}
+
 function postCallAiFailed(callSid, reason) {
   if (!callSid) return;
   const data = JSON.stringify({ call_sid: callSid, reason: String(reason).slice(0, 500) });
@@ -382,7 +433,7 @@ COMO ACTUAR:
     openAiWs.send(JSON.stringify({
       type: 'session.update',
       session: {
-        turn_detection: { type: 'server_vad', threshold: 0.5, silence_duration_ms: 180, prefix_padding_ms: 100, create_response: false, interrupt_response: false },
+        turn_detection: { type: 'server_vad', threshold: 0.65, silence_duration_ms: 420, prefix_padding_ms: 150, create_response: false, interrupt_response: false },
         input_audio_format: 'g711_ulaw',
         // === ELEVENLABS MODE: text only output, no OpenAI audio ===
         ...(USE_ELEVENLABS ? {} : { output_audio_format: 'g711_ulaw', voice: voice }),
@@ -430,15 +481,10 @@ COMO ACTUAR:
           break;
 
         case 'input_audio_buffer.committed':
-          // VAD just committed the user's turn. Trigger response immediately so
-          // we don't wait for Whisper transcription to come back before starting
-          // Claude — saves 500-1500ms per turn. Guard against firing while a
-          // prior response is still generating (OpenAI rejects with "active
-          // response in progress"). responseActive covers the text-gen phase,
-          // isSpeaking covers the ElevenLabs TTS phase.
-          if (openAiWs?.readyState === WebSocket.OPEN && !responseActive && !isSpeaking) {
-            openAiWs.send(JSON.stringify({ type: 'response.create' }));
-          }
+          // DON'T fire response.create here. We wait for Whisper to confirm
+          // there were actual words in the audio. Otherwise background noise
+          // (TV, dog, street) kept tripping VAD and the AI hallucinated
+          // replies to nothing. See transcription.completed below.
           break;
 
         // === Text output (used by both modes, but ElevenLabs sends to TTS) ===
@@ -489,12 +535,17 @@ COMO ACTUAR:
         case 'conversation.item.input_audio_transcription.completed':
           if (response.transcript) {
             const t = response.transcript.trim();
-            if (t) {
-              console.log(`[Human]: ${t}`);
-              postTranscript(callSid, 'human', t);
-              if (callSid) broadcastEvent(callSid, 'human_text', { text: t });
-              // Response already triggered on input_audio_buffer.committed —
-              // don't fire again here.
+            if (!isRealSpeech(t)) {
+              console.log(`[skip] ignored non-speech transcript: "${t}"`);
+              break;
+            }
+            console.log(`[Human]: ${t}`);
+            postTranscript(callSid, 'human', t);
+            if (callSid) broadcastEvent(callSid, 'human_text', { text: t });
+            // Only fire response.create AFTER Whisper confirmed actual words.
+            // Guard against stacking on an in-flight response.
+            if (openAiWs?.readyState === WebSocket.OPEN && !responseActive && !isSpeaking) {
+              openAiWs.send(JSON.stringify({ type: 'response.create' }));
             }
           }
           break;
