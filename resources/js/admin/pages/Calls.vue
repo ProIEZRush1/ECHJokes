@@ -55,8 +55,8 @@
                 </span>
               </td>
               <td class="p-3">
-                <span class="px-1.5 py-0.5 rounded text-[10px] font-medium" :class="sourceClass(call.joke_source)">
-                  {{ sourceLabel(call.joke_source) }}
+                <span class="px-1.5 py-0.5 rounded text-[10px] font-medium" :class="sourceClass(effectiveSource(call))">
+                  {{ sourceLabel(effectiveSource(call)) }}
                 </span>
               </td>
               <td class="p-3 text-xs text-gray-400">
@@ -136,10 +136,25 @@ function statusClass(status) {
 }
 
 function sourceClass(s) {
-  return { trial: 'bg-blue-500/20 text-blue-400', paid: 'bg-neon/20 text-neon', custom: 'bg-purple-500/20 text-purple-400' }[s] || 'bg-gray-500/20 text-gray-400'
+  return {
+    trial: 'bg-blue-500/20 text-blue-400',
+    paid: 'bg-neon/20 text-neon',
+    custom: 'bg-purple-500/20 text-purple-400',
+    referral: 'bg-yellow-500/20 text-yellow-400',
+  }[s] || 'bg-gray-500/20 text-gray-400'
 }
 function sourceLabel(s) {
-  return { trial: 'Trial', paid: 'Paid', custom: 'Admin', prank: 'Admin' }[s] || s || '-'
+  return { trial: 'Trial', paid: 'Paid', custom: 'Admin', prank: 'Admin', referral: 'Referral' }[s] || s || '-'
+}
+
+// Calls made by a referred user who has never bought a plan show as
+// "Referral" rather than "Paid" — those credits came from the referral
+// bonus flow, not an actual purchase.
+function effectiveSource(call) {
+  if (call.joke_source !== 'paid') return call.joke_source
+  const u = call.user
+  if (u?.referred_by_user_id && !u?.subscription_plan) return 'referral'
+  return 'paid'
 }
 function maskPhone(p) { return p && p.length > 6 ? p.slice(0, 6) + '****' + p.slice(-2) : p }
 function formatDuration(s) { return s ? `${String(Math.floor(s/60)).padStart(2,'0')}:${String(s%60).padStart(2,'0')}` : '-' }
