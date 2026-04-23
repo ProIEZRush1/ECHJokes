@@ -354,6 +354,7 @@ function handleTwilioStream(twilioWs, req) {
   let currentAiText = '';
   let isSpeaking = false; // Track if ElevenLabs is currently speaking
   let ttsSessionId = 0; // Increment to invalidate in-flight TTS callbacks
+  let ignoreNextTranscript = false; // Set when victim talks over AI — overlap is discarded
   // Sentence-level streaming to ElevenLabs
   let streamedOffset = 0;          // chars of currentAiText already dispatched to TTS
   let ttsQueue = [];               // pending sentence fragments for current response
@@ -476,27 +477,14 @@ COMO ACTUAR:
           break;
 
         case 'input_audio_buffer.speech_started':
-          console.log('Speech started — interrupting AI if it is talking');
+          console.log('Speech started — will let AI finish current phrase');
           if (callSid) broadcastEvent(callSid, 'speech_started');
-          // Barge-in: the victim started talking, stop the AI mid-sentence.
+          // NO barge-in. If the AI is mid-sentence we let it finish. The
+          // user's utterance will be gated in the transcription handler
+          // below: anything the victim said while the AI was speaking is
+          // treated as overlap and discarded.
           if (responseActive || isSpeaking) {
-            // 1. Stop the audio Twilio is buffering.
-            if (streamSid && twilioWs.readyState === WebSocket.OPEN) {
-              try { twilioWs.send(JSON.stringify({ event: 'clear', streamSid })); } catch(e) {}
-            }
-            // 2. Invalidate any in-flight ElevenLabs callbacks so they don't
-            //    keep streaming old audio after we said "clear".
-            ttsSessionId++;
-            ttsQueue = [];
-            ttsActive = false;
-            isSpeaking = false;
-            // 3. Cancel the OpenAI response that was still generating text.
-            if (openAiWs?.readyState === WebSocket.OPEN) {
-              try { openAiWs.send(JSON.stringify({ type: 'response.cancel' })); } catch(e) {}
-            }
-            responseActive = false;
-            streamedOffset = 0;
-            currentAiText = '';
+            ignoreNextTranscript = true;
           }
           break;
 
@@ -557,6 +545,14 @@ COMO ACTUAR:
             const t = response.transcript.trim();
             if (!isRealSpeech(t)) {
               console.log(`[skip] ignored non-speech transcript: "${t}"`);
+              break;
+            }
+            // If the victim started talking while the AI was mid-phrase, we
+            // let the AI finish but discard whatever the victim said during
+            // that window — no response to the overlap.
+            if (ignoreNextTranscript) {
+              console.log(`[skip] overlap discarded (victim spoke over AI): "${t}"`);
+              ignoreNextTranscript = false;
               break;
             }
             console.log(`[Human]: ${t}`);
