@@ -228,7 +228,7 @@ const ambienceLoop = new Int16Array(AMBIENCE_LEN);
 function createAmbienceProfile() {
   return {
     pos: Math.floor(Math.random() * AMBIENCE_LEN),
-    gain: 0.004 + Math.random() * 0.008,
+    gain: 0.002 + Math.random() * 0.004,
   };
 }
 

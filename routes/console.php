@@ -11,4 +11,4 @@ Artisan::command('inspire', function () {
 \Illuminate\Support\Facades\Schedule::command('vacilada:cleanup-audio --hours=1')->hourly();
 
 // Release stuck calls (redeploys, network issues) every 5 min
-\Illuminate\Support\Facades\Schedule::command('vacilada:cleanup-stuck-calls --minutes=10')->everyFiveMinutes();
+\Illuminate\Support\Facades\Schedule::command('vacilada:cleanup-stuck-calls --minutes=3')->everyMinute();

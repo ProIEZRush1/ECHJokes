@@ -158,7 +158,12 @@
       </div>
     </div>
   </div>
-  <div v-else class="p-6 text-center text-gray-500">Loading...</div>
+  <div v-else class="p-6 text-center text-gray-500">
+    <div class="inline-flex items-center gap-3">
+      <span class="inline-block w-5 h-5 border-2 border-neon border-t-transparent rounded-full animate-spin"></span>
+      <span>Cargando usuario...</span>
+    </div>
+  </div>
 </template>
 
 <script setup>

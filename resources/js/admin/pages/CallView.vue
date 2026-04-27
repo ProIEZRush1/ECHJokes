@@ -150,7 +150,10 @@
   </div>
 
   <div v-else class="p-6 flex items-center justify-center min-h-[50vh]">
-    <div class="text-gray-500">Loading...</div>
+    <div class="text-gray-500 inline-flex items-center gap-3">
+      <span class="inline-block w-5 h-5 border-2 border-neon border-t-transparent rounded-full animate-spin"></span>
+      <span>Cargando llamada...</span>
+    </div>
   </div>
 </template>
 

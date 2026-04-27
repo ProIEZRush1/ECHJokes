@@ -65,8 +65,19 @@
                 </div>
             </div>
 
-            <!-- Error -->
-            <div v-if="failureReason" class="bg-red-900/20 border border-red-800 rounded-xl p-6 mb-8">
+            <!-- Refunded under-10s screen -->
+            <div v-if="failureReason && wasRefunded" class="bg-matrix-800 border border-neon/30 rounded-2xl p-6 md:p-8 mb-8 text-center">
+                <div class="text-5xl mb-3">💸</div>
+                <h3 class="text-xl md:text-2xl font-bold text-neon mb-2">Crédito reembolsado</h3>
+                <p class="text-gray-300 text-sm md:text-base mb-1">{{ translateFailure(failureReason) }}</p>
+                <p class="text-gray-500 text-xs mb-5">No te cobramos. Tu crédito ya está de vuelta en tu cuenta.</p>
+                <router-link to="/" class="inline-block px-6 py-2.5 rounded-lg bg-neon text-matrix-900 font-bold text-sm hover:shadow-neon transition">
+                    Intentar de nuevo
+                </router-link>
+            </div>
+
+            <!-- Generic error -->
+            <div v-else-if="failureReason" class="bg-red-900/20 border border-red-800 rounded-xl p-6 mb-8">
                 <p class="text-red-400 text-sm">{{ translateFailure(failureReason) }}</p>
                 <router-link to="/" class="inline-block mt-4 px-6 py-2 rounded-lg bg-neon text-matrix-900 font-medium text-sm">
                     Intentar de nuevo
@@ -112,6 +123,11 @@ const scenario = ref('');
 const conversation = ref([]);
 const callDuration = ref(null);
 const failureReason = ref(null);
+
+const wasRefunded = computed(() => {
+  const r = (failureReason.value || '').toLowerCase();
+  return r.includes('reembols') || r.includes('no te cobramos') || r.includes('no contestaron') || r.includes('línea ocupada') || r.includes('linea ocupada') || r.includes('buzón') || r.includes('buzon');
+});
 const recordingUrl = ref(null);
 const sessionId = ref(null);
 const userCredits = ref(null);

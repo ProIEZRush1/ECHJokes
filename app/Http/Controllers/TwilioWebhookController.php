@@ -140,22 +140,27 @@ class TwilioWebhookController extends Controller
     {
         $duration = (int) $request->input('CallDuration', 0);
 
-        // Sub-2-second "completed" calls = never really connected (busy, rejected,
-        // blocked) OR the AI died on first message (quota). Treat as failed + refund
-        // so these don't silently burn a credit.
-        if ($duration < 2) {
-            $this->handleFailed($jokeCall, $duration === 0 ? 'no_connection' : 'short_call');
+        // Sub-10-second prank calls don't charge the user. The conversation
+        // didn't have time to actually happen — could be voicemail Twilio
+        // missed, hangup right after pickup, AI cold-start failure, or just
+        // a call that didn't go anywhere. Mark as too_short + refund.
+        // Joke calls (one-way audio) are exempt — they're often that short
+        // by design.
+        $minBilledSeconds = $jokeCall->delivery_type === 'call' ? 10 : 2;
+        if ($duration < $minBilledSeconds) {
+            $reason = $duration === 0 ? 'no_connection' : 'too_short';
+            $this->handleFailed($jokeCall, $reason);
             return;
         }
 
         // Post-call fallbacks for prank calls that "completed" but nothing
         // actually happened on the line.
-        if ($jokeCall->delivery_type === 'call' && $duration >= 5) {
+        if ($jokeCall->delivery_type === 'call') {
             $diag = $this->diagnoseTranscript($jokeCall);
 
-            // (a) Transcript completely empty — the WS never got connected or
-            // OpenAI/ElevenLabs died on the first message. Twilio played its
-            // default "Sorry, an application error has occurred" to the victim.
+            // (a) Transcript completely empty — WS never connected or
+            // OpenAI/ElevenLabs died on first message. Twilio played its
+            // default "Sorry, an application error has occurred".
             if ($diag === 'empty') {
                 Log::warning('Prank call completed with empty transcript — likely stream failure', [
                     'call_id' => $jokeCall->id,
@@ -173,9 +178,11 @@ class TwilioWebhookController extends Controller
                 return;
             }
 
-            // (b) AI spoke but the human never did — voicemail that Twilio's
-            // AMD missed (quiet greeting, music, unusual format).
-            if ($diag === 'voicemail' && $duration >= 6) {
+            // (b) AI spoke but the human never did. Voicemail that Twilio's
+            // AMD missed — quiet greeting, music, unusual format. Threshold
+            // dropped from 6s to 3s because voicemails reliably hang up fast
+            // when our AI keeps talking; we want to catch those too.
+            if ($diag === 'voicemail' && $duration >= 3) {
                 Log::info('Voicemail detected post-call (no human turns)', [
                     'call_id' => $jokeCall->id,
                     'duration' => $duration,
@@ -222,9 +229,21 @@ class TwilioWebhookController extends Controller
 
     private function handleFailed(JokeCall $jokeCall, string $reason): void
     {
+        // User-facing reason text. Specific causes get a friendlier message;
+        // anything else falls back to the raw status code so admin can debug.
+        $userMessage = match ($reason) {
+            'too_short'     => 'La llamada duró menos de 10 segundos. No te cobramos crédito.',
+            'no_connection' => 'La llamada no se conectó. Crédito reembolsado.',
+            'no-answer'     => 'No contestaron. Crédito reembolsado.',
+            'busy'          => 'Línea ocupada. Crédito reembolsado.',
+            'canceled'      => 'Llamada cancelada. Crédito reembolsado.',
+            'failed'        => 'Error de la operadora. Crédito reembolsado.',
+            default         => "Call status: {$reason}",
+        };
+
         $jokeCall->update([
             'status' => JokeCallStatus::Failed,
-            'failure_reason' => "Call status: {$reason}",
+            'failure_reason' => $userMessage,
         ]);
         broadcast(new JokeCallStatusUpdated($jokeCall));
 

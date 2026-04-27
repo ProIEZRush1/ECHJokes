@@ -70,8 +70,14 @@
               </td>
               <td class="p-3 text-gray-400 text-xs whitespace-nowrap">{{ formatDate(call.created_at) }}</td>
             </tr>
-            <tr v-if="!calls.length && !loading">
-              <td colspan="9" class="p-8 text-center text-gray-500">No calls found</td>
+            <tr v-if="loading">
+              <td colspan="9" class="p-8 text-center text-gray-500">
+                <span class="inline-block w-4 h-4 border-2 border-neon border-t-transparent rounded-full animate-spin align-middle mr-2"></span>
+                Cargando llamadas...
+              </td>
+            </tr>
+            <tr v-else-if="!calls.length">
+              <td colspan="9" class="p-8 text-center text-gray-500">No hay llamadas todavía.</td>
             </tr>
           </tbody>
         </table>

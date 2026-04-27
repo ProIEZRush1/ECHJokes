@@ -34,8 +34,14 @@
             </td>
             <td class="p-3 text-gray-400 text-xs">{{ formatDate(user.created_at) }}</td>
           </tr>
-          <tr v-if="!users.length">
-            <td colspan="6" class="p-8 text-center text-gray-500">No users found</td>
+          <tr v-if="loading">
+            <td colspan="6" class="p-8 text-center text-gray-500">
+              <span class="inline-block w-4 h-4 border-2 border-neon border-t-transparent rounded-full animate-spin align-middle mr-2"></span>
+              Cargando usuarios...
+            </td>
+          </tr>
+          <tr v-else-if="!users.length">
+            <td colspan="6" class="p-8 text-center text-gray-500">No hay usuarios todavía.</td>
           </tr>
         </tbody>
       </table>
@@ -49,6 +55,7 @@ import axios from 'axios'
 
 const users = ref([])
 const search = ref('')
+const loading = ref(true)
 let timer
 
 function debouncedFetch() {
@@ -57,10 +64,11 @@ function debouncedFetch() {
 }
 
 async function fetchUsers() {
+  loading.value = true
   try {
     const { data } = await axios.get('/admin-api/users', { params: { search: search.value } })
     users.value = data.data
-  } catch {}
+  } catch {} finally { loading.value = false }
 }
 
 function formatDate(d) { return d ? new Date(d).toLocaleDateString() : '' }
