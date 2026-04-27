@@ -110,6 +110,31 @@ function isRealSpeech(text) {
   return true;
 }
 
+/**
+ * Heuristic: does this "human" transcript look like an echo of the AI's
+ * last utterance? Phone networks return the caller's own audio (via
+ * sidetone, hybrid leakage, or full carrier loopback) and Whisper happily
+ * transcribes it. We compare the cleaned strings — if more than 50% of the
+ * candidate's words appear in the AI's last sentence, treat as echo.
+ */
+function looksLikeEchoOf(candidate, lastAi) {
+  if (!candidate || !lastAi) return false;
+  const norm = (s) => s.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '')
+    .replace(/[^a-z0-9 ]+/gi, ' ').replace(/\s+/g, ' ').trim();
+  const a = norm(candidate);
+  const b = norm(lastAi);
+  if (!a) return false;
+  // Direct substring of the AI line (typical of partial echo).
+  if (b.includes(a) && a.length >= 4) return true;
+  // Word-overlap ratio.
+  const aWords = new Set(a.split(' ').filter(w => w.length >= 3));
+  if (aWords.size === 0) return false;
+  const bWords = new Set(b.split(' '));
+  let hit = 0;
+  for (const w of aWords) if (bWords.has(w)) hit++;
+  return (hit / aWords.size) >= 0.6;
+}
+
 function postCallAiFailed(callSid, reason) {
   if (!callSid) return;
   const data = JSON.stringify({ call_sid: callSid, reason: String(reason).slice(0, 500) });
@@ -353,9 +378,12 @@ function handleTwilioStream(twilioWs, req) {
   let streamReady = false;
   let currentAiText = '';
   let isSpeaking = false; // Track if ElevenLabs is currently speaking
+  let speechEndedAt = 0;  // Timestamp when AI last finished speaking — used for echo-tail mute
+  const ECHO_TAIL_MS = 1200; // Drop victim audio for this long after AI stops
   let ttsSessionId = 0; // Increment to invalidate in-flight TTS callbacks
   let ignoreNextTranscript = false; // Set when victim talks over AI — overlap is discarded
   let ignoreTimeout = null; // Auto-clear the ignore flag so it can't get stuck
+  let lastAiSentence = '';  // Last thing the AI said — used to detect echo
   // Sentence-level streaming to ElevenLabs
   let streamedOffset = 0;          // chars of currentAiText already dispatched to TTS
   let ttsQueue = [];               // pending sentence fragments for current response
@@ -539,6 +567,7 @@ COMO ACTUAR:
           if (currentAiText.trim()) {
             const text = currentAiText.trim();
             console.log(`[AI]: ${text}`);
+            lastAiSentence = text;
             postTranscript(callSid, 'ai', text);
             if (callSid) broadcastEvent(callSid, 'ai_text', { text });
 
@@ -560,6 +589,13 @@ COMO ACTUAR:
             const t = response.transcript.trim();
             if (!isRealSpeech(t)) {
               console.log(`[skip] ignored non-speech transcript: "${t}"`);
+              break;
+            }
+            // Echo filter: if the "human" transcript is a substring of what the
+            // AI just said (or a very close paraphrase), it's almost certainly
+            // our own TTS coming back through the phone network. Discard.
+            if (looksLikeEchoOf(t, lastAiSentence)) {
+              console.log(`[skip] echo of AI's last line: "${t}" ↩ "${lastAiSentence.slice(0,60)}..."`);
               break;
             }
             // If the victim started talking while the AI was mid-phrase, we
@@ -670,6 +706,7 @@ COMO ACTUAR:
             twilioWs.send(JSON.stringify({ event: 'mark', streamSid, mark: { name: markId } }));
           }
           isSpeaking = false;
+          speechEndedAt = Date.now();
           responseStartTimestamp = null;
         }
         // else: more text still streaming from OpenAI — wait for next delta/flushSentences
@@ -721,9 +758,18 @@ COMO ACTUAR:
           break;
         case 'media':
           latestMediaTimestamp = msg.media?.timestamp ? parseInt(msg.media.timestamp) : Date.now();
-          // Don't send audio to OpenAI while ElevenLabs is speaking (prevents echo/feedback loop)
-          if (openAiWs?.readyState === WebSocket.OPEN && !(USE_ELEVENLABS && isSpeaking)) {
-            openAiWs.send(JSON.stringify({ type: 'input_audio_buffer.append', audio: msg.media.payload }));
+          // Echo-loopback guard:
+          //   1. Drop victim audio while ElevenLabs is actively speaking.
+          //   2. Drop for ECHO_TAIL_MS after AI stops — phone networks return
+          //      our own TTS audio with a delay; without this hangover the AI
+          //      hears its own voice, transcribes it as "human", and answers
+          //      itself in an infinite loop.
+          {
+            const inEchoTail = USE_ELEVENLABS && speechEndedAt > 0 &&
+              (Date.now() - speechEndedAt) < ECHO_TAIL_MS;
+            if (openAiWs?.readyState === WebSocket.OPEN && !(USE_ELEVENLABS && isSpeaking) && !inEchoTail) {
+              openAiWs.send(JSON.stringify({ type: 'input_audio_buffer.append', audio: msg.media.payload }));
+            }
           }
           if (callSid) broadcastAudio(callSid, msg.media.payload, 'human');
           break;
