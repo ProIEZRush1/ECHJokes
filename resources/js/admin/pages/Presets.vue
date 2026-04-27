@@ -8,7 +8,14 @@
       </button>
     </div>
 
-    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+    <div v-if="loading" class="text-center py-16 text-gray-500">
+      <span class="inline-block w-6 h-6 border-2 border-neon border-t-transparent rounded-full animate-spin align-middle mr-2"></span>
+      Cargando presets...
+    </div>
+
+    <div v-else-if="!presets.length" class="text-center py-16 text-gray-500">Aún no hay presets.</div>
+
+    <div v-else class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
       <div v-for="p in presets" :key="p.id"
         class="bg-matrix-800 border border-matrix-600 rounded-xl p-4 relative">
         <div class="flex items-start justify-between mb-2">
@@ -117,11 +124,16 @@ import { ref, onMounted } from 'vue'
 import axios from 'axios'
 
 const presets = ref([])
+const loading = ref(true)
 const showModal = ref(false)
 const editing = ref(null)
 const form = ref({ label: '', emoji: '🎭', scenario: '', character: '', voice: 'ash', category: 'general', is_active: true, sort_order: 0 })
 
-async function fetch() { const { data } = await axios.get('/admin-api/presets'); presets.value = data }
+async function fetch() {
+  loading.value = true
+  try { const { data } = await axios.get('/admin-api/presets'); presets.value = data }
+  catch {} finally { loading.value = false }
+}
 
 function openCreate() {
   editing.value = null

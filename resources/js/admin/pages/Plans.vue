@@ -8,8 +8,13 @@
       </button>
     </div>
 
+    <div v-if="loading" class="text-center py-16 text-gray-500">
+      <span class="inline-block w-6 h-6 border-2 border-neon border-t-transparent rounded-full animate-spin align-middle mr-2"></span>
+      Cargando planes...
+    </div>
+
     <!-- Plans Grid -->
-    <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+    <div v-else class="grid grid-cols-1 md:grid-cols-3 gap-6">
       <div v-for="plan in plans" :key="plan.id"
         class="bg-matrix-800 border rounded-xl p-5 relative"
         :class="plan.is_popular ? 'border-neon' : 'border-matrix-600'">
@@ -152,6 +157,7 @@ import { ref, computed, onMounted } from 'vue'
 import axios from 'axios'
 
 const plans = ref([])
+const loading = ref(true)
 const showCreate = ref(false)
 const editing = ref(null)
 const saving = ref(false)
@@ -166,10 +172,11 @@ const featuresText = ref('')
 const features = computed(() => featuresText.value.split('\n').filter(l => l.trim()))
 
 async function fetchPlans() {
+  loading.value = true
   try {
     const { data } = await axios.get('/admin-api/plans')
     plans.value = data
-  } catch {}
+  } catch {} finally { loading.value = false }
 }
 
 function editPlan(plan) {

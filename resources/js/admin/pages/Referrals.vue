@@ -2,7 +2,12 @@
   <div class="max-w-6xl mx-auto px-4 py-8 space-y-6">
     <h1 class="text-3xl font-bold text-white">Crecimiento Viral</h1>
 
-    <div v-if="me" class="bg-matrix-800 border border-neon/30 rounded-xl p-5">
+    <div v-if="loading" class="text-center py-12 text-gray-500">
+      <span class="inline-block w-6 h-6 border-2 border-neon border-t-transparent rounded-full animate-spin align-middle mr-2"></span>
+      Cargando métricas...
+    </div>
+
+    <div v-else-if="me" class="bg-matrix-800 border border-neon/30 rounded-xl p-5">
       <div class="flex justify-between items-center mb-3">
         <h2 class="text-sm font-semibold text-neon uppercase">Tu link personal</h2>
         <span class="text-xs text-gray-500">Código: <strong class="font-mono text-neon">{{ me.code }}</strong></span>
@@ -138,6 +143,7 @@ const top = ref([]);
 const viral = ref(null);
 const me = ref(null);
 const copied = ref(false);
+const loading = ref(true);
 
 function copyLink() {
   if (!me.value || !navigator.clipboard) return;
@@ -158,6 +164,8 @@ onMounted(async () => {
     viral.value = v;
   } catch (e) {
     console.error(e);
+  } finally {
+    loading.value = false;
   }
 });
 </script>

@@ -42,8 +42,14 @@
               <td class="p-3 font-mono text-xs">{{ formatDuration(call.call_duration_seconds) }}</td>
               <td class="p-3 text-gray-400 text-xs">{{ timeAgo(call.created_at) }}</td>
             </tr>
-            <tr v-if="!recentCalls.length">
-              <td colspan="5" class="p-6 text-center text-gray-500">No calls yet</td>
+            <tr v-if="loading">
+              <td colspan="5" class="p-6 text-center text-gray-500">
+                <span class="inline-block w-4 h-4 border-2 border-neon border-t-transparent rounded-full animate-spin align-middle mr-2"></span>
+                Cargando...
+              </td>
+            </tr>
+            <tr v-else-if="!recentCalls.length">
+              <td colspan="5" class="p-6 text-center text-gray-500">Aún no hay llamadas.</td>
             </tr>
           </tbody>
         </table>
@@ -58,6 +64,7 @@ import axios from 'axios'
 
 const stats = ref({})
 const recentCalls = ref([])
+const loading = ref(true)
 let interval
 
 const statCards = computed(() => [
@@ -109,7 +116,7 @@ async function fetchData() {
     ])
     stats.value = s.data
     recentCalls.value = c.data.data
-  } catch {}
+  } catch {} finally { loading.value = false }
 }
 
 onMounted(() => {
