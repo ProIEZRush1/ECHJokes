@@ -8,7 +8,7 @@
     <link rel="canonical" href="{{ url('/press') }}" />
     <meta property="og:title" content="Press Kit — Vacilada" />
     <meta property="og:description" content="Prensa, influencers y creadores: descarga assets y contáctanos." />
-    <meta property="og:image" content="{{ url('/brand/og-image.svg') }}" />
+    <meta property="og:image" content="{{ url('/brand/og-image.png') }}" />
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     @vite(['resources/css/app.css'])
@@ -56,20 +56,20 @@
         <section>
             <h2 class="text-2xl font-bold mb-4">Descargas</h2>
             <div class="grid md:grid-cols-3 gap-3">
-                <a href="/brand/logo.svg" download class="bg-matrix-800 border border-matrix-600 rounded-xl p-5 hover:border-neon/50 transition">
-                    <div class="text-xs text-gray-500 uppercase mb-1">SVG</div>
+                <a href="/brand/logo.png" download class="bg-matrix-800 border border-matrix-600 rounded-xl p-5 hover:border-neon/50 transition">
+                    <div class="text-xs text-gray-500 uppercase mb-1">PNG</div>
                     <div class="font-bold">Logo (icono)</div>
-                    <div class="text-xs text-gray-500 mt-2">Vector, transparente</div>
+                    <div class="text-xs text-gray-500 mt-2">1254×1254</div>
                 </a>
-                <a href="/brand/wordmark.svg" download class="bg-matrix-800 border border-matrix-600 rounded-xl p-5 hover:border-neon/50 transition">
-                    <div class="text-xs text-gray-500 uppercase mb-1">SVG</div>
+                <a href="/brand/wordmark.png" download class="bg-matrix-800 border border-matrix-600 rounded-xl p-5 hover:border-neon/50 transition">
+                    <div class="text-xs text-gray-500 uppercase mb-1">PNG</div>
                     <div class="font-bold">Wordmark</div>
                     <div class="text-xs text-gray-500 mt-2">Logo + texto</div>
                 </a>
-                <a href="/brand/og-image.svg" download class="bg-matrix-800 border border-matrix-600 rounded-xl p-5 hover:border-neon/50 transition">
-                    <div class="text-xs text-gray-500 uppercase mb-1">SVG</div>
+                <a href="/brand/og-image.png" download class="bg-matrix-800 border border-matrix-600 rounded-xl p-5 hover:border-neon/50 transition">
+                    <div class="text-xs text-gray-500 uppercase mb-1">PNG</div>
                     <div class="font-bold">Imagen social</div>
-                    <div class="text-xs text-gray-500 mt-2">1200x630, OG preview</div>
+                    <div class="text-xs text-gray-500 mt-2">1731×909, OG preview</div>
                 </a>
             </div>
         </section>

@@ -1,14 +1,42 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 200" width="800" height="200">
-  <rect width="800" height="200" rx="12" fill="#0a0f0a"/>
-  <g transform="translate(40 100)">
-    <g transform="scale(0.42)">
-      <g transform="rotate(-35)">
-        <path d="M -56 -18 Q -56 -34, -40 -34 L -28 -34 Q -18 -34, -14 -22 L -8 -4 Q -6 2, -10 6 L -18 12 Q -14 32, 0 48 L 6 54 Q 12 60, 18 56 L 30 48 Q 38 42, 44 48 L 56 60 Q 66 70, 56 82 L 48 90 Q 38 100, 24 96 Q -12 88, -42 58 Q -72 28, -76 -8 Q -78 -18, -70 -22 Z" fill="#39ff14"/>
-      </g>
-      <path d="M 20 -60 Q 42 -56, 50 -30" fill="none" stroke="#39ff14" stroke-width="8" stroke-linecap="round"/>
-      <circle cx="38" cy="-72" r="5" fill="#39ff14"/>
-      <circle cx="58" cy="-60" r="5" fill="#39ff14"/>
-    </g>
+  <defs>
+    <filter id="glow" x="-50%" y="-50%" width="200%" height="200%">
+      <feGaussianBlur stdDeviation="2.5" result="b"/>
+      <feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+    <pattern id="scan" x="0" y="0" width="4" height="4" patternUnits="userSpaceOnUse">
+      <rect width="4" height="2" fill="#39ff14" opacity="0.04"/>
+    </pattern>
+  </defs>
+
+  <rect width="800" height="200" rx="16" fill="#0a0a0a"/>
+  <rect width="800" height="200" rx="16" fill="url(#scan)"/>
+
+  <!-- Phone receiver icon -->
+  <g transform="translate(110 110) rotate(-22) scale(0.95)" filter="url(#glow)">
+    <path d="M -64 0
+             C -64 -36, -36 -64, 0 -64
+             C 36 -64, 64 -36, 64 0
+             L 50 0
+             C 50 -16, 38 -28, 22 -28
+             L -22 -28
+             C -38 -28, -50 -16, -50 0
+             Z"
+          fill="#39ff14"/>
+    <circle cx="-58" cy="-12" r="4" fill="#0a0a0a"/>
+    <circle cx="58" cy="-12" r="4" fill="#0a0a0a"/>
   </g>
-  <text x="140" y="130" font-family="'JetBrains Mono', 'Courier New', monospace" font-size="92" font-weight="700" fill="#39ff14" letter-spacing="-2">Vacilada</text>
+
+  <!-- ZZZ -->
+  <g font-family="'JetBrains Mono','Courier New',monospace" font-weight="800" fill="#39ff14" filter="url(#glow)">
+    <text x="170" y="56" font-size="20" opacity="0.85">Z</text>
+    <text x="188" y="42" font-size="26" opacity="0.95">Z</text>
+    <text x="210" y="26" font-size="32">Z</text>
+  </g>
+
+  <!-- Wordmark -->
+  <text x="240" y="135"
+        font-family="'JetBrains Mono','Courier New',monospace"
+        font-size="92" font-weight="800" fill="#39ff14"
+        filter="url(#glow)" letter-spacing="-2">Vacilada</text>
 </svg>

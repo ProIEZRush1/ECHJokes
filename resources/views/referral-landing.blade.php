@@ -8,7 +8,7 @@
     <link rel="canonical" href="{{ url('/r/' . $code) }}" />
     <meta property="og:title" content="{{ $referrer->name }} te invita a Vacilada" />
     <meta property="og:description" content="Regístrate y los dos ganan 2 bromas gratis 😂" />
-    <meta property="og:image" content="{{ url('/brand/og-image.svg') }}" />
+    <meta property="og:image" content="{{ url('/brand/og-image.png') }}" />
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     @vite(['resources/css/app.css'])

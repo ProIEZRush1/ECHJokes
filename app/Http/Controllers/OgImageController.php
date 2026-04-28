@@ -37,8 +37,8 @@ class OgImageController extends Controller
 
     private function fallback(): \Symfony\Component\HttpFoundation\Response
     {
-        $path = public_path('brand/og-image.svg');
-        return Response::file($path, ['Content-Type' => 'image/svg+xml']);
+        $path = public_path('brand/og-image.png');
+        return Response::file($path, ['Content-Type' => 'image/png']);
     }
 
     private function xmlEscape(string $s): string

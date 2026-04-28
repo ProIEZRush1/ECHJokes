@@ -1,219 +1,217 @@
 <template>
-  <div class="p-6 space-y-6">
-    <div class="flex items-center justify-between">
-      <h1 class="text-2xl font-bold font-mono">Plans</h1>
-      <button @click="showCreate = true"
-        class="px-4 py-2 bg-neon text-matrix-900 rounded-lg font-bold text-sm hover:shadow-neon transition">
-        + New Plan
-      </button>
+  <div class="p-6 lg:p-8 space-y-5 max-w-[1400px]">
+    <header class="flex items-end justify-between gap-4 flex-wrap">
+      <div>
+        <div class="text-[11.5px] uppercase tracking-wider text-gray-500 font-semibold mb-1">Datos</div>
+        <h1 class="text-[26px] font-bold tracking-tight">Plans</h1>
+        <p class="text-sm text-gray-400 mt-1.5">Paquetes de créditos / suscripciones.</p>
+      </div>
+      <UiButton variant="primary" @click="openCreate"><Plus class="w-4 h-4" /> Nuevo plan</UiButton>
+    </header>
+
+    <div v-if="loading" class="grid grid-cols-1 md:grid-cols-3 gap-5">
+      <UiCard v-for="n in 3" :key="n">
+        <UiSkeleton h="14px" w="40%" class="mb-3" />
+        <UiSkeleton h="22px" w="60%" class="mb-2" />
+        <UiSkeleton h="32px" w="50%" />
+      </UiCard>
     </div>
 
-    <div v-if="loading" class="text-center py-16 text-gray-500">
-      <span class="inline-block w-6 h-6 border-2 border-neon border-t-transparent rounded-full animate-spin align-middle mr-2"></span>
-      Cargando planes...
-    </div>
+    <UiEmptyState
+      v-else-if="!plans.length"
+      title="Aún no hay planes"
+      body="Crea tu primer plan de créditos."
+      :icon="CreditCard"
+    >
+      <template #action><UiButton variant="primary" @click="openCreate"><Plus class="w-4 h-4" /> Crear plan</UiButton></template>
+    </UiEmptyState>
 
-    <!-- Plans Grid -->
-    <div v-else class="grid grid-cols-1 md:grid-cols-3 gap-6">
-      <div v-for="plan in plans" :key="plan.id"
-        class="bg-matrix-800 border rounded-xl p-5 relative"
-        :class="plan.is_popular ? 'border-neon' : 'border-matrix-600'">
-
-        <!-- Popular badge -->
+    <div v-else class="grid grid-cols-1 md:grid-cols-3 gap-5">
+      <UiCard
+        v-for="(plan, i) in plans"
+        :key="plan.id"
+        hover
+        :padded="false"
+        class="relative animate-[fade-in-up_0.4s_ease-out_both]"
+        :style="{ animationDelay: (i * 50) + 'ms' }"
+        :class="plan.is_popular ? 'shadow-[0_0_0_1px_var(--color-neon),0_22px_52px_-22px_rgba(57,255,20,0.4)]' : ''"
+      >
+        <!-- Popular ribbon -->
         <div v-if="plan.is_popular" class="absolute -top-3 left-1/2 -translate-x-1/2">
-          <span class="px-3 py-0.5 bg-neon text-matrix-900 text-xs font-bold rounded-full">POPULAR</span>
+          <span class="px-3 py-0.5 bg-neon text-matrix-900 text-[10.5px] font-bold rounded-full uppercase tracking-wider animate-[pulse-neon_2s_ease-in-out_infinite]">Popular</span>
         </div>
 
-        <!-- Status -->
-        <div class="flex items-center justify-between mb-3">
-          <span class="text-xs font-mono text-gray-500">{{ plan.slug }}</span>
-          <span class="px-2 py-0.5 rounded-full text-xs"
-            :class="plan.is_active ? 'bg-green-500/20 text-green-400' : 'bg-red-500/20 text-red-400'">
-            {{ plan.is_active ? 'Active' : 'Inactive' }}
-          </span>
-        </div>
-
-        <h3 class="text-xl font-bold">{{ plan.name }}</h3>
-        <p class="text-sm text-gray-400 mt-1">{{ plan.description }}</p>
-
-        <!-- Price -->
-        <div class="mt-4">
-          <span class="text-3xl font-bold font-mono text-neon">${{ plan.price_mxn }}</span>
-          <span class="text-gray-500 text-sm"> MXN</span>
-        </div>
-
-        <!-- Stats -->
-        <div class="mt-3 grid grid-cols-2 gap-2 text-xs">
-          <div class="bg-matrix-700 rounded-lg p-2">
-            <p class="text-gray-500">Calls</p>
-            <p class="font-bold font-mono">{{ plan.calls_included }}</p>
+        <div class="p-5">
+          <div class="flex items-center justify-between mb-3">
+            <span class="text-[11px] font-mono text-gray-500">{{ plan.slug }}</span>
+            <UiBadge
+              :status="''"
+              :color="plan.is_active ? '#39FF14' : '#ff6b6b'"
+              :dot="false"
+            >{{ plan.is_active ? 'Active' : 'Inactive' }}</UiBadge>
           </div>
-          <div class="bg-matrix-700 rounded-lg p-2">
-            <p class="text-gray-500">Max duration</p>
-            <p class="font-bold font-mono">{{ plan.max_duration_minutes }} min</p>
+
+          <h3 class="text-xl font-bold tracking-tight">{{ plan.name }}</h3>
+          <p class="text-sm text-gray-400 mt-1 min-h-[20px]">{{ plan.description }}</p>
+
+          <div class="mt-4 flex items-baseline gap-1.5">
+            <span class="text-3xl font-bold font-mono text-neon" style="text-shadow:0 0 18px rgba(57,255,20,0.4)">${{ plan.price_mxn }}</span>
+            <span class="text-gray-500 text-sm">MXN</span>
           </div>
-          <div class="bg-matrix-700 rounded-lg p-2 col-span-2">
-            <p class="text-gray-500">Price per call</p>
-            <p class="font-bold font-mono">${{ (plan.price_mxn / plan.calls_included).toFixed(2) }} MXN</p>
+
+          <div class="mt-3 grid grid-cols-2 gap-2 text-xs">
+            <div class="bg-white/5 border border-white/5 rounded-lg p-2">
+              <p class="text-gray-500 text-[10.5px] uppercase tracking-wide">Calls</p>
+              <p class="font-bold font-mono text-base">{{ plan.calls_included }}</p>
+            </div>
+            <div class="bg-white/5 border border-white/5 rounded-lg p-2">
+              <p class="text-gray-500 text-[10.5px] uppercase tracking-wide">Max dur</p>
+              <p class="font-bold font-mono text-base">{{ plan.max_duration_minutes }} min</p>
+            </div>
+            <div class="bg-white/5 border border-white/5 rounded-lg p-2 col-span-2">
+              <p class="text-gray-500 text-[10.5px] uppercase tracking-wide">Por llamada</p>
+              <p class="font-bold font-mono text-sm">${{ (plan.price_mxn / plan.calls_included).toFixed(2) }} MXN</p>
+            </div>
+          </div>
+
+          <ul v-if="(plan.features || []).length" class="mt-4 space-y-1.5">
+            <li v-for="f in plan.features" :key="f" class="flex items-start gap-2 text-xs text-gray-300">
+              <Check class="w-3.5 h-3.5 text-neon mt-0.5 flex-shrink-0" />
+              <span>{{ f }}</span>
+            </li>
+          </ul>
+
+          <div class="mt-4 pt-3 border-t border-white/5 flex gap-2">
+            <UiButton variant="secondary" size="sm" class="flex-1" @click="editPlan(plan)">
+              <Pencil class="w-3 h-3" /> Edit
+            </UiButton>
+            <UiButton :variant="plan.is_active ? 'danger' : 'neonGhost'" size="sm" @click="toggleActive(plan)">
+              {{ plan.is_active ? 'Disable' : 'Enable' }}
+            </UiButton>
           </div>
         </div>
-
-        <!-- Features -->
-        <ul class="mt-4 space-y-1.5">
-          <li v-for="f in (plan.features || [])" :key="f" class="flex items-start gap-2 text-xs text-gray-300">
-            <span class="text-neon mt-0.5">&#10003;</span>
-            <span>{{ f }}</span>
-          </li>
-        </ul>
-
-        <!-- Actions -->
-        <div class="mt-4 pt-3 border-t border-matrix-600 flex gap-2">
-          <button @click="editPlan(plan)"
-            class="flex-1 py-1.5 text-xs font-medium rounded-lg bg-matrix-700 hover:bg-matrix-600 text-gray-300 transition">
-            Edit
-          </button>
-          <button @click="toggleActive(plan)"
-            class="py-1.5 px-3 text-xs font-medium rounded-lg transition"
-            :class="plan.is_active ? 'bg-red-500/20 text-red-400 hover:bg-red-500/30' : 'bg-green-500/20 text-green-400 hover:bg-green-500/30'">
-            {{ plan.is_active ? 'Disable' : 'Enable' }}
-          </button>
-        </div>
-      </div>
+      </UiCard>
     </div>
 
-    <!-- Create/Edit Modal -->
-    <div v-if="showCreate || editing" class="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4" @click.self="closeModal">
-      <div class="bg-matrix-800 border border-matrix-600 rounded-2xl p-6 w-full max-w-lg max-h-[90vh] overflow-y-auto">
-        <h2 class="text-lg font-bold mb-4">{{ editing ? 'Edit Plan' : 'New Plan' }}</h2>
+    <UiModal v-model="modalOpen" :title="editing ? 'Editar plan' : 'Nuevo plan'" size="md">
+      <form @submit.prevent="savePlan" class="space-y-4">
+        <div class="grid grid-cols-2 gap-3">
+          <UiInput v-model="form.name" label="Name" required />
+          <UiInput v-model="form.slug" label="Slug" :disabled="!!editing" required />
+        </div>
+        <UiInput v-model="form.description" label="Description" />
 
-        <form @submit.prevent="savePlan" class="space-y-3">
-          <div class="grid grid-cols-2 gap-3">
-            <div>
-              <label class="block text-xs text-gray-400 uppercase mb-1">Name</label>
-              <input v-model="form.name" required class="w-full bg-matrix-700 border border-matrix-600 rounded-lg px-3 py-2 text-sm text-white" />
-            </div>
-            <div>
-              <label class="block text-xs text-gray-400 uppercase mb-1">Slug</label>
-              <input v-model="form.slug" :disabled="!!editing" required class="w-full bg-matrix-700 border border-matrix-600 rounded-lg px-3 py-2 text-sm text-white disabled:opacity-50" />
-            </div>
-          </div>
+        <div class="grid grid-cols-3 gap-3">
+          <UiInput v-model.number="form.price_mxn" label="Price (MXN)" type="number" required />
+          <UiInput v-model.number="form.calls_included" label="Calls included" type="number" required />
+          <UiInput v-model.number="form.max_duration_minutes" label="Max minutes" type="number" required />
+        </div>
 
-          <div>
-            <label class="block text-xs text-gray-400 uppercase mb-1">Description</label>
-            <input v-model="form.description" class="w-full bg-matrix-700 border border-matrix-600 rounded-lg px-3 py-2 text-sm text-white" />
-          </div>
+        <UiTextarea v-model="featuresText" label="Features (one per line)" :rows="4" />
 
-          <div class="grid grid-cols-3 gap-3">
-            <div>
-              <label class="block text-xs text-gray-400 uppercase mb-1">Price (MXN)</label>
-              <input v-model.number="form.price_mxn" type="number" step="0.01" required class="w-full bg-matrix-700 border border-matrix-600 rounded-lg px-3 py-2 text-sm text-white" />
-            </div>
-            <div>
-              <label class="block text-xs text-gray-400 uppercase mb-1">Calls included</label>
-              <input v-model.number="form.calls_included" type="number" required class="w-full bg-matrix-700 border border-matrix-600 rounded-lg px-3 py-2 text-sm text-white" />
-            </div>
-            <div>
-              <label class="block text-xs text-gray-400 uppercase mb-1">Max minutes</label>
-              <input v-model.number="form.max_duration_minutes" type="number" required class="w-full bg-matrix-700 border border-matrix-600 rounded-lg px-3 py-2 text-sm text-white" />
-            </div>
+        <div class="flex flex-wrap gap-4 items-center pt-1">
+          <label class="flex items-center gap-2 text-sm text-gray-300 cursor-pointer">
+            <input type="checkbox" v-model="form.is_popular" class="accent-[#39FF14]" /> Popular
+          </label>
+          <label class="flex items-center gap-2 text-sm text-gray-300 cursor-pointer">
+            <input type="checkbox" v-model="form.is_active" class="accent-[#39FF14]" /> Active
+          </label>
+          <div class="flex items-center gap-2">
+            <span class="text-xs text-gray-400">Order:</span>
+            <input v-model.number="form.sort_order" type="number" class="w-16 bg-white/5 border border-white/10 rounded px-2 py-1 text-sm text-white focus:outline-none focus:border-neon/50" />
           </div>
+        </div>
+      </form>
 
-          <div>
-            <label class="block text-xs text-gray-400 uppercase mb-1">Features (one per line)</label>
-            <textarea v-model="featuresText" rows="4" class="w-full bg-matrix-700 border border-matrix-600 rounded-lg px-3 py-2 text-sm text-white"></textarea>
-          </div>
-
-          <div class="flex gap-4">
-            <label class="flex items-center gap-2 text-sm text-gray-300 cursor-pointer">
-              <input type="checkbox" v-model="form.is_popular" class="accent-[#39FF14]" /> Popular
-            </label>
-            <label class="flex items-center gap-2 text-sm text-gray-300 cursor-pointer">
-              <input type="checkbox" v-model="form.is_active" class="accent-[#39FF14]" /> Active
-            </label>
-            <div class="flex items-center gap-2">
-              <label class="text-xs text-gray-400">Order:</label>
-              <input v-model.number="form.sort_order" type="number" class="w-16 bg-matrix-700 border border-matrix-600 rounded px-2 py-1 text-sm text-white" />
-            </div>
-          </div>
-
-          <div class="flex gap-2 pt-2">
-            <button type="submit" :disabled="saving"
-              class="flex-1 py-2.5 rounded-lg bg-neon text-matrix-900 font-bold text-sm hover:shadow-neon transition disabled:opacity-50">
-              {{ saving ? 'Saving...' : (editing ? 'Update' : 'Create') }}
-            </button>
-            <button type="button" @click="closeModal"
-              class="px-4 py-2.5 rounded-lg bg-matrix-700 text-gray-300 text-sm hover:bg-matrix-600 transition">
-              Cancel
-            </button>
-          </div>
-        </form>
-      </div>
-    </div>
+      <template #footer>
+        <UiButton variant="ghost" @click="modalOpen = false">Cancelar</UiButton>
+        <UiButton variant="primary" :loading="saving" @click="savePlan">
+          {{ editing ? 'Actualizar' : 'Crear' }}
+        </UiButton>
+      </template>
+    </UiModal>
   </div>
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, watch } from 'vue'
 import axios from 'axios'
+import { Plus, Pencil, Check, CreditCard } from 'lucide-vue-next'
+
+import UiCard from '../components/UiCard.vue'
+import UiButton from '../components/UiButton.vue'
+import UiBadge from '../components/UiBadge.vue'
+import UiSkeleton from '../components/UiSkeleton.vue'
+import UiEmptyState from '../components/UiEmptyState.vue'
+import UiModal from '../components/UiModal.vue'
+import UiInput from '../components/UiInput.vue'
+import UiTextarea from '../components/UiTextarea.vue'
+import { useToast } from '../composables/useToast.js'
+
+const toast = useToast()
 
 const plans = ref([])
 const loading = ref(true)
-const showCreate = ref(false)
+const modalOpen = ref(false)
 const editing = ref(null)
 const saving = ref(false)
 
-const form = ref({
-  name: '', slug: '', description: '', price_mxn: 0,
-  calls_included: 1, max_duration_minutes: 3,
-  is_popular: false, is_active: true, sort_order: 0,
-})
+const form = ref(blankForm())
 const featuresText = ref('')
 
-const features = computed(() => featuresText.value.split('\n').filter(l => l.trim()))
+function blankForm() {
+  return {
+    name: '', slug: '', description: '', price_mxn: 0,
+    calls_included: 1, max_duration_minutes: 3,
+    is_popular: false, is_active: true, sort_order: 0,
+  }
+}
+
+const features = computed(() => featuresText.value.split('\n').map(s => s.trim()).filter(Boolean))
 
 async function fetchPlans() {
   loading.value = true
   try {
     const { data } = await axios.get('/admin-api/plans')
     plans.value = data
-  } catch {} finally { loading.value = false }
+  } catch (e) { toast.error(e) } finally { loading.value = false }
+}
+
+function openCreate() {
+  editing.value = null
+  form.value = blankForm()
+  featuresText.value = ''
+  modalOpen.value = true
 }
 
 function editPlan(plan) {
   editing.value = plan
-  form.value = { ...plan }
+  form.value = { ...blankForm(), ...plan }
   featuresText.value = (plan.features || []).join('\n')
-}
-
-function closeModal() {
-  showCreate.value = false
-  editing.value = null
-  form.value = { name: '', slug: '', description: '', price_mxn: 0, calls_included: 1, max_duration_minutes: 3, is_popular: false, is_active: true, sort_order: 0 }
-  featuresText.value = ''
+  modalOpen.value = true
 }
 
 async function savePlan() {
   saving.value = true
   const payload = { ...form.value, features: features.value }
   try {
-    if (editing.value) {
-      await axios.put(`/admin-api/plans/${editing.value.id}`, payload)
-    } else {
-      await axios.post('/admin-api/plans', payload)
-    }
-    closeModal()
+    if (editing.value) await axios.put(`/admin-api/plans/${editing.value.id}`, payload)
+    else await axios.post('/admin-api/plans', payload)
+    toast.success(editing.value ? 'Plan actualizado' : 'Plan creado')
+    modalOpen.value = false
     fetchPlans()
-  } catch (e) {
-    alert(e.response?.data?.message || 'Error saving plan')
-  } finally {
-    saving.value = false
-  }
+  } catch (e) { toast.error(e) } finally { saving.value = false }
 }
 
 async function toggleActive(plan) {
-  await axios.put(`/admin-api/plans/${plan.id}`, { is_active: !plan.is_active })
-  fetchPlans()
+  try {
+    await axios.put(`/admin-api/plans/${plan.id}`, { is_active: !plan.is_active })
+    plan.is_active = !plan.is_active
+    toast.success(plan.is_active ? 'Plan activado' : 'Plan desactivado')
+  } catch (e) { toast.error(e) }
 }
+
+watch(modalOpen, (v) => { if (!v) editing.value = null })
 
 onMounted(fetchPlans)
 </script>

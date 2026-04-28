@@ -1,42 +1,57 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 630" width="1200" height="630">
   <defs>
-    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
-      <stop offset="0%" stop-color="#0a0f0a"/>
-      <stop offset="100%" stop-color="#111a11"/>
-    </linearGradient>
     <filter id="glow" x="-50%" y="-50%" width="200%" height="200%">
-      <feGaussianBlur stdDeviation="5" result="blur"/>
-      <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+      <feGaussianBlur stdDeviation="5" result="b"/>
+      <feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
     </filter>
+    <pattern id="scan" x="0" y="0" width="4" height="4" patternUnits="userSpaceOnUse">
+      <rect width="4" height="2" fill="#39ff14" opacity="0.05"/>
+    </pattern>
   </defs>
-  <rect width="1200" height="630" fill="url(#bg)"/>
 
-  <g opacity="0.07" font-family="monospace" font-size="16" fill="#39ff14">
-    <text x="40" y="60">V A C 1 L 4 D 4</text>
-    <text x="40" y="600">B R O M 4 5</text>
-    <text x="1080" y="80">0 1 1</text>
-    <text x="1080" y="590">V A C</text>
+  <rect width="1200" height="630" fill="#0a0a0a"/>
+  <rect width="1200" height="630" fill="url(#scan)"/>
+
+  <!-- Terminal log left edge -->
+  <g opacity="0.18" font-family="'JetBrains Mono', monospace" font-size="13" fill="#39ff14">
+    <text x="40" y="48">&gt; vacilada init</text>
+    <text x="40" y="68">&gt; load voice: ash · es-MX</text>
+    <text x="40" y="88">&gt; dial +52 ********</text>
+    <text x="40" y="108">&gt; "¿Hablo con el encargado?"</text>
+    <text x="40" y="600">&gt; deploy laughter ✓</text>
   </g>
 
   <!-- Phone icon left -->
-  <g transform="translate(260 315)">
-    <g transform="scale(1.9)">
-      <g transform="rotate(-30)">
-        <path d="M -56 -18 Q -56 -34, -40 -34 L -28 -34 Q -18 -34, -14 -22 L -8 -4 Q -6 2, -10 6 L -18 12 Q -14 32, 0 48 L 6 54 Q 12 60, 18 56 L 30 48 Q 38 42, 44 48 L 56 60 Q 66 70, 56 82 L 48 90 Q 38 100, 24 96 Q -12 88, -42 58 Q -72 28, -76 -8 Q -78 -18, -70 -22 Z" fill="#39ff14" filter="url(#glow)"/>
-      </g>
-      <path d="M 20 -60 Q 42 -56, 50 -30" fill="none" stroke="#39ff14" stroke-width="8" stroke-linecap="round"/>
-      <circle cx="38" cy="-72" r="6" fill="#39ff14"/>
-      <circle cx="58" cy="-60" r="6" fill="#39ff14"/>
+  <g transform="translate(280 320)" filter="url(#glow)">
+    <g transform="rotate(-22) scale(2.3)">
+      <path d="M -64 0
+               C -64 -36, -36 -64, 0 -64
+               C 36 -64, 64 -36, 64 0
+               L 50 0
+               C 50 -16, 38 -28, 22 -28
+               L -22 -28
+               C -38 -28, -50 -16, -50 0
+               Z"
+            fill="#39ff14"/>
+      <circle cx="-58" cy="-12" r="4" fill="#0a0a0a"/>
+      <circle cx="58" cy="-12" r="4" fill="#0a0a0a"/>
     </g>
   </g>
 
-  <!-- Text right -->
-  <g transform="translate(510 0)">
-    <text x="0" y="260" font-family="'JetBrains Mono', monospace" font-size="120" font-weight="800" fill="#39ff14" filter="url(#glow)" letter-spacing="-3">Vacilada</text>
-    <text x="0" y="335" font-family="'Inter', sans-serif" font-size="32" font-weight="700" fill="#ffffff">Bromas telefónicas con IA</text>
-    <text x="0" y="385" font-family="'Inter', sans-serif" font-size="24" fill="#9aa59a">Tú describes. La IA llama.</text>
-    <text x="0" y="420" font-family="'Inter', sans-serif" font-size="24" fill="#9aa59a">Te mueres de risa.</text>
-    <text x="0" y="515" font-family="'JetBrains Mono', monospace" font-size="28" font-weight="700" fill="#39ff14">→ vacilada.com</text>
-    <text x="0" y="560" font-family="'Inter', sans-serif" font-size="22" fill="#9aa59a">Hecho en México 🇲🇽</text>
+  <!-- ZZZ -->
+  <g font-family="'JetBrains Mono', monospace" font-weight="800" fill="#39ff14" filter="url(#glow)">
+    <text x="370" y="220" font-size="36" opacity="0.85">Z</text>
+    <text x="408" y="180" font-size="48" opacity="0.95">Z</text>
+    <text x="454" y="135" font-size="60">Z</text>
+  </g>
+
+  <!-- Wordmark + tagline -->
+  <g transform="translate(540 0)">
+    <text x="0" y="270" font-family="'JetBrains Mono', monospace" font-size="120" font-weight="800" fill="#39ff14" filter="url(#glow)" letter-spacing="-3">Vacilada</text>
+    <text x="0" y="335" font-family="'JetBrains Mono', monospace" font-size="30" font-weight="700" fill="#ffffff">Bromas telefónicas con IA</text>
+    <text x="0" y="385" font-family="'JetBrains Mono', monospace" font-size="22" fill="#9aa59a">Tú describes. La IA llama.</text>
+    <text x="0" y="418" font-family="'JetBrains Mono', monospace" font-size="22" fill="#9aa59a">Te mueres de risa.</text>
+    <text x="0" y="510" font-family="'JetBrains Mono', monospace" font-size="26" font-weight="700" fill="#39ff14">→ vacilada.com</text>
+    <text x="0" y="555" font-family="'JetBrains Mono', monospace" font-size="20" fill="#9aa59a">Hecho en México 🇲🇽 · desde $35 MXN</text>
   </g>
 </svg>

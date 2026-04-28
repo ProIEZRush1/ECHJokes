@@ -228,11 +228,11 @@ const ambienceLoop = new Int16Array(AMBIENCE_LEN);
 function createAmbienceProfile() {
   return {
     pos: Math.floor(Math.random() * AMBIENCE_LEN),
-    gain: 0.002 + Math.random() * 0.004,
+    gain: 0, // ambience disabled per user request — clean voice only
   };
 }
 
-const VOICE_GAIN = 1.6;
+const VOICE_GAIN = 1.0; // unity — no amplification, eliminates soft-clip artifacts
 const CLIP_KNEE = 16000;
 function softClip(x) {
   const a = Math.abs(x);
@@ -242,12 +242,12 @@ function softClip(x) {
   return sign * (CLIP_KNEE + headroom * Math.tanh((a - CLIP_KNEE) / headroom));
 }
 function mixAmbience(mulawFrame, p) {
+  // Ambience disabled per user request — pass voice through with no mixing.
+  // Kept the function name + signature so callsites don't change.
   const buf = Buffer.from(mulawFrame);
   for (let i = 0; i < buf.length; i++) {
     const voice = softClip(MULAW_DECODE[buf[i]] * VOICE_GAIN);
-    const amb = ambienceLoop[p.pos] * p.gain;
-    p.pos = (p.pos + 1) % AMBIENCE_LEN;
-    const sample = Math.max(-32767, Math.min(32767, voice + amb));
+    const sample = Math.max(-32767, Math.min(32767, voice));
     buf[i] = linearToMulaw(sample);
   }
   return buf.toString('base64');
@@ -281,7 +281,7 @@ function pcmToMulaw(pcmBuffer) {
 function elevenLabsTTS(text, voiceId, callback) {
   const postData = JSON.stringify({
     text: text,
-    model_id: 'eleven_turbo_v2_5',
+    model_id: 'eleven_flash_v2_5',
     voice_settings: { stability: 0.5, similarity_boost: 0.88, style: 0.3, use_speaker_boost: true, speed: 1.0 }
   });
 
@@ -463,13 +463,13 @@ COMO ACTUAR:
     openAiWs.send(JSON.stringify({
       type: 'session.update',
       session: {
-        turn_detection: { type: 'server_vad', threshold: 0.6, silence_duration_ms: 280, prefix_padding_ms: 150, create_response: false, interrupt_response: false },
+        turn_detection: { type: 'server_vad', threshold: 0.55, silence_duration_ms: 150, prefix_padding_ms: 100, create_response: true, interrupt_response: false },
         input_audio_format: 'g711_ulaw',
         // === ELEVENLABS MODE: text only output, no OpenAI audio ===
         ...(USE_ELEVENLABS ? {} : { output_audio_format: 'g711_ulaw', voice: voice }),
         instructions: instructions,
         modalities: USE_ELEVENLABS ? ['text'] : ['text', 'audio'],
-        input_audio_transcription: { model: 'whisper-1', language: 'es' },
+        input_audio_transcription: { model: 'gpt-4o-transcribe', language: 'es' },
         temperature: 0.9,
       }
     }));
@@ -609,11 +609,9 @@ COMO ACTUAR:
             console.log(`[Human]: ${t}`);
             postTranscript(callSid, 'human', t);
             if (callSid) broadcastEvent(callSid, 'human_text', { text: t });
-            // Only fire response.create AFTER Whisper confirmed actual words.
-            // Guard against stacking on an in-flight response.
-            if (openAiWs?.readyState === WebSocket.OPEN && !responseActive && !isSpeaking) {
-              openAiWs.send(JSON.stringify({ type: 'response.create' }));
-            }
+            // NOTE: response.create is now auto-fired by server_vad (create_response:true)
+            // when speech_stopped, in parallel with transcription. We do NOT fire it
+            // here to avoid "active response in progress" errors.
           }
           break;
 
@@ -657,14 +655,16 @@ COMO ACTUAR:
   // sentence while Claude is still streaming the rest.
   function flushSentences(sessionId) {
     if (sessionId !== ttsSessionId) return;
-    const sentenceEnd = /[.!?…]+[\s)"'"]*|\n+/g;
+    // Flush on sentence terminators AND commas — lets TTS start synthesizing
+    // the first phrase while the LLM is still streaming the rest.
+    const sentenceEnd = /[.!?,…]+[\s)"'"]*|\n+/g;
     sentenceEnd.lastIndex = streamedOffset;
     let m;
     let progressed = false;
     while ((m = sentenceEnd.exec(currentAiText)) !== null) {
       const end = m.index + m[0].length;
       // Need enough lead-in to be worth a TTS round-trip (avoid "Ok." etc.).
-      if (end - streamedOffset < 12) continue;
+      if (end - streamedOffset < 8) continue;
       const fragment = currentAiText.slice(streamedOffset, end).trim();
       if (fragment) {
         ttsQueue.push(fragment);
@@ -796,23 +796,8 @@ COMO ACTUAR:
   let ambienceFrameCount = 0;
   const STANDALONE_AMB_GAIN = 0.3;
   function startAmbienceStream() {
-    if (ambienceInterval) return;
-    ambienceFrameCount = 0;
-    console.log('Ambience stream started');
-    ambienceInterval = setInterval(() => {
-      if (!streamSid || twilioWs.readyState !== WebSocket.OPEN || isSpeaking) return;
-      const frame = Buffer.alloc(160);
-      for (let i = 0; i < 160; i++) {
-        const amb = ambienceLoop[ambience.pos] * ambience.gain * STANDALONE_AMB_GAIN;
-        ambience.pos = (ambience.pos + 1) % AMBIENCE_LEN;
-        frame[i] = linearToMulaw(Math.max(-32767, Math.min(32767, amb)));
-      }
-      try {
-        twilioWs.send(JSON.stringify({ event: 'media', streamSid, media: { payload: frame.toString('base64') } }));
-        ambienceFrameCount++;
-        if (ambienceFrameCount % 250 === 0) console.log(`Ambience: ${ambienceFrameCount} standalone frames sent (${(ambienceFrameCount/50).toFixed(1)}s)`);
-      } catch (e) { /* ignored */ }
-    }, 20);
+    // Ambience disabled per user request — no standalone frames sent.
+    return;
   }
   function stopAmbienceStream() {
     if (ambienceInterval) { clearInterval(ambienceInterval); ambienceInterval = null; console.log(`Ambience stream stopped (${ambienceFrameCount} standalone frames total)`); }

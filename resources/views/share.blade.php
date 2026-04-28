@@ -24,7 +24,7 @@
     <meta property="og:image:width" content="1200" />
     <meta property="og:image:height" content="630" />
     @else
-    <meta property="og:image" content="{{ url('/brand/og-image.svg') }}" />
+    <meta property="og:image" content="{{ url('/brand/og-image.png') }}" />
     @endif
     @if($audioUrl ?? $jokeCall->recording_url)
     <meta property="og:audio" content="{{ $audioUrl ?? $jokeCall->recording_url }}" />
@@ -32,7 +32,7 @@
     <meta name="twitter:card" content="summary_large_image" />
     <meta name="twitter:title" content="{{ $title }}" />
     <meta name="twitter:description" content="{{ $desc }}" />
-    <meta name="twitter:image" content="{{ url('/brand/og-image.svg') }}" />
+    <meta name="twitter:image" content="{{ url('/brand/og-image.png') }}" />
 
     @if($jokeCall->share_slug)
     @php
@@ -58,7 +58,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-    <link rel="icon" type="image/svg+xml" href="/brand/logo.svg" />
+    <link rel="icon" type="image/png" href="/brand/logo.png" />
     @vite(['resources/css/app.css', 'resources/js/app.js'])
 </head>
 <body class="bg-matrix-900 text-white min-h-screen antialiased">

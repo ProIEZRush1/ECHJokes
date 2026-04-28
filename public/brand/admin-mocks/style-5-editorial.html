@@ -1,0 +1,280 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Vacilada Admin · Style 5 — Editorial Data</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#0c0c0c; --surface:#121212; --surface-2:#181818;
+    --rule:#1f1f1f; --rule-2:#262626;
+    --neon:#39FF14;
+    --ink:#f0f0f0; --soft:#cccccc; --muted:#8c8c8c; --dim:#5e5e5e;
+    --red:#ff5b5b; --amber:#ffc14d; --blue:#82c8ff; --purple:#c39bff;
+  }
+  *,*:before,*:after{box-sizing:border-box}
+  html,body{margin:0;padding:0;background:var(--bg);color:var(--ink);font-family:'Inter',ui-sans-serif,system-ui,sans-serif;font-size:14px;line-height:1.55;-webkit-font-smoothing:antialiased}
+  .mono{font-family:'JetBrains Mono',ui-monospace,monospace}
+
+  .app{display:grid;grid-template-columns:240px 1fr;min-height:100vh}
+
+  /* Sidebar — restrained */
+  .side{border-right:1px solid var(--rule);background:var(--bg);position:sticky;top:0;height:100vh;display:flex;flex-direction:column}
+  .brand{padding:22px 22px 18px;border-bottom:1px solid var(--rule);display:flex;align-items:center;gap:10px}
+  .brand .dot{width:8px;height:8px;background:var(--neon);border-radius:50%;flex-shrink:0}
+  .brand .name{font-weight:700;letter-spacing:-.3px;font-size:16px}
+  .brand small{display:block;color:var(--dim);font-size:11px;font-weight:400;margin-top:1px}
+  .nav{flex:1;padding:14px 14px;overflow:auto;display:flex;flex-direction:column;gap:1px}
+  .nav .group{padding:14px 8px 6px;color:var(--dim);font-size:10.5px;font-weight:600;letter-spacing:.6px;text-transform:uppercase}
+  .nav .item{display:flex;align-items:center;gap:11px;padding:8px 10px;border-radius:6px;color:var(--soft);text-decoration:none;font-size:13.5px;font-weight:500}
+  .nav .item:hover{background:var(--surface)}
+  .nav .item.active{color:var(--ink);background:var(--surface);box-shadow:inset 2px 0 0 var(--neon)}
+  .nav .item.active .ic{color:var(--neon)}
+  .ic{width:17px;height:17px;color:var(--muted);flex-shrink:0}
+
+  .you{margin-top:auto;padding:14px;border-top:1px solid var(--rule);display:flex;align-items:center;gap:10px}
+  .you .ava{width:30px;height:30px;border-radius:50%;background:var(--surface-2);color:var(--soft);font-weight:700;font-size:12px;display:grid;place-items:center;border:1px solid var(--rule-2)}
+
+  /* Main */
+  main{padding:0 36px 80px;min-width:0}
+  .top{display:flex;align-items:center;justify-content:space-between;height:64px;border-bottom:1px solid var(--rule);position:sticky;top:0;background:var(--bg);z-index:5}
+  .crumbs{color:var(--muted);font-size:13px}
+  .crumbs .here{color:var(--ink);font-weight:600}
+  .top .right{display:flex;gap:10px;align-items:center}
+  .search{display:flex;align-items:center;gap:8px;background:transparent;border:1px solid var(--rule-2);border-radius:7px;padding:6px 12px;color:var(--muted);font-size:13px;min-width:280px}
+  .search:hover{border-color:#383838}
+  kbd{font-family:'JetBrains Mono',monospace;font-size:11px;border:1px solid var(--rule-2);padding:1px 6px;border-radius:4px;color:var(--muted);background:transparent}
+  .btn{font:inherit;font-size:13px;font-weight:600;padding:7px 14px;border-radius:7px;border:1px solid var(--rule-2);background:transparent;color:var(--soft);cursor:pointer}
+  .btn:hover{border-color:#3a3a3a;color:var(--ink)}
+  .btn.primary{background:var(--neon);color:#062a02;border-color:var(--neon)}
+  .btn.primary:hover{filter:brightness(1.05)}
+  .live-dot{display:inline-flex;align-items:center;gap:6px;color:var(--muted);font-size:12.5px}
+  .live-dot .d{width:7px;height:7px;border-radius:50%;background:var(--neon);box-shadow:0 0 0 0 rgba(57,255,20,.45);animation:p 1.6s ease-out infinite}
+  @keyframes p{0%{box-shadow:0 0 0 0 rgba(57,255,20,.45)}70%{box-shadow:0 0 0 8px transparent}100%{box-shadow:0 0 0 0 transparent}}
+
+  /* Hero */
+  .hero{padding:48px 0 40px;border-bottom:1px solid var(--rule)}
+  .kicker{color:var(--muted);font-size:12px;font-weight:600;letter-spacing:1.2px;text-transform:uppercase;margin-bottom:14px}
+  .kicker .neon{color:var(--neon)}
+  h1{margin:0;font-size:48px;font-weight:700;letter-spacing:-1.2px;line-height:1.05;max-width:780px}
+  .lede{margin-top:14px;color:var(--soft);font-size:17px;line-height:1.55;max-width:680px}
+
+  /* Stats — clean tabular */
+  .stats{display:grid;grid-template-columns:repeat(4,1fr);gap:0;margin:36px 0 0;border-top:1px solid var(--rule);border-bottom:1px solid var(--rule)}
+  .stat{padding:24px 24px 26px;border-right:1px solid var(--rule);position:relative}
+  .stat:last-child{border-right:none}
+  .stat .lab{color:var(--muted);font-size:12px;font-weight:600;letter-spacing:.5px;text-transform:uppercase}
+  .stat .val{font-family:'JetBrains Mono',monospace;font-weight:700;font-size:42px;letter-spacing:-1.2px;margin-top:10px;line-height:1}
+  .stat .delta{font-family:'Inter',sans-serif;color:var(--neon);font-weight:600;font-size:13px;margin-left:8px}
+  .stat .foot{margin-top:8px;color:var(--muted);font-size:12.5px}
+  .stat.live::before{content:"";position:absolute;top:24px;right:24px;width:8px;height:8px;border-radius:50%;background:var(--neon);animation:p 1.6s ease-out infinite}
+  .stat.live .val{color:var(--neon)}
+
+  /* Section */
+  .sect{padding:36px 0 0}
+  .sect-h{display:flex;align-items:flex-end;justify-content:space-between;border-bottom:1px solid var(--rule);padding-bottom:14px;margin-bottom:0}
+  .sect-h h2{margin:0;font-size:22px;font-weight:700;letter-spacing:-.4px}
+  .sect-h h2 small{display:block;color:var(--muted);font-size:13px;font-weight:400;margin-top:3px}
+  .sect-h .actions{display:flex;gap:8px;align-items:center}
+  .sect-h .actions a{color:var(--neon);text-decoration:none;font-weight:600;font-size:13.5px}
+
+  /* Two-up: chart + table */
+  .grid-2{display:grid;grid-template-columns:1.1fr .9fr;gap:36px;align-items:start;padding:24px 0 8px;border-bottom:1px solid var(--rule)}
+  .chart-block .ch-h{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:8px}
+  .chart-block .ch-h h3{margin:0;font-size:14px;font-weight:600;color:var(--soft)}
+  .chart-block .ch-h .legend{font-size:12px;color:var(--muted)}
+  .chart-block svg{width:100%;height:160px;display:block}
+  .grid-y line{stroke:var(--rule);stroke-width:1;stroke-dasharray:2 4}
+  .area path{stroke:var(--neon);fill:url(#fade)}
+  .x-labels{font-family:'JetBrains Mono',monospace;font-size:10.5px;fill:var(--dim)}
+  .summary{padding:14px 0;border-top:1px solid var(--rule);margin-top:14px;display:grid;grid-template-columns:repeat(3,1fr);gap:12px}
+  .summary .it .l{color:var(--muted);font-size:11.5px;letter-spacing:.4px;text-transform:uppercase}
+  .summary .it .v{font-family:'JetBrains Mono',monospace;font-size:18px;font-weight:600;margin-top:3px}
+
+  /* Table */
+  .tbl-block table{width:100%;border-collapse:collapse;font-size:13.5px}
+  .tbl-block th{text-align:left;padding:10px 8px;color:var(--muted);font-weight:600;font-size:11.5px;letter-spacing:.4px;text-transform:uppercase;border-bottom:1px solid var(--rule)}
+  .tbl-block td{padding:14px 8px;border-bottom:1px solid var(--rule);color:var(--soft)}
+  .tbl-block tbody tr:hover{background:var(--surface);cursor:pointer}
+  .tbl-block tbody tr:hover td:first-child{box-shadow:inset 2px 0 0 var(--neon)}
+  .tbl-block .num{font-family:'JetBrains Mono',monospace}
+  .pill{display:inline-flex;align-items:center;gap:5px;font-size:11.5px;font-weight:600;padding:2px 8px;border-radius:99px;border:1px solid currentColor;background:transparent;letter-spacing:.2px}
+  .p-completed{color:var(--neon)} .p-progress{color:var(--purple)} .p-voicemail{color:var(--amber)} .p-failed{color:var(--red)} .p-calling{color:var(--blue)}
+
+  footer{margin-top:50px;padding-top:18px;border-top:1px solid var(--rule);display:flex;justify-content:space-between;color:var(--muted);font-size:12.5px}
+</style>
+</head>
+<body>
+<div class="app">
+  <aside class="side">
+    <div class="brand">
+      <span class="dot"></span>
+      <div><div class="name">Vacilada</div><small>Admin</small></div>
+    </div>
+    <nav class="nav">
+      <div class="group">Operación</div>
+      <a class="item active" href="#">
+        <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 12 12 3l9 9"/><path d="M5 10v10h14V10"/></svg>
+        Dashboard
+      </a>
+      <a class="item" href="#">
+        <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07A19.5 19.5 0 0 1 5.18 13 19.79 19.79 0 0 1 2.12 4.18 2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.13.96.37 1.9.72 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.91.35 1.85.59 2.81.72A2 2 0 0 1 22 16.92Z"/></svg>
+        Calls
+      </a>
+      <a class="item" href="#">
+        <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m21 3-3 3-7 7-3.5-3.5 7-7 3-3 3.5 3.5Z"/></svg>
+        Launch Call
+      </a>
+      <div class="group">Datos</div>
+      <a class="item" href="#"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="9" cy="7" r="4"/><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/></svg> Users</a>
+      <a class="item" href="#"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="5" width="20" height="14" rx="2"/><path d="M2 10h20"/></svg> Plans</a>
+      <a class="item" href="#"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><rect x="9" y="9" width="6" height="6"/></svg> Presets</a>
+      <div class="group">Sistema</div>
+      <a class="item" href="#"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 3v18h18"/><path d="m7 14 4-4 4 4 6-6"/></svg> Billing</a>
+      <a class="item" href="#"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 12V5H5v7m15 0H4l1 9h14l1-9Z"/></svg> Referrals</a>
+      <a class="item" href="#"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg> Brand & Press</a>
+    </nav>
+    <div class="you">
+      <div class="ava">E</div>
+      <div>
+        <div style="font-size:13px;font-weight:600">Edu</div>
+        <div style="color:var(--muted);font-size:11.5px">edu@vacilada.com</div>
+      </div>
+    </div>
+  </aside>
+
+  <main>
+    <div class="top">
+      <div class="crumbs">Operación &nbsp;/&nbsp; <span class="here">Dashboard</span></div>
+      <div class="right">
+        <div class="search">
+          <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+          Buscar llamadas, usuarios… <kbd style="margin-left:auto">⌘ K</kbd>
+        </div>
+        <span class="live-dot"><span class="d"></span> Live</span>
+        <button class="btn primary">+ Llamada</button>
+      </div>
+    </div>
+
+    <section class="hero">
+      <div class="kicker">Operación · 27 abr 2026 · <span class="neon">en vivo</span></div>
+      <h1>47 vaciladas hoy. Dos sonando ahora mismo.</h1>
+      <p class="lede">Tu negocio movió 47 llamadas hoy con 89.4 % de éxito y 2 en línea ahora. La noche apenas empieza — los lunes son tu mejor día.</p>
+    </section>
+
+    <div class="stats">
+      <div class="stat">
+        <div class="lab">Calls today</div>
+        <div class="val">47<span class="delta">+34%</span></div>
+        <div class="foot">vs ayer · 35</div>
+      </div>
+      <div class="stat">
+        <div class="lab">Completadas</div>
+        <div class="val">42</div>
+        <div class="foot">89.4 % éxito</div>
+      </div>
+      <div class="stat live">
+        <div class="lab">Active now</div>
+        <div class="val">2</div>
+        <div class="foot">en línea ahora</div>
+      </div>
+      <div class="stat">
+        <div class="lab">Total calls</div>
+        <div class="val">1,247</div>
+        <div class="foot">desde lanzamiento</div>
+      </div>
+    </div>
+
+    <section class="sect">
+      <div class="sect-h">
+        <h2>Hoy en datos<small>Hora local · México (CDMX)</small></h2>
+        <div class="actions">
+          <button class="btn">CSV</button>
+          <button class="btn">Filtros</button>
+          <a href="#">Ver todas →</a>
+        </div>
+      </div>
+
+      <div class="grid-2">
+        <div class="chart-block">
+          <div class="ch-h">
+            <h3>Llamadas por hora</h3>
+            <div class="legend">● 47 hoy · ● 35 ayer</div>
+          </div>
+          <svg viewBox="0 0 600 180" preserveAspectRatio="none">
+            <defs>
+              <linearGradient id="fade" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0%" stop-color="#39FF14" stop-opacity="0.45"/>
+                <stop offset="100%" stop-color="#39FF14" stop-opacity="0"/>
+              </linearGradient>
+            </defs>
+            <g class="grid-y">
+              <line x1="0" y1="30" x2="600" y2="30"/>
+              <line x1="0" y1="80" x2="600" y2="80"/>
+              <line x1="0" y1="130" x2="600" y2="130"/>
+            </g>
+            <!-- yesterday (muted) -->
+            <path d="M 0 140 L 50 138 L 100 122 L 150 110 L 200 100 L 250 90 L 300 96 L 350 84 L 400 70 L 450 76 L 500 62 L 550 58 L 600 60" stroke="#555" stroke-width="1.2" fill="none" stroke-dasharray="3 3"/>
+            <!-- today (neon) -->
+            <g class="area">
+              <path d="M 0 150 L 50 142 L 100 124 L 150 100 L 200 95 L 250 78 L 300 72 L 350 60 L 400 55 L 450 38 L 500 22 L 550 15 L 600 14 L 600 180 L 0 180 Z" fill="url(#fade)" stroke="none"/>
+              <path d="M 0 150 L 50 142 L 100 124 L 150 100 L 200 95 L 250 78 L 300 72 L 350 60 L 400 55 L 450 38 L 500 22 L 550 15 L 600 14" stroke="#39FF14" stroke-width="2.4" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+              <circle cx="600" cy="14" r="4" fill="#39FF14"/>
+            </g>
+            <g class="x-labels">
+              <text x="0" y="178" text-anchor="start">06h</text>
+              <text x="150" y="178" text-anchor="middle">10h</text>
+              <text x="300" y="178" text-anchor="middle">14h</text>
+              <text x="450" y="178" text-anchor="middle">18h</text>
+              <text x="600" y="178" text-anchor="end">22h</text>
+            </g>
+          </svg>
+          <div class="summary">
+            <div class="it"><div class="l">Pico</div><div class="v">22 h</div></div>
+            <div class="it"><div class="l">Promedio</div><div class="v">3.4/h</div></div>
+            <div class="it"><div class="l">Duración</div><div class="v">52 s</div></div>
+          </div>
+        </div>
+
+        <div class="tbl-block">
+          <h3 style="margin:0 0 8px;font-size:14px;font-weight:600;color:var(--soft)">Recent calls</h3>
+          <table>
+            <thead>
+              <tr><th>Phone</th><th>Scenario</th><th>Status</th><th class="num">Dur</th></tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td class="num">+5255 95 ****25</td>
+                <td>Aeroméxico — premio falso</td>
+                <td><span class="pill p-completed">● Completed</span></td>
+                <td class="num">00:56</td>
+              </tr>
+              <tr>
+                <td class="num">+5255 27 ****81</td>
+                <td>SAT — cargo $50,000</td>
+                <td><span class="pill p-progress">● In progress</span></td>
+                <td class="num">00:38</td>
+              </tr>
+              <tr>
+                <td class="num">+5233 18 ****04</td>
+                <td>Dominoʼs — pizza 03:47</td>
+                <td><span class="pill p-voicemail">● Voicemail</span></td>
+                <td class="num">00:09</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <footer>
+      <div>build 59ca61a · uplink ws/ssl ok · cache 92 %</div>
+      <div><kbd>⌘ K</kbd> command palette · <kbd>?</kbd> shortcuts</div>
+    </footer>
+  </main>
+</div>
+</body>
+</html>

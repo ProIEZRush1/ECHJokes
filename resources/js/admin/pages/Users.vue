@@ -1,67 +1,87 @@
 <template>
-  <div class="p-6 space-y-4">
-    <h1 class="text-2xl font-bold font-mono">Users</h1>
+  <div class="p-6 lg:p-8 space-y-5 max-w-[1400px]">
+    <header>
+      <div class="text-[11.5px] uppercase tracking-wider text-gray-500 font-semibold mb-1">Datos</div>
+      <h1 class="text-[26px] font-bold tracking-tight">Users</h1>
+      <p class="text-sm text-gray-400 mt-1.5">Buscar y gestionar cuentas.</p>
+    </header>
 
-    <input v-model="search" @input="debouncedFetch" placeholder="Search by name or email..."
-      class="bg-matrix-800 border border-matrix-600 rounded-lg px-3 py-2 text-sm text-white
-             placeholder-gray-500 focus:outline-none focus:border-neon/50 w-72" />
+    <UiCard :padded="false">
+      <template #header>
+        <h2 class="text-[14px] font-semibold text-white">{{ count }} usuario{{ count === 1 ? '' : 's' }}</h2>
+      </template>
+      <template #actions>
+        <div class="relative w-72 max-w-[60vw]">
+          <Search class="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-gray-500" />
+          <input
+            v-model="search"
+            @input="debouncedFetch"
+            placeholder="Buscar por nombre o email…"
+            class="w-full bg-white/5 border border-white/10 rounded-lg pl-9 pr-3 py-1.5 text-sm text-white placeholder:text-gray-500 focus:outline-none focus:border-neon/50 transition"
+          />
+        </div>
+      </template>
 
-    <div class="bg-matrix-800 border border-matrix-600 rounded-xl overflow-hidden">
-      <table class="w-full text-sm">
-        <thead>
-          <tr class="text-gray-500 text-xs uppercase border-b border-matrix-600">
-            <th class="text-left p-3">Name</th>
-            <th class="text-left p-3">Email</th>
-            <th class="text-left p-3">Calls</th>
-            <th class="text-left p-3">Plan</th>
-            <th class="text-left p-3">Admin</th>
-            <th class="text-left p-3">Joined</th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr v-for="user in users" :key="user.id" @click="$router.push('/admin/users/' + user.id)" class="border-b border-matrix-700 hover:bg-matrix-700 cursor-pointer transition">
-            <td class="p-3 font-medium">{{ user.name }}</td>
-            <td class="p-3 text-gray-400">{{ user.email }}</td>
-            <td class="p-3 font-mono">{{ user.joke_calls_count }}</td>
-            <td class="p-3">
-              <span v-if="user.subscription_plan" class="px-2 py-0.5 rounded-full text-xs bg-neon/20 text-neon">
-                {{ user.subscription_plan }}
-              </span>
-              <span v-else class="text-gray-600 text-xs">-</span>
-            </td>
-            <td class="p-3">
-              <span v-if="user.is_admin" class="text-neon text-xs">&#10003;</span>
-            </td>
-            <td class="p-3 text-gray-400 text-xs">{{ formatDate(user.created_at) }}</td>
-          </tr>
-          <tr v-if="loading">
-            <td colspan="6" class="p-8 text-center text-gray-500">
-              <span class="inline-block w-4 h-4 border-2 border-neon border-t-transparent rounded-full animate-spin align-middle mr-2"></span>
-              Cargando usuarios...
-            </td>
-          </tr>
-          <tr v-else-if="!users.length">
-            <td colspan="6" class="p-8 text-center text-gray-500">No hay usuarios todavía.</td>
-          </tr>
-        </tbody>
-      </table>
-    </div>
+      <UiTable
+        :columns="columns"
+        :rows="users"
+        :loading="loading"
+        empty-title="No hay usuarios todavía"
+        empty-body="Cuando alguien se registre, aparecerá aquí."
+        @row-click="(u) => $router.push('/admin/users/' + u.id)"
+      >
+        <template #cell-name="{ row }">
+          <div class="flex items-center gap-3">
+            <Avatar :name="row.name" size="sm" />
+            <div class="min-w-0">
+              <div class="font-semibold text-white truncate flex items-center gap-2">
+                {{ row.name }}
+                <ShieldCheck v-if="row.is_admin" class="w-3.5 h-3.5 text-neon" />
+              </div>
+              <div class="text-xs text-gray-500 truncate">{{ row.email }}</div>
+            </div>
+          </div>
+        </template>
+        <template #cell-joke_calls_count="{ value }">
+          <span class="font-mono text-[13px]">{{ value }}</span>
+        </template>
+        <template #cell-subscription_plan="{ value }">
+          <UiBadge v-if="value" :status="''" :color="'#39FF14'" :dot="false">{{ value }}</UiBadge>
+          <span v-else class="text-gray-600 text-xs">—</span>
+        </template>
+        <template #cell-created_at="{ value }">
+          <span class="text-gray-500 text-xs">{{ formatDate(value) }}</span>
+        </template>
+      </UiTable>
+    </UiCard>
   </div>
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import axios from 'axios'
+import { useDebounceFn } from '@vueuse/core'
+import { Search, ShieldCheck } from 'lucide-vue-next'
+
+import UiCard from '../components/UiCard.vue'
+import UiBadge from '../components/UiBadge.vue'
+import UiTable from '../components/UiTable.vue'
+import Avatar from '../components/Avatar.vue'
 
 const users = ref([])
 const search = ref('')
 const loading = ref(true)
-let timer
 
-function debouncedFetch() {
-  clearTimeout(timer)
-  timer = setTimeout(fetchUsers, 300)
-}
+const count = computed(() => users.value.length)
+
+const columns = [
+  { key: 'name',               label: 'Usuario' },
+  { key: 'joke_calls_count',   label: 'Llamadas', align: 'right', width: '110px' },
+  { key: 'subscription_plan',  label: 'Plan',     width: '120px' },
+  { key: 'created_at',         label: 'Joined',   width: '110px' },
+]
+
+const debouncedFetch = useDebounceFn(() => fetchUsers(), 300)
 
 async function fetchUsers() {
   loading.value = true
@@ -71,7 +91,10 @@ async function fetchUsers() {
   } catch {} finally { loading.value = false }
 }
 
-function formatDate(d) { return d ? new Date(d).toLocaleDateString() : '' }
+function formatDate(d) {
+  if (!d) return ''
+  return new Date(d).toLocaleDateString('es-MX', { day: 'numeric', month: 'short', year: '2-digit' })
+}
 
 onMounted(fetchUsers)
 </script>

@@ -9,14 +9,14 @@
 
     <meta property="og:title" content="Vacilada — Bromas telefónicas con IA" />
     <meta property="og:description" content="Tú describes la broma, la IA llama. Habla como humano real en español mexicano." />
-    <meta property="og:image" content="{{ url('/brand/og-image.svg') }}" />
+    <meta property="og:image" content="{{ url('/brand/og-image.png') }}" />
     <meta property="og:url" content="{{ url('/') }}" />
     <meta property="og:type" content="website" />
     <meta name="twitter:card" content="summary_large_image" />
     <meta name="twitter:title" content="Vacilada — Bromas telefónicas con IA" />
     <meta name="twitter:description" content="Tú describes la broma, la IA llama." />
-    <meta name="twitter:image" content="{{ url('/brand/og-image.svg') }}" />
-    <link rel="icon" type="image/svg+xml" href="/brand/logo.svg" />
+    <meta name="twitter:image" content="{{ url('/brand/og-image.png') }}" />
+    <link rel="icon" type="image/png" href="/brand/logo.png" />
 
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>

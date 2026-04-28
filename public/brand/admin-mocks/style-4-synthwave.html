@@ -1,0 +1,255 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Vacilada Admin · Style 4 — Synthwave Arcade</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=VT323&family=JetBrains+Mono:wght@500;700;800&family=Inter:wght@500;700;800&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#0a0a0f; --surf:#10101c; --surf-2:#161628;
+    --neon:#39FF14; --neon-glow:rgba(57,255,20,.55);
+    --pink:#FF2BD6; --pink-glow:rgba(255,43,214,.55);
+    --cyan:#22e7ff;
+    --ink:#f3eaff; --muted:#a298c8; --dim:#5d5378;
+    --rule:rgba(255,255,255,.08);
+  }
+  *,*:before,*:after{box-sizing:border-box}
+  html,body{margin:0;padding:0;background:var(--bg);color:var(--ink);font-family:'Inter',ui-sans-serif,system-ui,sans-serif;font-size:14px;line-height:1.5;-webkit-font-smoothing:antialiased}
+  .mono{font-family:'JetBrains Mono',ui-monospace,monospace}
+  .pixel{font-family:'VT323',monospace;letter-spacing:1px}
+
+  body{
+    background:
+      radial-gradient(900px 600px at 110% -10%,rgba(255,43,214,.10),transparent 65%),
+      radial-gradient(800px 500px at -10% 20%,rgba(57,255,20,.08),transparent 60%),
+      radial-gradient(700px 400px at 50% 110%,rgba(34,231,255,.08),transparent 60%),
+      var(--bg);
+    min-height:100vh;
+    position:relative;
+  }
+  /* noise texture */
+  body:before{
+    content:"";position:fixed;inset:0;pointer-events:none;z-index:1;opacity:.06;
+    background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='200' height='200'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2'/></filter><rect width='100%' height='100%' filter='url(%23n)'/></svg>");
+  }
+  /* horizon grid floor at bottom */
+  body:after{
+    content:"";position:fixed;left:0;right:0;bottom:0;height:240px;pointer-events:none;z-index:0;
+    background:
+      linear-gradient(to top,rgba(255,43,214,.08),transparent),
+      linear-gradient(to top,rgba(57,255,20,.07),transparent 60%);
+    mask:linear-gradient(to top,#000 0%,#000 70%,transparent 100%);
+  }
+  body .grid{position:fixed;left:0;right:0;bottom:0;height:240px;pointer-events:none;z-index:0;
+    background:
+      repeating-linear-gradient(to right,transparent 0,transparent 80px,rgba(57,255,20,.18) 80px,rgba(57,255,20,.18) 81px),
+      repeating-linear-gradient(to bottom,transparent 0,transparent 30px,rgba(255,43,214,.16) 30px,rgba(255,43,214,.16) 31px);
+    mask:linear-gradient(to top,#000 0%,#000 60%,transparent 100%);
+    transform:perspective(800px) rotateX(60deg);transform-origin:bottom;
+  }
+
+  .app{position:relative;z-index:2;display:grid;grid-template-columns:240px 1fr;min-height:100vh}
+
+  /* Sidebar */
+  .side{
+    border-right:1px solid var(--rule);background:linear-gradient(180deg,rgba(16,16,28,.85),rgba(10,10,15,.55));
+    backdrop-filter:blur(8px);position:sticky;top:0;height:100vh;display:flex;flex-direction:column;
+  }
+  .brand{padding:18px 18px 16px;border-bottom:1px solid var(--rule)}
+  .brand .logo{font-family:'VT323',monospace;font-size:30px;letter-spacing:2px;color:var(--neon);text-shadow:2px 0 var(--pink),-2px 0 var(--cyan),0 0 18px var(--neon-glow)}
+  .brand small{display:block;color:var(--pink);font-size:11px;letter-spacing:3px;margin-top:2px;text-shadow:0 0 8px var(--pink-glow)}
+
+  .nav{flex:1;padding:10px 12px;overflow:auto}
+  .nav .group{padding:10px 8px 4px;color:var(--dim);font-size:10px;letter-spacing:2.5px;text-transform:uppercase;font-weight:700}
+  .nav .item{
+    display:flex;align-items:center;gap:11px;padding:9px 12px;border-radius:8px;color:var(--muted);
+    text-decoration:none;font-weight:500;font-size:13.5px;border:1px solid transparent;transition:all .2s ease;
+    margin-bottom:2px;
+  }
+  .nav .item:hover{color:var(--ink);background:rgba(255,255,255,.04);border-color:var(--rule);text-shadow:1px 0 var(--pink),-1px 0 var(--cyan)}
+  .nav .item.active{
+    color:var(--neon);background:linear-gradient(90deg,rgba(57,255,20,.10),rgba(255,43,214,.06));
+    border-color:rgba(57,255,20,.3);box-shadow:inset 0 0 14px rgba(57,255,20,.10),0 0 18px rgba(57,255,20,.18);
+    text-shadow:0 0 10px var(--neon-glow);
+  }
+  .nav .item.active .ic{color:var(--neon)}
+  .ic{width:18px;height:18px;color:inherit;flex-shrink:0}
+  .nav .item .k{margin-left:auto;font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--dim)}
+
+  .you{margin:auto 12px 14px;padding:11px 12px;border:1px solid var(--rule);border-radius:10px;display:flex;gap:10px;align-items:center;background:rgba(255,255,255,.03)}
+  .ava{width:32px;height:32px;border-radius:9px;background:linear-gradient(135deg,var(--neon),var(--pink));display:grid;place-items:center;color:#0a0a0a;font-weight:800}
+
+  /* Main */
+  main{padding:0 28px 56px;min-width:0}
+  .top{display:flex;align-items:center;justify-content:space-between;height:62px;border-bottom:1px solid var(--rule);margin-bottom:24px}
+  .crumbs{font-family:'JetBrains Mono',monospace;font-size:13px;color:var(--muted)}
+  .crumbs .here{color:var(--neon);text-shadow:0 0 10px var(--neon-glow)}
+  .top .right{display:flex;gap:10px;align-items:center}
+  .search{
+    background:rgba(255,255,255,.04);border:1px solid var(--rule);border-radius:10px;padding:7px 12px;color:var(--muted);
+    display:flex;align-items:center;gap:8px;min-width:280px;font-size:13px;
+  }
+  .search:hover{border-color:rgba(255,43,214,.4)}
+  kbd{font-family:'JetBrains Mono',monospace;font-size:11px;border:1px solid var(--rule);padding:1px 6px;border-radius:5px;color:var(--muted)}
+  .live{display:flex;align-items:center;gap:8px;color:var(--pink);font-weight:700;font-size:12px;padding:6px 12px;border-radius:99px;border:1px solid rgba(255,43,214,.4);background:rgba(255,43,214,.08);text-shadow:0 0 10px var(--pink-glow)}
+  .live .d{width:7px;height:7px;background:var(--pink);border-radius:50%;box-shadow:0 0 10px var(--pink-glow);animation:p 1.4s ease-in-out infinite}
+  @keyframes p{50%{opacity:.4;transform:scale(.85)}}
+
+  h1{margin:0;font-family:'VT323',monospace;font-size:64px;letter-spacing:2px;line-height:1;color:var(--ink);text-shadow:3px 0 var(--pink),-3px 0 var(--cyan),0 0 25px rgba(255,43,214,.4)}
+  .sub{color:var(--muted);font-size:14px;margin-top:8px}
+
+  /* Stat cards */
+  .stats{display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin:24px 0 28px}
+  .card{
+    position:relative;border-radius:14px;padding:18px;background:linear-gradient(180deg,rgba(255,255,255,.04),rgba(255,255,255,.01));
+    border:1px solid var(--rule);overflow:hidden;transition:transform .25s ease,box-shadow .25s ease;
+  }
+  .card::before{content:"";position:absolute;inset:0;border-radius:14px;padding:1px;background:linear-gradient(135deg,var(--neon),transparent 30%,var(--pink) 100%);-webkit-mask:linear-gradient(#000 0 0) content-box,linear-gradient(#000 0 0);-webkit-mask-composite:xor;mask-composite:exclude;opacity:.45;pointer-events:none}
+  .card:hover{transform:translateY(-3px);box-shadow:0 18px 50px -20px var(--pink-glow),0 8px 24px -10px var(--neon-glow)}
+  .card .lab{font-family:'JetBrains Mono',monospace;font-size:11px;letter-spacing:2px;text-transform:uppercase;color:var(--muted);font-weight:600}
+  .card .val{font-family:'VT323',monospace;font-size:60px;line-height:.95;letter-spacing:2px;margin-top:8px;color:var(--neon);text-shadow:2px 0 var(--pink),-2px 0 var(--cyan),0 0 20px var(--neon-glow)}
+  .card .foot{margin-top:8px;color:var(--muted);font-size:12.5px}
+  .card .delta{display:inline-block;margin-left:8px;color:var(--pink);font-weight:700;font-size:13px;text-shadow:0 0 8px var(--pink-glow)}
+  .card.pink::before{opacity:.6}
+  .card.pink .val{color:var(--pink);text-shadow:2px 0 var(--neon),-2px 0 var(--cyan),0 0 22px var(--pink-glow)}
+
+  .spark{position:absolute;right:16px;top:16px;color:var(--pink);opacity:.85}
+
+  /* Recent panel */
+  .panel{border:1px solid var(--rule);border-radius:14px;background:rgba(16,16,28,.6);backdrop-filter:blur(12px);overflow:hidden}
+  .panel .h{display:flex;align-items:center;justify-content:space-between;padding:16px 18px;border-bottom:1px solid var(--rule)}
+  .panel .h h2{margin:0;font-family:'VT323',monospace;font-size:28px;letter-spacing:1.5px;color:var(--ink);text-shadow:2px 0 var(--pink),-2px 0 var(--cyan)}
+  .panel .h .rt a{color:var(--neon);text-shadow:0 0 10px var(--neon-glow);text-decoration:none;font-weight:700}
+  table{width:100%;border-collapse:collapse}
+  th,td{text-align:left;padding:13px 18px;border-bottom:1px solid var(--rule);font-size:13.5px}
+  th{font-family:'JetBrains Mono',monospace;font-size:11px;text-transform:uppercase;letter-spacing:2px;color:var(--dim);font-weight:700;background:rgba(255,255,255,.02)}
+  tbody tr:hover{background:rgba(255,43,214,.06);cursor:pointer}
+  tbody tr:hover td:first-child{color:var(--neon);text-shadow:0 0 8px var(--neon-glow)}
+  tbody tr:last-child td{border-bottom:none}
+  td.num{font-family:'JetBrains Mono',monospace}
+  .pill{display:inline-flex;align-items:center;gap:5px;padding:3px 9px;border-radius:99px;font-size:11.5px;font-weight:700;letter-spacing:1px;border:1px solid currentColor;background:color-mix(in srgb,currentColor 15%,transparent);text-transform:uppercase}
+  .p-completed{color:var(--neon)} .p-progress{color:var(--pink)} .p-voicemail{color:#ffc14d} .p-failed{color:#ff5b5b} .p-calling{color:var(--cyan)}
+
+  footer{margin-top:30px;display:flex;justify-content:space-between;color:var(--dim);font-family:'JetBrains Mono',monospace;font-size:12px}
+</style>
+</head>
+<body>
+<div class="grid"></div>
+<div class="app">
+  <aside class="side">
+    <div class="brand">
+      <div class="logo">VACILADA</div>
+      <small>// admin · 1.0</small>
+    </div>
+    <nav class="nav">
+      <div class="group">Operación</div>
+      <a class="item active" href="#">
+        <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 12 12 3l9 9"/><path d="M5 10v10h14V10"/></svg>
+        Dashboard <span class="k">⌘1</span>
+      </a>
+      <a class="item" href="#">
+        <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07A19.5 19.5 0 0 1 5.18 13 19.79 19.79 0 0 1 2.12 4.18 2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.13.96.37 1.9.72 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.91.35 1.85.59 2.81.72A2 2 0 0 1 22 16.92Z"/></svg>
+        Calls
+      </a>
+      <a class="item" href="#">
+        <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m21 3-3 3-7 7-3.5-3.5 7-7 3-3 3.5 3.5Z"/></svg>
+        Launch
+      </a>
+      <div class="group">Datos</div>
+      <a class="item" href="#"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="9" cy="7" r="4"/><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/></svg> Users</a>
+      <a class="item" href="#"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="5" width="20" height="14" rx="2"/><path d="M2 10h20"/></svg> Plans</a>
+      <a class="item" href="#"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><rect x="9" y="9" width="6" height="6"/></svg> Presets</a>
+      <div class="group">Sistema</div>
+      <a class="item" href="#"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 3v18h18"/><path d="m7 14 4-4 4 4 6-6"/></svg> Billing</a>
+      <a class="item" href="#"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 12V5H5v7m15 0H4l1 9h14l1-9Z"/></svg> Referrals</a>
+      <a class="item" href="#"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg> Brand</a>
+    </nav>
+    <div class="you">
+      <div class="ava">E</div>
+      <div>
+        <div style="font-weight:700;font-size:13px">Edu</div>
+        <div style="color:var(--muted);font-size:11px">edu@vacilada.com</div>
+      </div>
+    </div>
+  </aside>
+
+  <main>
+    <div class="top">
+      <div class="crumbs">~/admin/<span class="here">dashboard</span></div>
+      <div class="right">
+        <div class="search">
+          <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+          search... <kbd style="margin-left:auto">⌘ K</kbd>
+        </div>
+        <span class="live"><span class="d"></span> EN VIVO</span>
+      </div>
+    </div>
+
+    <h1>D A S H B O A R D</h1>
+    <div class="sub">Hola Edu — 47 vaciladas hoy. Que siga la fiesta.</div>
+
+    <div class="stats">
+      <div class="card">
+        <div class="lab">Calls today</div>
+        <div class="val">47<span class="delta">▲34%</span></div>
+        <div class="foot">vs ayer · 35</div>
+        <svg class="spark" width="80" height="32" viewBox="0 0 80 32" fill="none"><path d="M0 24 L12 22 L22 18 L34 20 L48 12 L60 14 L72 6 L80 8" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      </div>
+      <div class="card">
+        <div class="lab">Completadas</div>
+        <div class="val">42</div>
+        <div class="foot">89.4 % éxito</div>
+      </div>
+      <div class="card pink">
+        <div class="lab">Active now</div>
+        <div class="val">2</div>
+        <div class="foot">en línea ahora ·  pulso vivo</div>
+      </div>
+      <div class="card">
+        <div class="lab">Total calls</div>
+        <div class="val">1247</div>
+        <div class="foot">desde lanzamiento</div>
+      </div>
+    </div>
+
+    <div class="panel">
+      <div class="h">
+        <h2>R E C E N T  C A L L S</h2>
+        <div class="rt">auto-sync 10s · <a href="#">ver todas →</a></div>
+      </div>
+      <table>
+        <thead><tr><th>Phone</th><th>Scenario</th><th>Status</th><th>Duration</th><th>Time</th></tr></thead>
+        <tbody>
+          <tr>
+            <td class="num">+5255 95 ****25</td>
+            <td>Aeroméxico — premio falso</td>
+            <td><span class="pill p-completed">● Completed</span></td>
+            <td class="num">00:56</td><td>2 min</td>
+          </tr>
+          <tr>
+            <td class="num">+5255 27 ****81</td>
+            <td>SAT — cargo de $50,000</td>
+            <td><span class="pill p-progress">● In progress</span></td>
+            <td class="num">00:38</td><td>ahora</td>
+          </tr>
+          <tr>
+            <td class="num">+5233 18 ****04</td>
+            <td>Dominoʼs — pizza 03:47</td>
+            <td><span class="pill p-voicemail">● Voicemail</span></td>
+            <td class="num">00:09</td><td>14 min</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <footer>
+      <div>vacilada.com · synthwave admin</div>
+      <div>build 59ca61a · uplink ws/ssl ok</div>
+    </footer>
+  </main>
+</div>
+</body>
+</html>

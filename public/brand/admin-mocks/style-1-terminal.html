@@ -1,0 +1,229 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Vacilada Admin · Style 1 — Terminal Hacker</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700;800&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#0a0a0a; --bg-1:#0e0e0e; --bg-2:#141414;
+    --line:#1f2a1f; --line-2:#2a3a2a;
+    --neon:#39FF14; --neon-dim:#23a30c; --neon-glow:rgba(57,255,20,.35);
+    --text:#cfe9ca; --muted:#5e7958; --dim:#3d513a;
+    --red:#ff5050; --amber:#ffb84d; --blue:#7ad6ff; --purple:#cc88ff;
+  }
+  *,*:before,*:after{box-sizing:border-box}
+  html,body{margin:0;padding:0;background:var(--bg);color:var(--text);font-family:'JetBrains Mono',ui-monospace,monospace;font-size:13px;line-height:1.5}
+  /* CRT scanlines */
+  body:before{
+    content:"";position:fixed;inset:0;pointer-events:none;z-index:1000;
+    background:repeating-linear-gradient(0deg,rgba(57,255,20,.035) 0 1px,transparent 1px 3px);
+    mix-blend-mode:overlay;
+  }
+  body:after{
+    content:"";position:fixed;inset:0;pointer-events:none;z-index:1001;
+    background:radial-gradient(ellipse at center,transparent 60%,rgba(0,0,0,.55) 100%);
+  }
+  a{color:var(--neon);text-decoration:none}
+  a:hover{text-shadow:0 0 6px var(--neon-glow)}
+
+  .app{display:grid;grid-template-columns:240px 1fr;min-height:100vh}
+  /* Sidebar */
+  .side{border-right:1px solid var(--line);background:var(--bg);padding:0;display:flex;flex-direction:column}
+  .brand{padding:18px 16px 14px;border-bottom:1px solid var(--line)}
+  .brand .name{color:var(--neon);font-weight:800;font-size:16px;letter-spacing:1px;text-shadow:0 0 8px var(--neon-glow)}
+  .brand .name .cur{display:inline-block;width:8px;height:14px;background:var(--neon);margin-left:4px;vertical-align:-2px;animation:blink 1s steps(2) infinite}
+  .brand .sub{color:var(--dim);font-size:11px;margin-top:4px;letter-spacing:1px}
+  @keyframes blink{50%{opacity:0}}
+
+  .nav{padding:10px 0;flex:1;overflow:auto}
+  .nav .group{padding:6px 16px 4px;color:var(--dim);font-size:10px;letter-spacing:2px;text-transform:uppercase}
+  .nav .item{display:flex;align-items:center;gap:10px;padding:7px 16px;color:var(--muted);border-left:2px solid transparent;font-size:13px}
+  .nav .item:hover{color:var(--text);background:var(--bg-1)}
+  .nav .item.active{color:var(--neon);border-left-color:var(--neon);background:linear-gradient(90deg,rgba(57,255,20,.07),transparent);text-shadow:0 0 6px var(--neon-glow)}
+  .nav .item .k{color:var(--dim);font-size:11px;margin-left:auto}
+
+  .side .footer{border-top:1px solid var(--line);padding:12px 16px;color:var(--dim);font-size:11px}
+  .side .user{display:flex;align-items:center;gap:8px;color:var(--text)}
+  .side .ava{width:24px;height:24px;border:1px solid var(--neon);color:var(--neon);font-size:11px;display:grid;place-items:center}
+
+  /* Main */
+  main{padding:0 22px 40px;min-width:0}
+  .topbar{display:flex;align-items:center;justify-content:space-between;height:52px;border-bottom:1px solid var(--line);margin-bottom:18px}
+  .topbar .crumbs{color:var(--muted);font-size:12px}
+  .topbar .crumbs .sep{color:var(--dim);margin:0 8px}
+  .topbar .crumbs .here{color:var(--neon)}
+  .topbar .right{display:flex;gap:10px;align-items:center}
+  .pill{border:1px solid var(--line-2);padding:5px 10px;color:var(--muted);font-size:11px;letter-spacing:1px}
+  .pill.live::before{content:"";display:inline-block;width:6px;height:6px;background:var(--neon);border-radius:50%;margin-right:6px;box-shadow:0 0 8px var(--neon-glow);animation:pulse 1.4s ease-in-out infinite}
+  @keyframes pulse{0%,100%{opacity:1}50%{opacity:.35}}
+
+  h1{margin:0;color:var(--neon);font-size:18px;font-weight:800;letter-spacing:1.5px;text-transform:uppercase}
+  h1 .arr{color:var(--dim);margin-right:6px}
+  .h1-row{display:flex;align-items:baseline;justify-content:space-between;margin:18px 0 10px}
+  .h1-row .meta{color:var(--dim);font-size:11px;letter-spacing:1px}
+
+  .ascii{color:var(--line-2);font-size:11px;letter-spacing:0;white-space:pre;margin:8px 0}
+
+  /* Stat grid */
+  .stats{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin:18px 0}
+  .stat{border:1px solid var(--line-2);padding:14px 16px;position:relative;background:linear-gradient(180deg,var(--bg-1),var(--bg))}
+  .stat .lab{color:var(--muted);font-size:10px;letter-spacing:2px;text-transform:uppercase}
+  .stat .val{color:var(--neon);font-size:34px;font-weight:800;margin-top:6px;letter-spacing:-1px;text-shadow:0 0 12px var(--neon-glow)}
+  .stat .sub{color:var(--dim);font-size:11px;margin-top:4px}
+  .stat .delta{color:var(--neon-dim);font-size:11px;margin-left:6px}
+  .stat.warn .val{color:var(--amber);text-shadow:0 0 10px rgba(255,184,77,.4)}
+  .stat.muted .val{color:var(--text);text-shadow:none}
+  .stat .corner{position:absolute;color:var(--line-2);font-size:10px}
+  .stat .tl{top:4px;left:6px} .stat .tr{top:4px;right:6px} .stat .bl{bottom:4px;left:6px} .stat .br{bottom:4px;right:6px}
+  .stat:hover{border-color:var(--neon);box-shadow:0 0 22px rgba(57,255,20,.15) inset}
+
+  /* Table */
+  .panel{border:1px solid var(--line-2);margin-top:8px}
+  .panel .head{display:flex;align-items:center;justify-content:space-between;padding:10px 14px;border-bottom:1px solid var(--line-2);color:var(--muted);font-size:11px;letter-spacing:2px;text-transform:uppercase}
+  .panel .head .actions{display:flex;gap:8px}
+  .btn{border:1px solid var(--line-2);background:transparent;color:var(--muted);font:inherit;font-size:11px;padding:5px 10px;cursor:pointer;letter-spacing:1px}
+  .btn:hover{border-color:var(--neon);color:var(--neon)}
+  .btn.primary{border-color:var(--neon);color:var(--neon)}
+  .btn.primary:hover{background:var(--neon);color:#0a0a0a}
+
+  table{width:100%;border-collapse:collapse;font-size:12px}
+  th,td{text-align:left;padding:9px 14px;border-bottom:1px solid var(--line)}
+  th{color:var(--dim);font-weight:500;font-size:10px;letter-spacing:1.5px;text-transform:uppercase;background:var(--bg-1)}
+  tbody tr{cursor:pointer}
+  tbody tr:hover{background:rgba(57,255,20,.04)}
+  tbody tr:hover td:first-child{color:var(--neon)}
+  td:first-child::before{content:"  "}
+  tbody tr:hover td:first-child::before{content:"> ";color:var(--neon)}
+  .tag{display:inline-block;padding:2px 6px;border:1px solid currentColor;font-size:10px;letter-spacing:1px;text-transform:uppercase}
+  .t-completed{color:var(--neon)} .t-failed{color:var(--red)} .t-calling{color:var(--blue)} .t-progress{color:var(--purple)} .t-voicemail{color:var(--amber)}
+
+  .footer{margin-top:30px;color:var(--dim);font-size:11px;border-top:1px solid var(--line);padding-top:12px;display:flex;justify-content:space-between}
+  .footer .key{color:var(--muted)}
+  kbd{font-family:inherit;border:1px solid var(--line-2);padding:1px 5px;color:var(--muted);font-size:10px}
+</style>
+</head>
+<body>
+<div class="app">
+  <aside class="side">
+    <div class="brand">
+      <div class="name">VACILADA<span class="cur"></span></div>
+      <div class="sub">// admin v1.0</div>
+    </div>
+    <nav class="nav">
+      <div class="group">— Operación</div>
+      <a class="item active" href="#">[*] Dashboard <span class="k">⌘1</span></a>
+      <a class="item" href="#">[ ] Calls <span class="k">⌘2</span></a>
+      <a class="item" href="#">[ ] Launch <span class="k">⌘L</span></a>
+
+      <div class="group">— Datos</div>
+      <a class="item" href="#">[ ] Users</a>
+      <a class="item" href="#">[ ] Plans</a>
+      <a class="item" href="#">[ ] Presets</a>
+
+      <div class="group">— Sistema</div>
+      <a class="item" href="#">[ ] Billing</a>
+      <a class="item" href="#">[ ] Referrals</a>
+      <a class="item" href="#">[ ] Brand</a>
+    </nav>
+    <div class="footer">
+      <div class="user">
+        <div class="ava">E</div>
+        <div>
+          <div>edu@vacilada.com</div>
+          <div style="color:var(--dim);font-size:10px">root · sesión 04:21</div>
+        </div>
+      </div>
+    </div>
+  </aside>
+
+  <main>
+    <div class="topbar">
+      <div class="crumbs">~ <span class="sep">/</span> admin <span class="sep">/</span> <span class="here">dashboard</span></div>
+      <div class="right">
+        <span class="pill live">SISTEMA OK</span>
+        <span class="pill"><kbd>⌘</kbd> <kbd>K</kbd> · buscar</span>
+      </div>
+    </div>
+
+    <div class="h1-row">
+      <h1><span class="arr">&gt;</span> Dashboard</h1>
+      <div class="meta">last sync 22:18:04 · auto-refresh 10s</div>
+    </div>
+
+    <pre class="ascii">┌─ overview ──────────────────────────────────────────────────────────────────┐</pre>
+
+    <div class="stats">
+      <div class="stat">
+        <span class="corner tl">┌</span><span class="corner tr">┐</span><span class="corner bl">└</span><span class="corner br">┘</span>
+        <div class="lab">CALLS TODAY</div>
+        <div class="val">47<span class="delta">+12</span></div>
+        <div class="sub">vs ayer · 35</div>
+      </div>
+      <div class="stat">
+        <span class="corner tl">┌</span><span class="corner tr">┐</span><span class="corner bl">└</span><span class="corner br">┘</span>
+        <div class="lab">COMPLETED</div>
+        <div class="val">42</div>
+        <div class="sub">89.4% éxito</div>
+      </div>
+      <div class="stat warn">
+        <span class="corner tl">┌</span><span class="corner tr">┐</span><span class="corner bl">└</span><span class="corner br">┘</span>
+        <div class="lab">ACTIVE NOW</div>
+        <div class="val">2</div>
+        <div class="sub">en línea ahora</div>
+      </div>
+      <div class="stat muted">
+        <span class="corner tl">┌</span><span class="corner tr">┐</span><span class="corner bl">└</span><span class="corner br">┘</span>
+        <div class="lab">TOTAL CALLS</div>
+        <div class="val">1,247</div>
+        <div class="sub">desde lanzamiento</div>
+      </div>
+    </div>
+
+    <pre class="ascii">└─────────────────────────────────────────────────────────────────────────────┘
+┌─ recent calls ──────────────────────────────────────────────────────────────┐</pre>
+
+    <div class="panel">
+      <div class="head">
+        <div>RECENT CALLS · stream</div>
+        <div class="actions">
+          <button class="btn">filtrar</button>
+          <button class="btn">export csv</button>
+          <button class="btn primary">view all →</button>
+        </div>
+      </div>
+      <table>
+        <thead><tr><th>phone</th><th>scenario</th><th>status</th><th>duration</th><th>time</th></tr></thead>
+        <tbody>
+          <tr>
+            <td>+5255 95 ****25</td><td>Aeroméxico premio falso</td>
+            <td><span class="tag t-completed">COMPLETED</span></td>
+            <td>00:56</td><td>2m ago</td>
+          </tr>
+          <tr>
+            <td>+5255 27 ****81</td><td>SAT cargo de $50,000</td>
+            <td><span class="tag t-progress">IN PROGRESS</span></td>
+            <td>00:38</td><td>just now</td>
+          </tr>
+          <tr>
+            <td>+5233 18 ****04</td><td>Dominoʼs pizza 03:47</td>
+            <td><span class="tag t-voicemail">VOICEMAIL</span></td>
+            <td>00:09</td><td>14m ago</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <pre class="ascii">└─────────────────────────────────────────────────────────────────────────────┘</pre>
+
+    <div class="footer">
+      <div>Vacilada Admin · build 59ca61a · uplink ws/ssl ok</div>
+      <div class="key"><kbd>?</kbd> shortcuts · <kbd>g</kbd> <kbd>c</kbd> calls · <kbd>g</kbd> <kbd>u</kbd> users</div>
+    </div>
+  </main>
+</div>
+</body>
+</html>

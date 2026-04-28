@@ -1,0 +1,124 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Vacilada Admin — Style proposals</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
+<style>
+  *,*:before,*:after{box-sizing:border-box}
+  html,body{margin:0;padding:0;background:#0a0a0a;color:#f0f0f0;font-family:'Inter',ui-sans-serif,system-ui,sans-serif;font-size:15px;line-height:1.55;-webkit-font-smoothing:antialiased}
+  .mono{font-family:'JetBrains Mono',ui-monospace,monospace}
+  a{color:#39FF14;text-decoration:none}
+  .wrap{max-width:1180px;margin:0 auto;padding:64px 28px 80px}
+  header h1{margin:0;font-size:42px;font-weight:800;letter-spacing:-1px}
+  header .kicker{color:#39FF14;font-family:'JetBrains Mono',monospace;font-size:12px;letter-spacing:2px;text-transform:uppercase;margin-bottom:14px}
+  header p{color:#aaa;font-size:16px;max-width:680px;margin:14px 0 0}
+  header p strong{color:#fff}
+
+  .grid{display:grid;grid-template-columns:repeat(2,1fr);gap:22px;margin-top:48px}
+  .card{
+    border:1px solid #222;border-radius:18px;background:linear-gradient(180deg,#111,#0c0c0c);
+    overflow:hidden;transition:transform .25s ease,border-color .25s ease,box-shadow .25s ease;display:flex;flex-direction:column;
+  }
+  .card:hover{transform:translateY(-3px);border-color:#39FF14;box-shadow:0 18px 50px -22px rgba(57,255,20,.35)}
+  .frame{position:relative;aspect-ratio:16/10;border-bottom:1px solid #222;overflow:hidden;background:#000}
+  .frame iframe{position:absolute;left:0;top:0;width:200%;height:200%;border:0;transform:scale(.5);transform-origin:0 0;pointer-events:none}
+  .body{padding:18px 20px 20px}
+  .badge{display:inline-flex;align-items:center;gap:5px;font-family:'JetBrains Mono',monospace;font-size:11px;letter-spacing:2px;text-transform:uppercase;color:#39FF14;margin-bottom:6px}
+  .body h2{margin:0;font-size:20px;font-weight:700;letter-spacing:-.3px}
+  .body p{margin:8px 0 0;color:#aaa;font-size:14px;line-height:1.55}
+  .body .tags{margin-top:14px;display:flex;flex-wrap:wrap;gap:6px}
+  .tag{font-family:'JetBrains Mono',monospace;font-size:10.5px;color:#888;border:1px solid #2a2a2a;padding:3px 8px;border-radius:99px;letter-spacing:.5px;text-transform:uppercase}
+  .body .open{margin-top:18px;display:flex;align-items:center;gap:8px;font-weight:700;font-size:14px;color:#39FF14}
+  .body .open svg{width:14px;height:14px;transition:transform .2s}
+  .card:hover .open svg{transform:translateX(4px)}
+
+  .mini{margin-top:54px;padding-top:24px;border-top:1px solid #222;color:#888;font-size:13px;display:flex;justify-content:space-between}
+  .mini code{font-family:'JetBrains Mono',monospace;color:#bbb;background:#161616;padding:2px 7px;border-radius:5px}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div class="kicker">Vacilada · Admin redesign · 5 propuestas</div>
+    <h1>Pick a style.</h1>
+    <p>Cinco direcciones visuales para el admin panel. <strong>Misma data, mismos tokens de marca</strong> (#0a0a0a + #39FF14 + JetBrains Mono) — solo cambia la <em>aplicación</em>. Click cualquier card para ver el mockup completo. Cuando me digas cuál te late, construyo la versión real sobre Vue + Tailwind.</p>
+  </header>
+
+  <div class="grid">
+    <a class="card" href="style-1-terminal.html" target="_blank" rel="noopener">
+      <div class="frame"><iframe src="style-1-terminal.html" tabindex="-1" aria-hidden="true"></iframe></div>
+      <div class="body">
+        <div class="badge">01 · Terminal hacker</div>
+        <h2>Terminal Hacker</h2>
+        <p>CRT scanlines, todo monospace, ASCII dividers, cursor parpadeante, densidad alta. La opción más on-brand y la que más grita "tech". Puede leerse como <em>intensa</em> en sesiones largas.</p>
+        <div class="tags">
+          <span class="tag">CRT</span><span class="tag">monospace</span><span class="tag">ASCII</span><span class="tag">dense</span>
+        </div>
+        <div class="open">Ver mockup completo <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M5 12h14M13 6l6 6-6 6"/></svg></div>
+      </div>
+    </a>
+
+    <a class="card" href="style-2-glass.html" target="_blank" rel="noopener">
+      <div class="frame"><iframe src="style-2-glass.html" tabindex="-1" aria-hidden="true"></iframe></div>
+      <div class="body">
+        <div class="badge">02 · Modern glass</div>
+        <h2>Modern Dark Glass</h2>
+        <p>Linear / Vercel: cards con backdrop blur, glow neon en bordes, espaciado generoso, hover lifts suaves. La opción <em>más SaaS moderno</em>. Sobria, ágil, fácil de mirar.</p>
+        <div class="tags">
+          <span class="tag">backdrop-blur</span><span class="tag">linear-style</span><span class="tag">smooth</span><span class="tag">SaaS</span>
+        </div>
+        <div class="open">Ver mockup completo <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M5 12h14M13 6l6 6-6 6"/></svg></div>
+      </div>
+    </a>
+
+    <a class="card" href="style-3-brutalist.html" target="_blank" rel="noopener">
+      <div class="frame"><iframe src="style-3-brutalist.html" tabindex="-1" aria-hidden="true"></iframe></div>
+      <div class="body">
+        <div class="badge">03 · Brutalist neon</div>
+        <h2>Brutalist Neon</h2>
+        <p>Esquinas duras 0–4 px, números monospace gigantes (84 px), bandas full-bleed, neon usado <em>solo</em> en acentos. Tipografía dominante. Tipo magazine o terminal de Bloomberg con personalidad.</p>
+        <div class="tags">
+          <span class="tag">hard edges</span><span class="tag">big-type</span><span class="tag">accent-only</span><span class="tag">bold</span>
+        </div>
+        <div class="open">Ver mockup completo <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M5 12h14M13 6l6 6-6 6"/></svg></div>
+      </div>
+    </a>
+
+    <a class="card" href="style-4-synthwave.html" target="_blank" rel="noopener">
+      <div class="frame"><iframe src="style-4-synthwave.html" tabindex="-1" aria-hidden="true"></iframe></div>
+      <div class="body">
+        <div class="badge">04 · Synthwave arcade</div>
+        <h2>Synthwave Arcade</h2>
+        <p>80s retro: neon verde + magenta secundario, textura de ruido, aberración cromática en hover, grid floor en perspectiva. La <em>más juguetona</em> — combina con el tono "vacilada" del producto.</p>
+        <div class="tags">
+          <span class="tag">retro</span><span class="tag">magenta</span><span class="tag">noise</span><span class="tag">VT323</span>
+        </div>
+        <div class="open">Ver mockup completo <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M5 12h14M13 6l6 6-6 6"/></svg></div>
+      </div>
+    </a>
+
+    <a class="card" href="style-5-editorial.html" target="_blank" rel="noopener" style="grid-column:1 / -1">
+      <div class="frame" style="aspect-ratio:21/9"><iframe src="style-5-editorial.html" tabindex="-1" aria-hidden="true"></iframe></div>
+      <div class="body">
+        <div class="badge">05 · Editorial data</div>
+        <h2>Editorial Data</h2>
+        <p>NYT / Stripe analytics: grayscale dominante, neon como acento puntual, headlines grandes (48 px), tablas densas pero airosas, gráficas como protagonistas. La <em>más data-first</em>. Calmada, profesional, perfecta si te metes a hacer ops largas en este panel.</p>
+        <div class="tags">
+          <span class="tag">grayscale</span><span class="tag">data-first</span><span class="tag">restrained-neon</span><span class="tag">charts-hero</span>
+        </div>
+        <div class="open">Ver mockup completo <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M5 12h14M13 6l6 6-6 6"/></svg></div>
+      </div>
+    </a>
+  </div>
+
+  <div class="mini">
+    <div>5 propuestas · plain HTML · sin Vue ni build · paths: <code>/brand/admin-mocks/style-{1..5}*.html</code></div>
+    <div>Vacilada Admin redesign · 27 abr 2026</div>
+  </div>
+</div>
+</body>
+</html>

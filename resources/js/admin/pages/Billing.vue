@@ -1,184 +1,176 @@
 <template>
-  <div class="p-6 space-y-6">
-    <h1 class="text-2xl font-bold font-mono">Billing & Usage</h1>
+  <div class="p-6 lg:p-8 space-y-5 max-w-[1400px]">
+    <header>
+      <div class="text-[11.5px] uppercase tracking-wider text-gray-500 font-semibold mb-1">Sistema</div>
+      <h1 class="text-[26px] font-bold tracking-tight">Billing & Usage</h1>
+      <p class="text-sm text-gray-400 mt-1.5">Saldos, gasto del mes, costo por minuto, ingresos.</p>
+    </header>
 
-    <div v-if="loading" class="text-gray-500 text-center py-12">Loading...</div>
+    <div v-if="loading" class="grid grid-cols-1 md:grid-cols-3 gap-4">
+      <UiCard v-for="n in 3" :key="n">
+        <UiSkeleton h="14px" w="40%" class="mb-3" />
+        <UiSkeleton h="32px" w="60%" class="mb-2" />
+        <UiSkeleton h="12px" w="50%" />
+      </UiCard>
+    </div>
 
     <template v-else>
-      <!-- API Balances -->
+      <!-- Low balance banner -->
+      <UiCard v-if="anyAlert" class="border-amber-500/30 bg-amber-500/5">
+        <div class="flex items-start gap-3">
+          <AlertTriangle class="w-5 h-5 text-amber-400 flex-shrink-0 mt-0.5" />
+          <div class="flex-1 text-sm">
+            <p class="font-semibold text-amber-300">Atención necesaria</p>
+            <ul class="list-disc list-inside mt-1 text-amber-200/80 space-y-0.5">
+              <li v-if="twilioLow">Twilio balance bajo (${{ data.twilio?.balance }}). Recarga para no parar llamadas.</li>
+              <li v-if="elLow">ElevenLabs casi sin caracteres ({{ ((data.elevenlabs?.characters_remaining || 0)/1000).toFixed(0) }}K).</li>
+              <li v-if="openAiQuotaFail">OpenAI tuvo fallas de cuota recientemente · {{ lastFailRelative }}.</li>
+            </ul>
+          </div>
+        </div>
+      </UiCard>
+
+      <!-- API balances -->
       <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <div class="bg-matrix-800 border border-matrix-600 rounded-xl p-5">
-          <p class="text-xs text-gray-500 uppercase tracking-wider mb-1">Twilio Balance</p>
+        <UiCard hover>
+          <p class="text-[11.5px] text-gray-500 uppercase tracking-wide font-semibold mb-1">Twilio</p>
           <p class="text-2xl font-bold font-mono" :class="twilioLow ? 'text-red-400' : 'text-neon'">
             {{ data.twilio?.balance ? `$${parseFloat(data.twilio.balance).toFixed(2)}` : 'N/A' }}
           </p>
           <p class="text-xs text-gray-500 mt-1">{{ data.twilio?.currency || 'USD' }}</p>
-          <p v-if="twilioLow" class="text-xs text-red-400 mt-2">Low balance - add funds</p>
-        </div>
+          <p v-if="twilioLow" class="text-xs text-red-400 mt-2">⚠ saldo bajo · recarga</p>
+        </UiCard>
 
-        <div class="bg-matrix-800 border border-matrix-600 rounded-xl p-5"
-          :class="openAiQuotaFail ? 'border-red-500/50' : ''">
-          <div class="flex items-start justify-between">
-            <p class="text-xs text-gray-500 uppercase tracking-wider mb-1">OpenAI</p>
+        <UiCard hover :class="openAiQuotaFail ? 'border-red-500/40' : ''">
+          <div class="flex items-start justify-between mb-1">
+            <p class="text-[11.5px] text-gray-500 uppercase tracking-wide font-semibold">OpenAI</p>
             <a :href="data.openai?.dashboard_url" target="_blank" class="text-[10px] text-gray-500 hover:text-neon">Abrir ↗</a>
           </div>
           <template v-if="data.openai?.spent_month_usd !== undefined">
-            <p class="text-2xl font-bold font-mono text-yellow-400">
-              ${{ data.openai.spent_month_usd.toFixed(2) }}
-            </p>
+            <p class="text-2xl font-bold font-mono text-amber-400">${{ data.openai.spent_month_usd.toFixed(2) }}</p>
             <p class="text-xs text-gray-500 mt-1">gastado este mes</p>
-            <div v-if="data.openai.input_tokens_month !== undefined" class="mt-2 text-[10px] text-gray-500 space-y-0.5 border-t border-matrix-700 pt-2">
-              <div class="flex justify-between">
-                <span>tokens entrada</span>
-                <span class="font-mono text-gray-400">{{ formatNum(data.openai.input_tokens_month) }}</span>
-              </div>
-              <div class="flex justify-between">
-                <span>tokens salida</span>
-                <span class="font-mono text-gray-400">{{ formatNum(data.openai.output_tokens_month) }}</span>
-              </div>
-              <div v-if="data.openai.audio_seconds_month" class="flex justify-between">
-                <span>audio procesado</span>
-                <span class="font-mono text-gray-400">{{ Math.round(data.openai.audio_seconds_month / 60) }} min</span>
-              </div>
+
+            <!-- daily-spend sparkline -->
+            <div v-if="data.openai.daily_spend?.length" class="mt-3" style="height:48px">
+              <Line :data="openAiDailyChart" :options="sparkOptions" />
+            </div>
+
+            <div v-if="data.openai.input_tokens_month !== undefined" class="mt-2 pt-2 border-t border-white/5 text-[10.5px] text-gray-500 space-y-0.5">
+              <div class="flex justify-between"><span>tokens entrada</span><span class="font-mono text-gray-400">{{ formatNum(data.openai.input_tokens_month) }}</span></div>
+              <div class="flex justify-between"><span>tokens salida</span><span class="font-mono text-gray-400">{{ formatNum(data.openai.output_tokens_month) }}</span></div>
+              <div v-if="data.openai.audio_seconds_month" class="flex justify-between"><span>audio</span><span class="font-mono text-gray-400">{{ Math.round(data.openai.audio_seconds_month / 60) }} min</span></div>
             </div>
           </template>
           <template v-else>
             <p class="text-sm text-gray-500 mt-1">Balance no expuesto por la API</p>
-            <p class="text-[10px] text-gray-600 mt-1">
-              Añade <code class="text-gray-400">OPENAI_ADMIN_KEY</code>
-              (sk-admin-...) para ver gasto + tokens del mes.
-            </p>
+            <p class="text-[10px] text-gray-600 mt-1">Añade <code class="text-gray-400">OPENAI_ADMIN_KEY</code> para ver gasto mensual.</p>
           </template>
-          <p v-if="openAiQuotaFail" class="text-xs text-red-400 mt-2">
-            ⚠ Falla de cuota detectada · {{ lastFailRelative }}
-          </p>
-        </div>
+          <p v-if="openAiQuotaFail" class="text-xs text-red-400 mt-2">⚠ quota fail · {{ lastFailRelative }}</p>
+        </UiCard>
 
-        <div class="bg-matrix-800 border border-matrix-600 rounded-xl p-5">
-          <p class="text-xs text-gray-500 uppercase tracking-wider mb-1">ElevenLabs</p>
+        <UiCard hover>
+          <p class="text-[11.5px] text-gray-500 uppercase tracking-wide font-semibold mb-1">ElevenLabs</p>
           <template v-if="data.elevenlabs && !data.elevenlabs.error">
             <p class="text-2xl font-bold font-mono" :class="elLow ? 'text-red-400' : 'text-blue-400'">
               {{ ((data.elevenlabs.characters_remaining || 0) / 1000).toFixed(0) }}K
             </p>
-            <p class="text-xs text-gray-500 mt-1">chars remaining ({{ data.elevenlabs.tier }})</p>
-            <div class="mt-1 h-1.5 bg-matrix-700 rounded-full overflow-hidden">
-              <div class="h-full rounded-full" :class="elLow ? 'bg-red-400' : 'bg-blue-400'"
-                :style="`width: ${Math.min(100, (data.elevenlabs.characters_remaining / data.elevenlabs.characters_limit) * 100)}%`"></div>
+            <p class="text-xs text-gray-500 mt-1">chars · {{ data.elevenlabs.tier }}</p>
+            <div class="mt-2 h-1.5 bg-white/5 rounded-full overflow-hidden">
+              <div
+                class="h-full rounded-full transition-all"
+                :class="elLow ? 'bg-red-400' : 'bg-blue-400'"
+                :style="`width: ${Math.min(100, (data.elevenlabs.characters_remaining / data.elevenlabs.characters_limit) * 100)}%`"
+              />
             </div>
           </template>
           <p v-else class="text-sm text-gray-500">N/A</p>
-        </div>
-
-        <div class="bg-matrix-800 border border-matrix-600 rounded-xl p-5">
-          <p class="text-xs text-gray-500 uppercase tracking-wider mb-1">Est. Cost (Month)</p>
-          <p class="text-2xl font-bold font-mono text-yellow-400">${{ data.costs?.estimated_month_usd || '0' }}</p>
-          <p class="text-xs text-gray-500 mt-1">{{ data.minutes?.this_month || 0 }} minutes used</p>
-        </div>
-
-        <div class="bg-matrix-800 border border-matrix-600 rounded-xl p-5">
-          <p class="text-xs text-gray-500 uppercase tracking-wider mb-1">Revenue (Month)</p>
-          <p class="text-2xl font-bold font-mono text-neon">${{ data.revenue_mxn || '0' }} MXN</p>
-          <p class="text-xs text-gray-500 mt-1">Neto: ${{ data.revenue_net_mxn || '0' }} MXN</p>
-        </div>
-
-        <div class="bg-matrix-800 border border-matrix-600 rounded-xl p-5">
-          <p class="text-xs text-gray-500 uppercase tracking-wider mb-1">Otros</p>
-          <div class="text-xs space-y-1 mt-1">
-            <div class="flex justify-between">
-              <span class="text-gray-400">Anthropic (moderación)</span>
-              <span :class="data.anthropic?.configured ? 'text-neon' : 'text-gray-600'">
-                {{ data.anthropic?.configured ? '✓' : '—' }}
-              </span>
-            </div>
-            <div class="flex justify-between">
-              <span class="text-gray-400">api-ninjas (chistes)</span>
-              <span :class="data.api_ninjas?.configured ? 'text-neon' : 'text-gray-600'">
-                {{ data.api_ninjas?.configured ? '✓' : '—' }}
-              </span>
-            </div>
-          </div>
-        </div>
+        </UiCard>
       </div>
 
-      <!-- Call Breakdown -->
-      <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <div class="bg-matrix-800 border border-matrix-600 rounded-xl p-4">
-          <p class="text-xs text-gray-500 uppercase">Total Calls</p>
-          <p class="text-xl font-bold font-mono mt-1">{{ data.calls?.total }}</p>
-        </div>
-        <div class="bg-matrix-800 border border-matrix-600 rounded-xl p-4">
-          <p class="text-xs text-gray-500 uppercase">Admin (Free)</p>
-          <p class="text-xl font-bold font-mono mt-1 text-purple-400">{{ data.calls?.admin }}</p>
-        </div>
-        <div class="bg-matrix-800 border border-matrix-600 rounded-xl p-4">
-          <p class="text-xs text-gray-500 uppercase">Trial (Free)</p>
-          <p class="text-xl font-bold font-mono mt-1 text-blue-400">{{ data.calls?.trial }}</p>
-        </div>
-        <div class="bg-matrix-800 border border-matrix-600 rounded-xl p-4">
-          <p class="text-xs text-gray-500 uppercase">Paid</p>
-          <p class="text-xl font-bold font-mono mt-1 text-neon">{{ data.calls?.paid }}</p>
-        </div>
+      <!-- Calls breakdown -->
+      <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
+        <UiStatCard label="Total calls"     :value="data.calls?.total ?? 0"     :icon="Phone" />
+        <UiStatCard label="Admin (free)"    :value="data.calls?.admin ?? 0"     :icon="ShieldCheck" />
+        <UiStatCard label="Trial (free)"    :value="data.calls?.trial ?? 0"     :icon="Gift" />
+        <UiStatCard label="Paid"            :value="data.calls?.paid ?? 0"      :icon="DollarSign" :hot="true" />
       </div>
 
-      <!-- This Month vs Today -->
+      <!-- Cost & revenue -->
       <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <div class="bg-matrix-800 border border-matrix-600 rounded-xl p-5">
-          <h3 class="text-sm font-semibold text-gray-400 uppercase mb-3">Today</h3>
+        <UiCard title="Today">
           <div class="grid grid-cols-2 gap-3">
             <div>
-              <p class="text-xs text-gray-500">Calls</p>
-              <p class="font-bold font-mono text-lg">{{ data.calls?.today }}</p>
+              <p class="text-xs text-gray-500 uppercase">Calls</p>
+              <p class="font-bold font-mono text-xl">{{ data.calls?.today }}</p>
             </div>
             <div>
-              <p class="text-xs text-gray-500">Completed</p>
-              <p class="font-bold font-mono text-lg text-neon">{{ data.calls?.completed_today }}</p>
+              <p class="text-xs text-gray-500 uppercase">Completed</p>
+              <p class="font-bold font-mono text-xl text-neon">{{ data.calls?.completed_today }}</p>
             </div>
           </div>
-        </div>
+        </UiCard>
 
-        <div class="bg-matrix-800 border border-matrix-600 rounded-xl p-5">
-          <h3 class="text-sm font-semibold text-gray-400 uppercase mb-3">This Month</h3>
+        <UiCard title="Este mes">
           <div class="grid grid-cols-3 gap-3">
             <div>
-              <p class="text-xs text-gray-500">Calls</p>
-              <p class="font-bold font-mono text-lg">{{ data.calls?.this_month }}</p>
+              <p class="text-xs text-gray-500 uppercase">Calls</p>
+              <p class="font-bold font-mono text-xl">{{ data.calls?.this_month }}</p>
             </div>
             <div>
-              <p class="text-xs text-gray-500">Completed</p>
-              <p class="font-bold font-mono text-lg text-neon">{{ data.calls?.completed_month }}</p>
+              <p class="text-xs text-gray-500 uppercase">Completed</p>
+              <p class="font-bold font-mono text-xl text-neon">{{ data.calls?.completed_month }}</p>
             </div>
             <div>
-              <p class="text-xs text-gray-500">Minutes</p>
-              <p class="font-bold font-mono text-lg">{{ data.minutes?.this_month }}</p>
+              <p class="text-xs text-gray-500 uppercase">Min</p>
+              <p class="font-bold font-mono text-xl">{{ data.minutes?.this_month }}</p>
             </div>
           </div>
-        </div>
+        </UiCard>
       </div>
 
-      <!-- Cost Breakdown -->
-      <div class="bg-matrix-800 border border-matrix-600 rounded-xl p-5">
-        <h3 class="text-sm font-semibold text-gray-400 uppercase mb-3">Cost Summary</h3>
+      <UiCard title="Cost summary">
         <table class="w-full text-sm">
           <tbody>
-            <tr class="border-b border-matrix-700">
-              <td class="py-2 text-gray-400">Cost per minute (Twilio + OpenAI + ElevenLabs)</td>
-              <td class="py-2 text-right font-mono">${{ data.costs?.cost_per_minute_usd }}/min</td>
+            <tr class="border-b border-white/5">
+              <td class="py-2.5 text-gray-400">Costo por minuto (Twilio + OpenAI + ElevenLabs)</td>
+              <td class="py-2.5 text-right font-mono">${{ data.costs?.cost_per_minute_usd }}/min</td>
             </tr>
-            <tr class="border-b border-matrix-700">
-              <td class="py-2 text-gray-400">Total minutes used (all time)</td>
-              <td class="py-2 text-right font-mono">{{ data.minutes?.total }} min</td>
+            <tr class="border-b border-white/5">
+              <td class="py-2.5 text-gray-400">Minutos totales (all time)</td>
+              <td class="py-2.5 text-right font-mono">{{ data.minutes?.total }} min</td>
             </tr>
-            <tr class="border-b border-matrix-700">
-              <td class="py-2 text-gray-400">Estimated total cost (all time)</td>
-              <td class="py-2 text-right font-mono text-yellow-400">${{ data.costs?.estimated_total_usd }}</td>
+            <tr class="border-b border-white/5">
+              <td class="py-2.5 text-gray-400">Costo total estimado</td>
+              <td class="py-2.5 text-right font-mono text-amber-400">${{ data.costs?.estimated_total_usd }}</td>
             </tr>
             <tr>
-              <td class="py-2 text-gray-400">Estimated this month</td>
-              <td class="py-2 text-right font-mono text-yellow-400">${{ data.costs?.estimated_month_usd }}</td>
+              <td class="py-2.5 text-gray-400">Estimado este mes</td>
+              <td class="py-2.5 text-right font-mono text-amber-400">${{ data.costs?.estimated_month_usd }}</td>
+            </tr>
+            <tr class="border-t border-white/10 bg-neon/5">
+              <td class="py-2.5 text-gray-300 font-semibold">Revenue mes</td>
+              <td class="py-2.5 text-right font-mono text-neon font-bold">${{ data.revenue_mxn || '0' }} MXN
+                <span class="text-[11px] text-gray-500 font-normal ml-2">neto ${{ data.revenue_net_mxn || '0' }}</span>
+              </td>
             </tr>
           </tbody>
         </table>
-      </div>
+      </UiCard>
+
+      <UiCard title="Otros servicios" subtitle="Estado de configuración">
+        <div class="grid grid-cols-2 gap-3 text-sm">
+          <div class="flex items-center gap-2">
+            <Check v-if="data.anthropic?.configured" class="w-4 h-4 text-neon" />
+            <X v-else class="w-4 h-4 text-gray-600" />
+            <span>Anthropic (moderación)</span>
+          </div>
+          <div class="flex items-center gap-2">
+            <Check v-if="data.api_ninjas?.configured" class="w-4 h-4 text-neon" />
+            <X v-else class="w-4 h-4 text-gray-600" />
+            <span>api-ninjas (chistes)</span>
+          </div>
+        </div>
+      </UiCard>
     </template>
   </div>
 </template>
@@ -186,25 +178,31 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue'
 import axios from 'axios'
+import {
+  AlertTriangle, Phone, ShieldCheck, Gift, DollarSign, Check, X,
+} from 'lucide-vue-next'
 
+import UiCard from '../components/UiCard.vue'
+import UiSkeleton from '../components/UiSkeleton.vue'
+import UiStatCard from '../components/UiStatCard.vue'
+import { useToast } from '../composables/useToast.js'
+
+import { Chart, LineElement, PointElement, LinearScale, CategoryScale, Filler, Tooltip } from 'chart.js'
+import { Line } from 'vue-chartjs'
+Chart.register(LineElement, PointElement, LinearScale, CategoryScale, Filler, Tooltip)
+
+const toast = useToast()
 const data = ref({})
 const loading = ref(true)
 
-const twilioLow = computed(() => {
-  const b = parseFloat(data.value.twilio?.balance || 0)
-  return b < 10
-})
-
-const elLow = computed(() => {
-  const r = data.value.elevenlabs?.characters_remaining || 0
-  return r < 10000
-})
-
+const twilioLow = computed(() => parseFloat(data.value.twilio?.balance || 0) < 10)
+const elLow = computed(() => (data.value.elevenlabs?.characters_remaining || 0) < 10000)
 const openAiQuotaFail = computed(() => {
   const ts = data.value.openai?.last_ai_failure_at
   if (!ts) return false
   return (Date.now() - new Date(ts).getTime()) < 24 * 60 * 60 * 1000
 })
+const anyAlert = computed(() => twilioLow.value || elLow.value || openAiQuotaFail.value)
 
 function formatNum(n) {
   if (n === undefined || n === null) return '0'
@@ -222,12 +220,40 @@ const lastFailRelative = computed(() => {
   return h < 24 ? `hace ${h}h` : `hace ${Math.floor(h / 24)}d`
 })
 
+const openAiDailyChart = computed(() => {
+  const arr = data.value.openai?.daily_spend || []
+  return {
+    labels: arr.map((_, i) => i),
+    datasets: [{
+      data: arr,
+      borderColor: '#fbbf24',
+      borderWidth: 2,
+      tension: 0.35,
+      fill: true,
+      backgroundColor: (ctx) => {
+        const c = ctx.chart.ctx
+        const g = c.createLinearGradient(0, 0, 0, 60)
+        g.addColorStop(0, 'rgba(251,191,36,0.35)')
+        g.addColorStop(1, 'rgba(251,191,36,0)')
+        return g
+      },
+      pointRadius: 0,
+    }],
+  }
+})
+
+const sparkOptions = {
+  responsive: true,
+  maintainAspectRatio: false,
+  plugins: { legend: { display: false }, tooltip: { enabled: false } },
+  scales: { x: { display: false }, y: { display: false } },
+  elements: { line: { borderJoinStyle: 'round' } },
+}
+
 onMounted(async () => {
   try {
     const { data: d } = await axios.get('/admin-api/billing')
     data.value = d
-  } catch {} finally {
-    loading.value = false
-  }
+  } catch (e) { toast.error(e) } finally { loading.value = false }
 })
 </script>

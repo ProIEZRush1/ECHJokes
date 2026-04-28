@@ -1,156 +1,215 @@
 <template>
-  <div class="p-4 md:p-6 space-y-6">
-    <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
-      <h1 class="text-2xl font-bold font-mono">Presets</h1>
-      <button @click="openCreate"
-        class="px-4 py-2 bg-neon text-matrix-900 rounded-lg font-bold text-sm hover:shadow-neon transition">
-        + New Preset
-      </button>
-    </div>
-
-    <div v-if="loading" class="text-center py-16 text-gray-500">
-      <span class="inline-block w-6 h-6 border-2 border-neon border-t-transparent rounded-full animate-spin align-middle mr-2"></span>
-      Cargando presets...
-    </div>
-
-    <div v-else-if="!presets.length" class="text-center py-16 text-gray-500">Aún no hay presets.</div>
-
-    <div v-else class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-      <div v-for="p in presets" :key="p.id"
-        class="bg-matrix-800 border border-matrix-600 rounded-xl p-4 relative">
-        <div class="flex items-start justify-between mb-2">
-          <div class="flex items-center gap-2">
-            <span class="text-2xl">{{ p.emoji }}</span>
-            <div>
-              <h3 class="font-semibold text-sm">{{ p.label }}</h3>
-              <span class="text-[10px] px-1.5 py-0.5 rounded bg-matrix-700 text-gray-400">{{ p.category }}</span>
-            </div>
-          </div>
-          <span class="text-xs" :class="p.is_active ? 'text-neon' : 'text-gray-600'">
-            {{ p.is_active ? 'ON' : 'OFF' }}
-          </span>
-        </div>
-
-        <p class="text-xs text-gray-400 line-clamp-3 mb-2">{{ p.scenario }}</p>
-
-        <div class="flex items-center gap-2 text-[10px] text-gray-500">
-          <span>{{ p.voice === 'ash' ? '👨' : '👩' }} {{ p.voice }}</span>
-          <span v-if="p.character">&middot; {{ p.character?.substring(0, 30) }}</span>
-        </div>
-
-        <div class="flex gap-2 mt-3 pt-2 border-t border-matrix-700">
-          <button @click="edit(p)" class="flex-1 py-1 text-xs rounded bg-matrix-700 hover:bg-matrix-600 transition">Edit</button>
-          <button @click="toggle(p)" class="py-1 px-2 text-xs rounded transition"
-            :class="p.is_active ? 'bg-red-500/20 text-red-400' : 'bg-green-500/20 text-green-400'">
-            {{ p.is_active ? 'Off' : 'On' }}
-          </button>
-          <button @click="del(p)" class="py-1 px-2 text-xs rounded bg-red-500/20 text-red-400 hover:bg-red-500/30 transition">Del</button>
-        </div>
+  <div class="p-6 lg:p-8 space-y-5 max-w-[1400px]">
+    <header class="flex items-end justify-between gap-4 flex-wrap">
+      <div>
+        <div class="text-[11.5px] uppercase tracking-wider text-gray-500 font-semibold mb-1">Datos</div>
+        <h1 class="text-[26px] font-bold tracking-tight">Presets</h1>
+        <p class="text-sm text-gray-400 mt-1.5">Escenarios reutilizables para Launch Call.</p>
       </div>
+      <UiButton variant="primary" @click="openCreate">
+        <Plus class="w-4 h-4" /> Nuevo preset
+      </UiButton>
+    </header>
+
+    <div v-if="loading" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+      <UiCard v-for="n in 6" :key="n">
+        <UiSkeleton h="20px" w="60%" class="mb-2" />
+        <UiSkeleton h="14px" w="80%" class="mb-1" />
+        <UiSkeleton h="14px" w="40%" />
+      </UiCard>
+    </div>
+
+    <UiEmptyState
+      v-else-if="!presets.length"
+      title="Aún no hay presets"
+      body="Los presets son escenarios listos para reusar en Launch Call. Crea el primero."
+      :icon="Theater"
+    >
+      <template #action>
+        <UiButton variant="primary" @click="openCreate"><Plus class="w-4 h-4" /> Crear preset</UiButton>
+      </template>
+    </UiEmptyState>
+
+    <div v-else ref="gridEl" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+      <UiCard
+        v-for="(p, i) in presets"
+        :key="p.id"
+        hover
+        :padded="false"
+        class="animate-[fade-in-up_0.35s_ease-out_both]"
+        :style="{ animationDelay: (i * 30) + 'ms' }"
+      >
+        <div class="p-4">
+          <div class="flex items-start justify-between mb-2">
+            <div class="flex items-center gap-3">
+              <span class="text-2xl leading-none">{{ p.emoji }}</span>
+              <div>
+                <h3 class="font-semibold text-[14px] text-white">{{ p.label }}</h3>
+                <span class="inline-block mt-0.5 text-[10.5px] px-1.5 py-0.5 rounded bg-white/5 text-gray-400">{{ p.category }}</span>
+              </div>
+            </div>
+            <UiBadge
+              :status="''"
+              :color="p.is_active ? '#39FF14' : '#666'"
+              :dot="true"
+              :pulse="false"
+            >{{ p.is_active ? 'ON' : 'OFF' }}</UiBadge>
+          </div>
+
+          <p class="text-xs text-gray-400 line-clamp-3 mb-2">{{ p.scenario }}</p>
+
+          <div class="flex items-center gap-2 text-[10.5px] text-gray-500">
+            <span>{{ p.voice === 'ash' ? '👨' : '👩' }} {{ p.voice }}</span>
+            <span v-if="p.character" class="truncate">· {{ p.character?.substring(0, 40) }}</span>
+          </div>
+
+          <div class="flex gap-2 mt-3 pt-2 border-t border-white/5">
+            <UiButton variant="secondary" size="sm" class="flex-1" @click="edit(p)">
+              <Pencil class="w-3 h-3" /> Edit
+            </UiButton>
+            <UiButton :variant="p.is_active ? 'danger' : 'neonGhost'" size="sm" @click="toggle(p)">
+              {{ p.is_active ? 'Off' : 'On' }}
+            </UiButton>
+            <UiButton variant="danger" size="sm" @click="del(p)">
+              <Trash2 class="w-3 h-3" />
+            </UiButton>
+          </div>
+        </div>
+      </UiCard>
     </div>
 
     <!-- Modal -->
-    <div v-if="showModal" class="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4" @click.self="showModal = false">
-      <div class="bg-matrix-800 border border-matrix-600 rounded-2xl p-5 w-full max-w-lg max-h-[90vh] overflow-y-auto">
-        <h2 class="text-lg font-bold mb-4">{{ editing ? 'Edit' : 'New' }} Preset</h2>
-        <form @submit.prevent="save" class="space-y-3">
-          <div class="grid grid-cols-4 gap-3">
-            <div class="col-span-1">
-              <label class="block text-xs text-gray-400 uppercase mb-1">Emoji</label>
-              <input v-model="form.emoji" class="w-full bg-matrix-700 border border-matrix-600 rounded-lg px-3 py-2 text-2xl text-center" />
-            </div>
-            <div class="col-span-3">
-              <label class="block text-xs text-gray-400 uppercase mb-1">Label</label>
-              <input v-model="form.label" required class="w-full bg-matrix-700 border border-matrix-600 rounded-lg px-3 py-2 text-sm text-white" />
-            </div>
+    <UiModal v-model="showModal" :title="editing ? 'Editar preset' : 'Nuevo preset'" size="md">
+      <form @submit.prevent="save" class="space-y-4">
+        <div class="grid grid-cols-4 gap-3">
+          <div class="col-span-1">
+            <UiInput v-model="form.emoji" label="Emoji" />
           </div>
+          <div class="col-span-3">
+            <UiInput v-model="form.label" label="Label" required />
+          </div>
+        </div>
 
-          <div>
-            <label class="block text-xs text-gray-400 uppercase mb-1">Scenario</label>
-            <textarea v-model="form.scenario" required rows="4" class="w-full bg-matrix-700 border border-matrix-600 rounded-lg px-3 py-2 text-sm text-white resize-none"></textarea>
-          </div>
+        <UiTextarea v-model="form.scenario" label="Scenario" :rows="4" required />
 
-          <div class="grid grid-cols-2 gap-3">
-            <div>
-              <label class="block text-xs text-gray-400 uppercase mb-1">Character</label>
-              <input v-model="form.character" class="w-full bg-matrix-700 border border-matrix-600 rounded-lg px-3 py-2 text-sm text-white" />
-            </div>
-            <div>
-              <label class="block text-xs text-gray-400 uppercase mb-1">Category</label>
-              <input v-model="form.category" class="w-full bg-matrix-700 border border-matrix-600 rounded-lg px-3 py-2 text-sm text-white" />
-            </div>
-          </div>
+        <div class="grid grid-cols-2 gap-3">
+          <UiInput v-model="form.character" label="Character" />
+          <UiInput v-model="form.category" label="Category" />
+        </div>
 
-          <div>
-            <label class="block text-xs text-gray-400 uppercase mb-1">Style</label>
-            <input v-model="form.style" placeholder="Ej: Formal y serio, Chistoso, Nervioso..."
-              class="w-full bg-matrix-700 border border-matrix-600 rounded-lg px-3 py-2 text-sm text-white" />
-          </div>
+        <UiInput v-model="form.style" label="Style" placeholder="Ej: Formal y serio, Chistoso, Nervioso…" />
 
-          <div class="flex items-center gap-4">
-            <div class="flex gap-2">
-              <button type="button" @click="form.voice = 'ash'"
-                :class="['px-3 py-1.5 rounded-lg text-xs transition', form.voice === 'ash' ? 'bg-neon/20 text-neon border border-neon/30' : 'bg-matrix-700 text-gray-400']">
-                👨 Ash
-              </button>
-              <button type="button" @click="form.voice = 'coral'"
-                :class="['px-3 py-1.5 rounded-lg text-xs transition', form.voice === 'coral' ? 'bg-neon/20 text-neon border border-neon/30' : 'bg-matrix-700 text-gray-400']">
-                👩 Coral
-              </button>
-            </div>
-            <label class="flex items-center gap-1.5 text-xs text-gray-300 cursor-pointer">
-              <input type="checkbox" v-model="form.is_active" class="accent-[#39FF14]" /> Active
-            </label>
-            <div class="flex items-center gap-1.5">
-              <span class="text-xs text-gray-400">Order:</span>
-              <input v-model.number="form.sort_order" type="number" class="w-14 bg-matrix-700 border border-matrix-600 rounded px-2 py-1 text-xs text-white" />
-            </div>
+        <div class="flex flex-wrap items-center gap-4">
+          <div class="flex gap-2">
+            <UiButton type="button" :variant="form.voice === 'ash' ? 'neonGhost' : 'secondary'" size="sm" @click="form.voice = 'ash'">
+              👨 Ash
+            </UiButton>
+            <UiButton type="button" :variant="form.voice === 'coral' ? 'neonGhost' : 'secondary'" size="sm" @click="form.voice = 'coral'">
+              👩 Coral
+            </UiButton>
           </div>
+          <label class="flex items-center gap-1.5 text-xs text-gray-300 cursor-pointer">
+            <input type="checkbox" v-model="form.is_active" class="accent-[#39FF14]" /> Active
+          </label>
+          <div class="flex items-center gap-1.5">
+            <span class="text-xs text-gray-400">Order:</span>
+            <input v-model.number="form.sort_order" type="number" class="w-16 bg-white/5 border border-white/10 rounded px-2 py-1 text-xs text-white focus:outline-none focus:border-neon/50" />
+          </div>
+        </div>
+      </form>
 
-          <div class="flex gap-2 pt-2">
-            <button type="submit" class="flex-1 py-2 rounded-lg bg-neon text-matrix-900 font-bold text-sm hover:shadow-neon transition">
-              {{ editing ? 'Update' : 'Create' }}
-            </button>
-            <button type="button" @click="showModal = false" class="px-4 py-2 rounded-lg bg-matrix-700 text-gray-300 text-sm">Cancel</button>
-          </div>
-        </form>
-      </div>
-    </div>
+      <template #footer>
+        <UiButton variant="ghost" @click="showModal = false">Cancelar</UiButton>
+        <UiButton variant="primary" :loading="saving" @click="save">
+          {{ editing ? 'Actualizar' : 'Crear' }}
+        </UiButton>
+      </template>
+    </UiModal>
   </div>
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, watch, nextTick } from 'vue'
 import axios from 'axios'
+import { autoAnimate } from '@formkit/auto-animate'
+import { Plus, Pencil, Trash2, Theater } from 'lucide-vue-next'
+
+import UiCard from '../components/UiCard.vue'
+import UiButton from '../components/UiButton.vue'
+import UiBadge from '../components/UiBadge.vue'
+import UiSkeleton from '../components/UiSkeleton.vue'
+import UiEmptyState from '../components/UiEmptyState.vue'
+import UiModal from '../components/UiModal.vue'
+import UiInput from '../components/UiInput.vue'
+import UiTextarea from '../components/UiTextarea.vue'
+import { useToast } from '../composables/useToast.js'
+import { useConfirm } from '../composables/useConfirm.js'
+
+const toast = useToast()
+const confirm = useConfirm()
 
 const presets = ref([])
 const loading = ref(true)
 const showModal = ref(false)
 const editing = ref(null)
-const form = ref({ label: '', emoji: '🎭', scenario: '', character: '', voice: 'ash', category: 'general', is_active: true, sort_order: 0 })
+const saving = ref(false)
+const gridEl = ref(null)
+const form = ref(blankForm())
 
-async function fetch() {
+function blankForm() {
+  return { label: '', emoji: '🎭', scenario: '', character: '', voice: 'ash', style: '', category: 'general', is_active: true, sort_order: 0 }
+}
+
+async function fetchPresets() {
   loading.value = true
-  try { const { data } = await axios.get('/admin-api/presets'); presets.value = data }
-  catch {} finally { loading.value = false }
+  try {
+    const { data } = await axios.get('/admin-api/presets')
+    presets.value = data
+    await nextTick()
+    if (gridEl.value && !gridEl.value._aa) { autoAnimate(gridEl.value); gridEl.value._aa = true }
+  } catch (e) { toast.error(e) } finally { loading.value = false }
 }
 
 function openCreate() {
   editing.value = null
-  form.value = { label: '', emoji: '🎭', scenario: '', character: '', voice: 'ash', style: '', category: 'general', is_active: true, sort_order: 0 }
+  form.value = blankForm()
+  showModal.value = true
+}
+function edit(p) {
+  editing.value = p
+  form.value = { ...blankForm(), ...p }
   showModal.value = true
 }
 
-function edit(p) { editing.value = p; form.value = { ...p }; showModal.value = true }
-
 async function save() {
-  if (editing.value) await axios.put(`/admin-api/presets/${editing.value.id}`, form.value)
-  else await axios.post('/admin-api/presets', form.value)
-  showModal.value = false; fetch()
+  saving.value = true
+  try {
+    if (editing.value) await axios.put(`/admin-api/presets/${editing.value.id}`, form.value)
+    else await axios.post('/admin-api/presets', form.value)
+    toast.success(editing.value ? 'Preset actualizado' : 'Preset creado')
+    showModal.value = false
+    fetchPresets()
+  } catch (e) { toast.error(e) } finally { saving.value = false }
 }
 
-async function toggle(p) { await axios.put(`/admin-api/presets/${p.id}`, { is_active: !p.is_active }); fetch() }
-async function del(p) { if (confirm('Delete?')) { await axios.delete(`/admin-api/presets/${p.id}`); fetch() } }
+async function toggle(p) {
+  try {
+    await axios.put(`/admin-api/presets/${p.id}`, { is_active: !p.is_active })
+    p.is_active = !p.is_active
+    toast.success(p.is_active ? 'Activado' : 'Desactivado')
+  } catch (e) { toast.error(e) }
+}
 
-onMounted(fetch)
+async function del(p) {
+  if (!await confirm({ title: '¿Borrar preset?', body: `Vas a eliminar "${p.label}". No se puede deshacer.`, danger: true })) return
+  try {
+    await axios.delete(`/admin-api/presets/${p.id}`)
+    presets.value = presets.value.filter(x => x.id !== p.id)
+    toast.success('Preset eliminado')
+  } catch (e) { toast.error(e) }
+}
+
+watch(showModal, (v) => { if (!v) editing.value = null })
+
+onMounted(fetchPresets)
 </script>
