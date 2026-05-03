@@ -387,7 +387,7 @@ class UserApiController extends Controller
             'phone_number' => 'required|string|regex:/^[1-9]\d{9}$/',
             'scenario' => 'required|string|min:10|max:500',
             'character' => 'nullable|string|max:200',
-            'voice' => 'nullable|in:ash,coral',
+            'voice' => 'nullable|in:ash,ballad,verse,echo,coral,sage,shimmer',
         ]);
 
         $user = Auth::user();
