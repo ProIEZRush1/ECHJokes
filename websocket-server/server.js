@@ -176,81 +176,8 @@ function postTranscript(callSid, role, text) {
   req.end();
 }
 
-// ============================================
-// Mulaw audio utilities (module level)
-// ============================================
-const MULAW_DECODE = new Int16Array(256);
-for (let i = 0; i < 256; i++) {
-  let mu = ~i & 0xFF;
-  let sign = (mu & 0x80) ? -1 : 1;
-  mu = mu & 0x7F;
-  let exponent = (mu >> 4) & 0x07;
-  let mantissa = mu & 0x0F;
-  let sample = (mantissa << (exponent + 3)) + (1 << (exponent + 3)) - 132;
-  MULAW_DECODE[i] = sign * Math.min(sample, 32767);
-}
-
-function linearToMulaw(sample) {
-  const BIAS = 0x84, MAX = 32635;
-  const sign = (sample >> 8) & 0x80;
-  if (sign) sample = -sample;
-  if (sample > MAX) sample = MAX;
-  sample += BIAS;
-  let exponent = 7;
-  for (let expMask = 0x4000; (sample & expMask) === 0 && exponent > 0; exponent--, expMask >>= 1) {}
-  const mantissa = (sample >> (exponent + 3)) & 0x0F;
-  return ~(sign | (exponent << 4) | mantissa) & 0xFF;
-}
-
-const AMBIENCE_SR = 8000;
-const AMBIENCE_LEN = AMBIENCE_SR * 15;
-const ambienceLoop = new Int16Array(AMBIENCE_LEN);
-(function generateAmbienceLoop() {
-  let lp1 = 0, lp2 = 0, lp3 = 0;
-  const BAND_CENTER = 350, BAND_Q = 6;
-  let bp = 0, bpPrev = 0;
-  for (let i = 0; i < AMBIENCE_LEN; i++) {
-    const white = (Math.random() - 0.5) * 2400;
-    lp1 = lp1 * 0.9 + white * 0.1;
-    lp2 = lp2 * 0.88 + lp1 * 0.12;
-    lp3 = lp3 * 0.85 + lp2 * 0.15;
-    const envelope = 0.45 + 0.55 * (0.5 + 0.5 * Math.sin(2 * Math.PI * i * 0.2 / AMBIENCE_SR));
-    const rumble = Math.sin(2 * Math.PI * i * 90 / AMBIENCE_SR) * 35;
-    const hum = Math.sin(2 * Math.PI * i * 120 / AMBIENCE_SR) * 18;
-    let s = lp3 * envelope + rumble + hum;
-    const click = Math.random() < 0.00008 ? (Math.random() - 0.5) * 800 : 0;
-    s += click;
-    ambienceLoop[i] = Math.max(-32767, Math.min(32767, Math.round(s)));
-  }
-  console.log(`Ambience loop generated: ${AMBIENCE_LEN} samples (${AMBIENCE_LEN/AMBIENCE_SR}s)`);
-})();
-
-function createAmbienceProfile() {
-  return {
-    pos: Math.floor(Math.random() * AMBIENCE_LEN),
-    gain: 0, // ambience disabled per user request — clean voice only
-  };
-}
-
-const VOICE_GAIN = 1.0; // unity — no amplification, eliminates soft-clip artifacts
-const CLIP_KNEE = 16000;
-function softClip(x) {
-  const a = Math.abs(x);
-  if (a <= CLIP_KNEE) return x;
-  const sign = x < 0 ? -1 : 1;
-  const headroom = 32767 - CLIP_KNEE;
-  return sign * (CLIP_KNEE + headroom * Math.tanh((a - CLIP_KNEE) / headroom));
-}
-function mixAmbience(mulawFrame, p) {
-  // Ambience disabled per user request — pass voice through with no mixing.
-  // Kept the function name + signature so callsites don't change.
-  const buf = Buffer.from(mulawFrame);
-  for (let i = 0; i < buf.length; i++) {
-    const voice = softClip(MULAW_DECODE[buf[i]] * VOICE_GAIN);
-    const sample = Math.max(-32767, Math.min(32767, voice));
-    buf[i] = linearToMulaw(sample);
-  }
-  return buf.toString('base64');
+function mixAmbience(mulawFrame) {
+  return Buffer.from(mulawFrame).toString('base64');
 }
 
 // ============================================
@@ -403,9 +330,6 @@ function handleTwilioStream(twilioWs, req) {
   const lastName = lastNames[Math.floor(Math.random() * lastNames.length)];
   const callerName = `${firstName} ${lastName}`;
   console.log(`AI caller name: ${callerName} (voice=${voice} gender=${isFemaleVoice ? 'F' : 'M'} elevenLabs=${elevenLabsVoiceId})`);
-
-  const ambience = createAmbienceProfile();
-  console.log(`Ambience: gain=${ambience.gain.toFixed(2)} offset=${ambience.pos}`);
 
   const instructions = `Estas en una llamada telefonica. TU eres quien LLAMO. La persona que contesta es a quien llamaste.
 
@@ -635,7 +559,6 @@ COMO ACTUAR:
   });
   openAiWs.on('close', () => {
     console.log('OpenAI disconnected');
-    stopAmbienceStream();
     if (callSid) { broadcastEvent(callSid, 'call_ended'); activeCalls.delete(callSid); }
   });
 
@@ -689,7 +612,7 @@ COMO ACTUAR:
       if (audioBase64 && streamSid && twilioWs.readyState === WebSocket.OPEN) {
         try {
           const mulawFrame = Buffer.from(audioBase64, 'base64');
-          const mixedPayload = mixAmbience(mulawFrame, ambience);
+          const mixedPayload = mixAmbience(mulawFrame);
           twilioWs.send(JSON.stringify({ event: 'media', streamSid, media: { payload: mixedPayload } }));
           if (callSid) broadcastAudio(callSid, mixedPayload, 'ai');
         } catch(e) { console.error('Twilio send error:', e.message); }
@@ -753,7 +676,6 @@ COMO ACTUAR:
           console.log(`Twilio stream: ${streamSid} call: ${callSid}`);
           if (callSid && !activeCalls.has(callSid)) activeCalls.set(callSid, { listeners: new Set() });
           streamReady = true;
-          startAmbienceStream();
           maybeStartGreeting();
           break;
         case 'media':
@@ -788,18 +710,6 @@ COMO ACTUAR:
 
   twilioWs.on('close', () => {
     console.log('Twilio disconnected');
-    stopAmbienceStream();
     if (openAiWs?.readyState === WebSocket.OPEN) openAiWs.close();
   });
-
-  let ambienceInterval = null;
-  let ambienceFrameCount = 0;
-  const STANDALONE_AMB_GAIN = 0.3;
-  function startAmbienceStream() {
-    // Ambience disabled per user request — no standalone frames sent.
-    return;
-  }
-  function stopAmbienceStream() {
-    if (ambienceInterval) { clearInterval(ambienceInterval); ambienceInterval = null; console.log(`Ambience stream stopped (${ambienceFrameCount} standalone frames total)`); }
-  }
 }
