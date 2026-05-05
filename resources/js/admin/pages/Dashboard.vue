@@ -50,6 +50,8 @@
       />
     </div>
 
+    <AdBanner :slot="AD_SLOTS.dashboardMiddle" format="leaderboard" />
+
     <!-- Recent calls -->
     <UiCard :padded="false">
       <template #header>
@@ -97,6 +99,8 @@ import {
   Phone, CheckCircle2, Activity, BarChart3, ArrowRight,
 } from 'lucide-vue-next'
 
+import AdBanner from '../../components/AdBanner.vue'
+import { AD_SLOTS } from '../../adsense.js'
 import UiCard      from '../components/UiCard.vue'
 import UiButton    from '../components/UiButton.vue'
 import UiBadge     from '../components/UiBadge.vue'

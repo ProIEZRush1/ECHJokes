@@ -11,6 +11,8 @@
       </UiButton>
     </header>
 
+    <AdBanner :slot="AD_SLOTS.callsHeader" format="leaderboard" />
+
     <UiCard :padded="false">
       <template #header>
         <div class="flex flex-wrap items-center gap-3">
@@ -105,6 +107,8 @@ import axios from 'axios'
 import { useDebounceFn } from '@vueuse/core'
 import { Plus, Search, Mic, MicOff } from 'lucide-vue-next'
 
+import AdBanner from '../../components/AdBanner.vue'
+import { AD_SLOTS } from '../../adsense.js'
 import UiCard from '../components/UiCard.vue'
 import UiButton from '../components/UiButton.vue'
 import UiBadge from '../components/UiBadge.vue'

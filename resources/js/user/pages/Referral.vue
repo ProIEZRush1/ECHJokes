@@ -42,6 +42,8 @@
         </div>
       </div>
 
+      <AdBanner :slot="AD_SLOTS.referralBelowStats" format="leaderboard" />
+
       <div class="bg-matrix-800 border border-matrix-600 rounded-xl p-5">
         <h3 class="text-sm font-semibold mb-2">&#x1F4A1; Como funciona</h3>
         <ol class="text-sm text-gray-400 space-y-1 list-decimal pl-5">
@@ -60,6 +62,8 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue';
 import axios from 'axios';
+import AdBanner from '../../components/AdBanner.vue';
+import { AD_SLOTS } from '../../adsense.js';
 
 const data = ref(null);
 const loading = ref(true);

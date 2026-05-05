@@ -11,6 +11,8 @@
       </UiButton>
     </header>
 
+    <AdBanner :slot="AD_SLOTS.presetsHeader" format="leaderboard" />
+
     <div v-if="loading" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
       <UiCard v-for="n in 6" :key="n">
         <UiSkeleton h="20px" w="60%" class="mb-2" />
@@ -134,6 +136,8 @@ import axios from 'axios'
 import { autoAnimate } from '@formkit/auto-animate'
 import { Plus, Pencil, Trash2, Theater } from 'lucide-vue-next'
 
+import AdBanner from '../../components/AdBanner.vue'
+import { AD_SLOTS } from '../../adsense.js'
 import UiCard from '../components/UiCard.vue'
 import UiButton from '../components/UiButton.vue'
 import UiBadge from '../components/UiBadge.vue'

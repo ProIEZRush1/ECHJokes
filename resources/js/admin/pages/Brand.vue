@@ -37,6 +37,8 @@
       </UiButton>
     </UiCard>
 
+    <AdBanner :slot="AD_SLOTS.brandMiddle" format="leaderboard" />
+
     <!-- Banners -->
     <UiCard title="Banners">
       <div class="grid md:grid-cols-3 gap-3">
@@ -130,6 +132,8 @@
 
 <script setup>
 import { Download } from 'lucide-vue-next'
+import AdBanner from '../../components/AdBanner.vue'
+import { AD_SLOTS } from '../../adsense.js'
 import UiCard from '../components/UiCard.vue'
 import UiButton from '../components/UiButton.vue'
 

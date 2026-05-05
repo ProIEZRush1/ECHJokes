@@ -87,6 +87,8 @@
         </UiCard>
       </div>
 
+      <AdBanner :slot="AD_SLOTS.billingMiddle" format="leaderboard" />
+
       <!-- Calls breakdown -->
       <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
         <UiStatCard label="Total calls"     :value="data.calls?.total ?? 0"     :icon="Phone" />
@@ -182,6 +184,8 @@ import {
   AlertTriangle, Phone, ShieldCheck, Gift, DollarSign, Check, X,
 } from 'lucide-vue-next'
 
+import AdBanner from '../../components/AdBanner.vue'
+import { AD_SLOTS } from '../../adsense.js'
 import UiCard from '../components/UiCard.vue'
 import UiSkeleton from '../components/UiSkeleton.vue'
 import UiStatCard from '../components/UiStatCard.vue'

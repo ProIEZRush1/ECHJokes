@@ -12,6 +12,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     @vite(['resources/css/app.css'])
+    <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-7978976781623579" crossorigin="anonymous"></script>
 </head>
 <body class="bg-matrix-900 text-white min-h-screen antialiased">
     <nav class="px-4 py-4 border-b border-matrix-700">
@@ -42,6 +43,8 @@
                 <p>Lanzada en 2026 desde México para el mercado mexicano, Vacilada busca democratizar una forma de humor que antes requería actuación, improvisación y talento vocal. Ahora cualquiera puede hacer una broma divertida a un amigo en 30 segundos.</p>
             </div>
         </section>
+
+        <x-ad-banner slot="5555555555" format="leaderboard" />
 
         <section>
             <h2 class="text-2xl font-bold mb-4">Datos clave</h2>

@@ -50,6 +50,8 @@
         </div>
       </UiCard>
 
+      <AdBanner :slot="AD_SLOTS.referralsMiddle" format="leaderboard" />
+
       <!-- Top-line metrics -->
       <div v-if="stats" class="grid grid-cols-2 md:grid-cols-4 gap-3">
         <UiStatCard :label="'K-factor'"          :value="stats.k_factor"     :hot="parseFloat(stats.k_factor) >= 1" :icon="TrendingUp" hint="Meta: > 1.0" />
@@ -152,6 +154,8 @@ import {
   Copy, Users, Gift, Clock, TrendingUp, Share2,
 } from 'lucide-vue-next'
 
+import AdBanner from '../../components/AdBanner.vue'
+import { AD_SLOTS } from '../../adsense.js'
 import UiCard from '../components/UiCard.vue'
 import UiButton from '../components/UiButton.vue'
 import UiSkeleton from '../components/UiSkeleton.vue'

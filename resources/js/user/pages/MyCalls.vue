@@ -19,6 +19,8 @@
       </router-link>
     </div>
 
+    <AdBanner :slot="AD_SLOTS.myCallsHeader" format="leaderboard" />
+
     <div v-if="calls.length === 0 && !loading" class="text-center py-16">
       <p class="text-5xl mb-4">&#x1F4DE;</p>
       <p class="text-gray-400 mb-4">Aun no has hecho ninguna broma</p>
@@ -58,6 +60,8 @@
 import { ref, computed, onMounted } from 'vue'
 import { useRoute } from 'vue-router'
 import axios from 'axios'
+import AdBanner from '../../components/AdBanner.vue'
+import { AD_SLOTS } from '../../adsense.js'
 
 const route = useRoute()
 const calls = ref([])

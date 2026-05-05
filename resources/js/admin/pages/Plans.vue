@@ -9,6 +9,8 @@
       <UiButton variant="primary" @click="openCreate"><Plus class="w-4 h-4" /> Nuevo plan</UiButton>
     </header>
 
+    <AdBanner :slot="AD_SLOTS.plansHeader" format="leaderboard" />
+
     <div v-if="loading" class="grid grid-cols-1 md:grid-cols-3 gap-5">
       <UiCard v-for="n in 3" :key="n">
         <UiSkeleton h="14px" w="40%" class="mb-3" />
@@ -138,6 +140,8 @@ import { ref, computed, onMounted, watch } from 'vue'
 import axios from 'axios'
 import { Plus, Pencil, Check, CreditCard } from 'lucide-vue-next'
 
+import AdBanner from '../../components/AdBanner.vue'
+import { AD_SLOTS } from '../../adsense.js'
 import UiCard from '../components/UiCard.vue'
 import UiButton from '../components/UiButton.vue'
 import UiBadge from '../components/UiBadge.vue'

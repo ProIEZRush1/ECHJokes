@@ -211,6 +211,8 @@
 
         </div>
 
+        <AdBanner :slot="AD_SLOTS.homeBelowExample" format="leaderboard" class="mt-8" />
+
         <footer class="w-full mt-12 py-6 px-4 border-t border-matrix-700 text-center">
             <div class="flex items-center justify-center gap-4 text-xs text-gray-500">
                 <router-link to="/terms" class="hover:text-neon transition">Términos</router-link>
@@ -227,6 +229,8 @@
 <script setup>
 import { ref, reactive, onMounted } from 'vue';
 import { useRouter } from 'vue-router';
+import AdBanner from '../components/AdBanner.vue';
+import { AD_SLOTS } from '../adsense.js';
 import axios from 'axios';
 
 const router = useRouter();

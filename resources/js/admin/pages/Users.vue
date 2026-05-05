@@ -6,6 +6,8 @@
       <p class="text-sm text-gray-400 mt-1.5">Buscar y gestionar cuentas.</p>
     </header>
 
+    <AdBanner :slot="AD_SLOTS.usersHeader" format="leaderboard" />
+
     <UiCard :padded="false">
       <template #header>
         <h2 class="text-[14px] font-semibold text-white">{{ count }} usuario{{ count === 1 ? '' : 's' }}</h2>
@@ -63,6 +65,8 @@ import axios from 'axios'
 import { useDebounceFn } from '@vueuse/core'
 import { Search, ShieldCheck } from 'lucide-vue-next'
 
+import AdBanner from '../../components/AdBanner.vue'
+import { AD_SLOTS } from '../../adsense.js'
 import UiCard from '../components/UiCard.vue'
 import UiBadge from '../components/UiBadge.vue'
 import UiTable from '../components/UiTable.vue'

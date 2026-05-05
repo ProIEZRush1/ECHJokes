@@ -12,6 +12,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     @vite(['resources/css/app.css'])
+    <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-7978976781623579" crossorigin="anonymous"></script>
 </head>
 <body class="bg-matrix-900 text-white min-h-screen antialiased">
     <nav class="px-4 py-4">
@@ -64,6 +65,8 @@
                 <li>Cuando la hagas, los dos reciben +2 bromas extra</li>
             </ol>
         </section>
+
+        <x-ad-banner slot="6666666666" format="auto" />
     </main>
 
     <footer class="border-t border-matrix-700 py-8 mt-12 text-center text-xs text-gray-500">

@@ -12,6 +12,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     @vite(['resources/css/app.css'])
+    <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-7978976781623579" crossorigin="anonymous"></script>
 
     @verbatim
     <script type="application/ld+json">
@@ -35,6 +36,8 @@
     <main class="max-w-4xl mx-auto px-4 py-10">
         <h1 class="text-4xl md:text-5xl font-bold font-mono text-neon mb-2">🔥 Trending</h1>
         <p class="text-gray-400 text-lg mb-8">Las vaciladas más virales de la semana</p>
+
+        <x-ad-banner slot="4444444444" format="auto" />
 
         @if($items->count())
             <div class="space-y-3">
