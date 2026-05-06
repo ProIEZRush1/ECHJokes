@@ -162,6 +162,7 @@ onMounted(async () => {
     plans.value = p.data
     if (me?.data?.user) user.value = me.data.user
   } catch {}
+  if (window.fbq) fbq('track', 'ViewContent', { content_name: 'Pricing', content_category: 'plans' })
 })
 
 function isCurrentPlan(plan) {
@@ -184,6 +185,7 @@ function upgradeDiscount(plan) {
 async function buy(plan) {
   if (!user.value) { router.push('/login'); return }
   buying.value = plan.id
+  if (window.fbq) fbq('track', 'InitiateCheckout', { content_name: plan.name, value: parseFloat(plan.price_mxn), currency: 'MXN' })
   try {
     const { data } = await axios.post('/user-api/buy-plan', { plan_id: plan.id })
     window.location.href = data.checkout_url
@@ -196,6 +198,7 @@ async function buy(plan) {
 async function buyCustom() {
   if (!user.value) { router.push('/login'); return }
   buyingCustom.value = true
+  if (window.fbq) fbq('track', 'InitiateCheckout', { content_name: 'Custom', value: customTotal.value, currency: 'MXN', num_items: customCalls.value })
   try {
     const { data } = await axios.post('/user-api/buy-custom', {
       calls: customCalls.value,

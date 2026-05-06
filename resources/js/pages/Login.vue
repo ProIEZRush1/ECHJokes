@@ -139,8 +139,10 @@ async function submit() {
         info.value = data.message
         step.value = 'otp'
         startCooldown(60)
+        if (window.fbq) fbq('track', 'Lead', { content_name: 'Register' })
         return
       }
+      if (window.fbq) fbq('track', 'CompleteRegistration')
       router.push('/dashboard')
     } else {
       const { data } = await axios.post('/user-api/login', {
@@ -168,6 +170,7 @@ async function verifyOtp() {
   loading.value = true
   try {
     await axios.post('/user-api/verify-otp', { email: email.value, code: otp.value })
+    if (window.fbq) fbq('track', 'CompleteRegistration')
     router.push('/dashboard')
   } catch (e) {
     error.value = e.response?.data?.error || 'Código inválido.'

@@ -69,6 +69,9 @@ const loading = ref(true)
 const purchased = computed(() => route.query.purchased === '1')
 
 onMounted(async () => {
+  if (purchased.value && window.fbq) {
+    fbq('track', 'Purchase', { currency: 'MXN', value: 0 })
+  }
   try {
     const { data } = await axios.get('/user-api/calls')
     calls.value = data.data
