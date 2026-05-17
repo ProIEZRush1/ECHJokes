@@ -32,8 +32,18 @@ class PresetPageController extends Controller
             ['loc' => $base, 'priority' => '1.0'],
             ['loc' => "$base/bromas", 'priority' => '0.9'],
             ['loc' => "$base/trending", 'priority' => '0.9', 'changefreq' => 'daily'],
+            ['loc' => "$base/como-funciona", 'priority' => '0.8'],
+            ['loc' => "$base/about", 'priority' => '0.7'],
+            ['loc' => "$base/preguntas-frecuentes", 'priority' => '0.8'],
+            ['loc' => "$base/blog", 'priority' => '0.8', 'changefreq' => 'weekly'],
+            ['loc' => "$base/pricing", 'priority' => '0.7'],
+            ['loc' => "$base/terms", 'priority' => '0.3'],
+            ['loc' => "$base/privacy", 'priority' => '0.3'],
             ['loc' => "$base/press", 'priority' => '0.5'],
         ];
+        foreach (\App\Http\Controllers\BlogController::slugs() as $slug) {
+            $urls[] = ['loc' => "$base/blog/$slug", 'priority' => '0.7'];
+        }
         foreach (Preset::where('is_active', true)->whereNotNull('slug')->get() as $p) {
             $urls[] = ['loc' => "$base/bromas/{$p->slug}", 'priority' => '0.8', 'lastmod' => $p->updated_at?->toIso8601String()];
         }

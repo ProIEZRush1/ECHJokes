@@ -107,8 +107,34 @@
         </section>
     </main>
 
-    <footer class="border-t border-matrix-700 py-8 text-center text-xs text-gray-500 mt-12">
-        Vacilada &middot; Bromas telefónicas con IA &middot; Hecho en México
+    <footer class="border-t border-matrix-700 py-8 mt-12">
+        <div class="max-w-4xl mx-auto px-4">
+            <div class="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm text-gray-500 mb-6">
+                <div>
+                    <div class="font-semibold text-gray-400 mb-2">Producto</div>
+                    <a href="/bromas" class="block hover:text-neon">Bromas</a>
+                    <a href="/trending" class="block hover:text-neon">Trending</a>
+                    <a href="/pricing" class="block hover:text-neon">Precios</a>
+                </div>
+                <div>
+                    <div class="font-semibold text-gray-400 mb-2">Empresa</div>
+                    <a href="/about" class="block hover:text-neon">Sobre nosotros</a>
+                    <a href="/como-funciona" class="block hover:text-neon">Cómo funciona</a>
+                    <a href="/press" class="block hover:text-neon">Prensa</a>
+                </div>
+                <div>
+                    <div class="font-semibold text-gray-400 mb-2">Recursos</div>
+                    <a href="/preguntas-frecuentes" class="block hover:text-neon">FAQ</a>
+                    <a href="/blog" class="block hover:text-neon">Blog</a>
+                </div>
+                <div>
+                    <div class="font-semibold text-gray-400 mb-2">Legal</div>
+                    <a href="/terms" class="block hover:text-neon">Términos</a>
+                    <a href="/privacy" class="block hover:text-neon">Privacidad</a>
+                </div>
+            </div>
+            <div class="text-center text-xs text-gray-600">Vacilada &middot; Bromas telefónicas con IA &middot; Hecho en México</div>
+        </div>
     </footer>
 </body>
 </html>

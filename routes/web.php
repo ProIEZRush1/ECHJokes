@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\AudioController;
 use App\Http\Controllers\AuthController;
+use App\Http\Controllers\BlogController;
 use App\Http\Controllers\VaciladaController;
 use App\Http\Controllers\PresetPageController;
 use App\Http\Controllers\AbTestController;
@@ -44,11 +45,26 @@ Route::get('/sitemap.xml', [PresetPageController::class, 'sitemap'])->name('site
 // Press kit (public marketing/press page)
 Route::get('/press', fn() => view('press'))->name('press');
 
+// How it works (public)
+Route::get('/como-funciona', fn() => view('como-funciona'))->name('como-funciona');
+
+// About page (public)
+Route::get('/about', fn() => view('about'))->name('about');
+
+// FAQ (public)
+Route::get('/preguntas-frecuentes', fn() => view('preguntas-frecuentes'))->name('faq');
+
+// Blog (public)
+Route::get('/blog', [BlogController::class, 'index'])->name('blog.index');
+Route::get('/blog/{slug}', [BlogController::class, 'show'])->name('blog.show');
+
+// Legal pages (server-rendered for SEO)
+Route::get('/terms', fn() => view('terms-page'))->name('terms');
+Route::get('/privacy', fn() => view('privacy-page'))->name('privacy');
+
 // SPA catch-all routes (Vue Router handles these)
 Route::get('/pricing', fn() => view('app'))->name('pricing');
 Route::get('/login', fn() => view('app'))->name('login');
-Route::get('/terms', fn() => view('app'))->name('terms');
-Route::get('/privacy', fn() => view('app'))->name('privacy');
 Route::get('/dashboard/{any?}', fn() => view('app'))->where('any', '.*')->name('dashboard');
 
 // Auth (magic link)
