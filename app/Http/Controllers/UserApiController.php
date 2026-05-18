@@ -49,14 +49,14 @@ class UserApiController extends Controller
             'accept_terms' => 'accepted',
         ]);
 
-        // Block multi-account abuse: one free account per IP per 7 days.
+        // Block multi-account abuse: max 3 accounts per IP per 7 days.
         $ip = $request->ip();
         $recentFromIp = \App\Models\User::where('registration_ip', $ip)
             ->where('created_at', '>=', now()->subDays(7))
             ->count();
-        if ($recentFromIp >= 1) {
+        if ($recentFromIp >= 3) {
             return response()->json([
-                'error' => 'Ya existe una cuenta creada desde este dispositivo. Inicia sesión o compra un plan.',
+                'error' => 'Se alcanzó el límite de cuentas nuevas desde esta red. Inicia sesión si ya tienes cuenta, o intenta más tarde.',
                 'show_plans' => true,
             ], 429);
         }
