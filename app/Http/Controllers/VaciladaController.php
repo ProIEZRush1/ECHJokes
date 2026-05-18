@@ -83,7 +83,8 @@ class VaciladaController extends Controller
     }
 
     /**
-     * Free trial: 1 call per IP, max 3 min, no payment required.
+     * Free trial: 1 call per device per 24h, max 3 min, no payment required.
+     * Uses IP + browser fingerprint to distinguish different devices on shared networks.
      */
     public function trialCall(Request $request): JsonResponse
     {
@@ -92,18 +93,25 @@ class VaciladaController extends Controller
             'scenario' => 'required|string|min:10|max:500',
             'character' => 'nullable|string|max:200',
             'voice' => 'nullable|in:ash,ballad,verse,echo,coral,sage,shimmer',
+            'device_hash' => 'nullable|string|max:64',
         ]);
 
         $ip = $request->ip();
+        $deviceHash = $request->input('device_hash', '');
 
-        // Check if this IP already used their free trial (resets after 24h)
-        $existing = JokeCall::where('ip_address', $ip)
-            ->where('joke_source', 'trial')
+        $query = JokeCall::where('joke_source', 'trial')
             ->where('created_at', '>=', now()->subHours(24))
-            ->whereNotIn('status', [JokeCallStatus::Failed, JokeCallStatus::Voicemail])
-            ->count();
+            ->whereNotIn('status', [JokeCallStatus::Failed, JokeCallStatus::Voicemail]);
 
-        if ($existing >= 1) {
+        if ($deviceHash) {
+            // IP + fingerprint: blocks same device, allows different devices on same network
+            $query->where('ip_address', $ip)->where('device_hash', $deviceHash);
+        } else {
+            // Fallback to IP-only for clients that don't send a fingerprint
+            $query->where('ip_address', $ip);
+        }
+
+        if ($query->count() >= 1) {
             return response()->json([
                 'error' => 'Ya usaste tu llamada de prueba gratuita. Adquiere un plan para seguir bromeando.',
                 'show_plans' => true,
@@ -130,6 +138,7 @@ class VaciladaController extends Controller
             'voice' => $voice,
             'status' => JokeCallStatus::Calling,
             'ip_address' => $ip,
+            'device_hash' => $deviceHash ?: null,
         ]);
 
         try {

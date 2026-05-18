@@ -279,6 +279,19 @@ const presets = ref([]);
 const user = ref(null);
 const errors = reactive({ phone: '', scenario: '', general: '' });
 
+function getDeviceHash() {
+    const raw = [
+        navigator.userAgent,
+        screen.width + 'x' + screen.height,
+        Intl.DateTimeFormat().resolvedOptions().timeZone,
+        navigator.language,
+        navigator.hardwareConcurrency || '',
+    ].join('|');
+    let h = 0;
+    for (let i = 0; i < raw.length; i++) { h = ((h << 5) - h + raw.charCodeAt(i)) | 0; }
+    return Math.abs(h).toString(36);
+}
+
 onMounted(async () => {
     const urlRef = new URLSearchParams(window.location.search).get('ref');
     if (urlRef) localStorage.setItem('vacilada_ref', urlRef.toUpperCase());
@@ -416,13 +429,15 @@ async function handleSubmit() {
     try {
         // Use paid API if logged in with credits, trial otherwise
         const endpoint = user.value ? '/user-api/make-call' : '/trial';
-        const { data } = await axios.post(endpoint, {
+        const payload = {
             phone_number: digits,
             scenario: scenario.value.trim(),
             character: style.value,
             voice: voice.value,
             victim_name: victimName.value.trim(),
-        });
+        };
+        if (!user.value) payload.device_hash = getDeviceHash();
+        const { data } = await axios.post(endpoint, payload);
         router.push(data.redirect);
     } catch (err) {
         if (err.response?.status === 429 && err.response?.data?.show_plans) {

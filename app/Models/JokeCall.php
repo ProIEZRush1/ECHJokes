@@ -45,6 +45,7 @@ class JokeCall extends Model
         'retry_of',
         'voice',
         'ip_address',
+        'device_hash',
         'phone_type',
         'user_id',
     ];
