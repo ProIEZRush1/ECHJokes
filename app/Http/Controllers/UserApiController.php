@@ -49,17 +49,7 @@ class UserApiController extends Controller
             'accept_terms' => 'accepted',
         ]);
 
-        // Block multi-account abuse: max 3 accounts per IP per 7 days.
         $ip = $request->ip();
-        $recentFromIp = \App\Models\User::where('registration_ip', $ip)
-            ->where('created_at', '>=', now()->subDays(7))
-            ->count();
-        if ($recentFromIp >= 3) {
-            return response()->json([
-                'error' => 'Se alcanzó el límite de cuentas nuevas desde esta red. Inicia sesión si ya tienes cuenta, o intenta más tarde.',
-                'show_plans' => true,
-            ], 429);
-        }
 
         $referrer = null;
         $refCode = $request->ref ?: $request->cookie('vacilada_ref') ?: session('echjokes_ref');

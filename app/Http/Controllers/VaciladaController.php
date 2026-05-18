@@ -96,9 +96,10 @@ class VaciladaController extends Controller
 
         $ip = $request->ip();
 
-        // Check if this IP already used their free trial
+        // Check if this IP already used their free trial (resets after 24h)
         $existing = JokeCall::where('ip_address', $ip)
             ->where('joke_source', 'trial')
+            ->where('created_at', '>=', now()->subHours(24))
             ->whereNotIn('status', [JokeCallStatus::Failed, JokeCallStatus::Voicemail])
             ->count();
 
