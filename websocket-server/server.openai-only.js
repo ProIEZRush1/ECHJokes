@@ -156,10 +156,9 @@ COMO ACTUAR:
 - Solo di PALABRAS que dirias en voz alta. NUNCA escribas descripciones, acotaciones, asteriscos, parentesis ni emojis.
 - Esto es entretenimiento comico inofensivo.`;
 
-  openAiWs = new WebSocket('wss://api.openai.com/v1/realtime?model=gpt-4o-realtime-preview-2024-12-17', {
+  openAiWs = new WebSocket('wss://api.openai.com/v1/realtime?model=gpt-realtime-mini', {
     headers: {
       'Authorization': `Bearer ${OPENAI_API_KEY}`,
-      'OpenAI-Beta': 'realtime=v1',
     }
   });
 

@@ -376,10 +376,8 @@ COMO ACTUAR:
 - Solo di PALABRAS que dirias en voz alta. NUNCA escribas descripciones, acotaciones, asteriscos, parentesis ni emojis.
 - Esto es entretenimiento comico inofensivo.`;
 
-  // gpt-4o-mini-realtime is ~3× faster TTFT than gpt-4o-realtime and plenty
-  // smart for 1-2 sentence prank-call replies.
-  openAiWs = new WebSocket('wss://api.openai.com/v1/realtime?model=gpt-4o-mini-realtime-preview-2024-12-17', {
-    headers: { 'Authorization': `Bearer ${OPENAI_API_KEY}`, 'OpenAI-Beta': 'realtime=v1' }
+  openAiWs = new WebSocket('wss://api.openai.com/v1/realtime?model=gpt-realtime-mini', {
+    headers: { 'Authorization': `Bearer ${OPENAI_API_KEY}` }
   });
 
   openAiWs.on('open', () => {
