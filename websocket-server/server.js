@@ -389,12 +389,12 @@ COMO ACTUAR:
         output_modalities: USE_ELEVENLABS ? ['text'] : ['text', 'audio'],
         audio: {
           input: {
-            format: { type: 'g711_ulaw' },
+            format: { type: 'audio/pcmu' },
             turn_detection: { type: 'semantic_vad' },
             transcription: { language: 'es' },
           },
           ...(USE_ELEVENLABS ? {} : {
-            output: { format: { type: 'g711_ulaw' }, voice: voice },
+            output: { format: { type: 'audio/pcmu' }, voice: voice },
           }),
         },
         instructions: instructions,
