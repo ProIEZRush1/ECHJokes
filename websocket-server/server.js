@@ -385,9 +385,9 @@ COMO ACTUAR:
     openAiWs.send(JSON.stringify({
       type: 'session.update',
       session: {
+        type: 'realtime',
         turn_detection: { type: 'server_vad', threshold: 0.55, silence_duration_ms: 150, prefix_padding_ms: 100, create_response: true, interrupt_response: false },
         input_audio_format: 'g711_ulaw',
-        // === ELEVENLABS MODE: text only output, no OpenAI audio ===
         ...(USE_ELEVENLABS ? {} : { output_audio_format: 'g711_ulaw', voice: voice }),
         instructions: instructions,
         modalities: USE_ELEVENLABS ? ['text'] : ['text', 'audio'],
