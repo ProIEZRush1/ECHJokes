@@ -178,7 +178,6 @@ COMO ACTUAR:
           output: { format: { type: 'g711_ulaw' }, voice: voice },
         },
         instructions: instructions,
-        temperature: 0.9,
       }
     }));
   });
@@ -194,7 +193,7 @@ COMO ACTUAR:
           maybeStartGreeting();
           break;
 
-        case 'response.audio.delta':
+        case 'response.output_audio.delta':
           if (response.delta && streamSid) {
             twilioWs.send(JSON.stringify({
               event: 'media', streamSid,
@@ -207,7 +206,7 @@ COMO ACTUAR:
           }
           break;
 
-        case 'response.audio.done':
+        case 'response.output_audio.done':
           if (streamSid) {
             const markId = `mark_${Date.now()}`;
             markQueue.push(markId);
@@ -222,8 +221,8 @@ COMO ACTUAR:
           if (callSid) broadcastEvent(callSid, 'speech_started');
           break;
 
-        case 'response.text.delta':
-        case 'response.audio_transcript.delta':
+        case 'response.output_text.delta':
+        case 'response.output_audio_transcript.delta':
           if (response.delta) {
             process.stdout.write(response.delta);
             currentAiText += response.delta;

@@ -398,7 +398,6 @@ COMO ACTUAR:
           }),
         },
         instructions: instructions,
-        temperature: 0.9,
       }
     };
     openAiWs.send(JSON.stringify(sessionConfig));
@@ -416,7 +415,7 @@ COMO ACTUAR:
           break;
 
         // === OpenAI native audio (only when USE_ELEVENLABS is false) ===
-        case 'response.audio.delta':
+        case 'response.output_audio.delta':
           if (!USE_ELEVENLABS && response.delta && streamSid) {
             twilioWs.send(JSON.stringify({ event: 'media', streamSid, media: { payload: response.delta } }));
             if (callSid) broadcastAudio(callSid, response.delta, 'ai');
@@ -425,7 +424,7 @@ COMO ACTUAR:
           }
           break;
 
-        case 'response.audio.done':
+        case 'response.output_audio.done':
           if (!USE_ELEVENLABS && streamSid) {
             const markId = `mark_${Date.now()}`;
             markQueue.push(markId);
@@ -464,8 +463,8 @@ COMO ACTUAR:
           break;
 
         // === Text output (used by both modes, but ElevenLabs sends to TTS) ===
-        case 'response.text.delta':
-        case 'response.audio_transcript.delta':
+        case 'response.output_text.delta':
+        case 'response.output_audio_transcript.delta':
           if (response.delta) {
             process.stdout.write(response.delta);
             if (USE_ELEVENLABS && !responseActive) {
