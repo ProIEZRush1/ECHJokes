@@ -76,7 +76,7 @@ Route::post('/auth/logout', [AuthController::class, 'logout'])->name('auth.logou
 
 // API
 Route::post('/checkout', [VaciladaController::class, 'createCheckout'])
-    ->middleware('throttle:5,60')
+    ->middleware('throttle:20,60')
     ->name('checkout');
 
 Route::get('/api/presets', fn() => response()->json(
@@ -121,10 +121,10 @@ Responde EXCLUSIVAMENTE con el objeto JSON sin comillas invertidas, sin marcador
 })->middleware('throttle:10,1')->name('generate.style');
 
 Route::post('/trial-joke', [\App\Http\Controllers\JokeCallController::class, 'launch'])
-    ->middleware('throttle:5,60');
+    ->middleware('throttle:30,60');
 
 Route::post('/trial', [VaciladaController::class, 'trialCall'])
-    ->middleware('throttle:3,60')
+    ->middleware('throttle:30,60')
     ->name('trial');
 
 // Test mode: skip Stripe, directly process a call (local env only)
