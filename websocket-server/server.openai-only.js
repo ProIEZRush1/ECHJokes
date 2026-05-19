@@ -168,13 +168,16 @@ COMO ACTUAR:
       type: 'session.update',
       session: {
         type: 'realtime',
-        turn_detection: { type: 'server_vad', threshold: 0.5, silence_duration_ms: 500 },
-        input_audio_format: 'g711_ulaw',
-        output_audio_format: 'g711_ulaw',
-        voice: voice,
+        output_modalities: ['text', 'audio'],
+        audio: {
+          input: {
+            format: { type: 'g711_ulaw' },
+            turn_detection: { type: 'semantic_vad' },
+            transcription: { language: 'es' },
+          },
+          output: { format: { type: 'g711_ulaw' }, voice: voice },
+        },
         instructions: instructions,
-        modalities: ['text', 'audio'],
-        input_audio_transcription: { model: 'whisper-1', language: 'es' },
         temperature: 0.9,
       }
     }));
