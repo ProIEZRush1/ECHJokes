@@ -173,7 +173,7 @@ COMO ACTUAR:
           input: {
             format: { type: 'audio/pcmu' },
             turn_detection: { type: 'semantic_vad' },
-            transcription: { language: 'es' },
+            transcription: { model: 'gpt-realtime-whisper', language: 'es' },
           },
           output: { format: { type: 'audio/pcmu' }, voice: voice },
         },
