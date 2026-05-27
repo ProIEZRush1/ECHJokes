@@ -14,14 +14,14 @@
     @vite(['resources/css/app.css'])
     <script>try{localStorage.setItem('vacilada_ref','{{ $code }}')}catch(e){}</script>
     <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-7978976781623579" crossorigin="anonymous"></script>
-    <script>!function(f,b,e,v,n,t,s){if(f.fbq)return;n=f.fbq=function(){n.callMethod?n.callMethod.apply(n,arguments):n.queue.push(arguments)};if(!f._fbq)f._fbq=n;n.push=n;n.loaded=!0;n.version='2.0';n.queue=[];t=b.createElement(e);t.async=!0;t.src=v;s=b.getElementsByTagName(e)[0];s.parentNode.insertBefore(t,s)}(window,document,'script','https://connect.facebook.net/en_US/fbevents.js');fbq('init','2171220190087137');fbq('track','PageView');</script>
+    <script>!function(f,b,e,v,n,t,s){if(f.fbq)return;n=f.fbq=function(){n.callMethod?n.callMethod.apply(n,arguments):n.queue.push(arguments)};if(!f._fbq)f._fbq=n;n.push=n;n.loaded=!0;n.version='2.0';n.queue=[];t=b.createElement(e);t.async=!0;t.src=v;s=b.getElementsByTagName(e)[0];s.parentNode.insertBefore(t,s)}(window,document,'script','https://connect.facebook.net/en_US/fbevents.js');fbq('init','2171220190087137');fbq('track','PageView');fbq('track','ViewContent',{content_name:'Referral Landing',content_category:'referral'});</script>
     <noscript><img height="1" width="1" style="display:none" src="https://www.facebook.com/tr?id=2171220190087137&ev=PageView&noscript=1"/></noscript>
 </head>
 <body class="bg-matrix-900 text-white min-h-screen antialiased">
     <nav class="px-4 py-4">
         <div class="max-w-3xl mx-auto flex justify-between items-center">
             <a href="/" class="text-lg font-bold font-mono text-neon">Vacilada</a>
-            <a href="/login?ref={{ $code }}" class="text-sm text-gray-400 hover:text-neon">Ya tengo cuenta</a>
+            <a href="/login?ref={{ $code }}" onclick="if(window.fbq)fbq('trackCustom','ReferralLoginClick')" class="text-sm text-gray-400 hover:text-neon">Ya tengo cuenta</a>
         </div>
     </nav>
 
@@ -34,7 +34,7 @@
             Regístrate con su link y los <strong class="text-neon">dos ganan 2 bromas GRATIS</strong> 🎁
         </p>
 
-        <a href="/login?ref={{ $code }}" class="inline-block bg-neon text-matrix-900 font-bold text-lg px-8 py-4 rounded-xl hover:shadow-[var(--shadow-neon-lg)] transition mb-3">
+        <a href="/login?ref={{ $code }}" onclick="if(window.fbq)fbq('trackCustom','ReferralSignupClick',{referrer:'{{ $referrer->name }}'})" class="inline-block bg-neon text-matrix-900 font-bold text-lg px-8 py-4 rounded-xl hover:shadow-[var(--shadow-neon-lg)] transition mb-3">
             &#x1F4DE; Regístrate y reclama 2 bromas
         </a>
         <p class="text-xs text-gray-500">Sin tarjeta. Solo tu email.</p>

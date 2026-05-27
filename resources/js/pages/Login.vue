@@ -96,13 +96,23 @@
 </template>
 
 <script setup>
-import { ref, onBeforeUnmount } from 'vue'
+import { ref, onMounted, onBeforeUnmount } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import axios from 'axios'
 
 const router = useRouter()
 const route = useRoute()
 const isRegister = ref(!!route.query.ref)
+
+onMounted(() => {
+  if (window.fbq) {
+    const hasRef = !!route.query.ref
+    fbq('track', 'ViewContent', {
+      content_name: isRegister.value ? 'Register Form' : 'Login Form',
+      content_category: hasRef ? 'referral' : 'direct',
+    })
+  }
+})
 const step = ref('form') // 'form' | 'otp'
 const name = ref('')
 const email = ref('')
