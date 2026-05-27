@@ -293,9 +293,11 @@ function getDeviceHash() {
 }
 
 onMounted(async () => {
-    const urlRef = new URLSearchParams(window.location.search).get('ref');
+    const params = new URLSearchParams(window.location.search);
+    const urlRef = params.get('ref');
     if (urlRef) localStorage.setItem('vacilada_ref', urlRef.toUpperCase());
-    if (window.fbq) fbq('track', 'ViewContent', { content_name: 'Home', content_category: 'landing' })
+    const source = params.get('fbclid') ? 'facebook_ad' : (urlRef ? 'referral' : 'direct')
+    if (window.fbq) fbq('track', 'ViewContent', { content_name: 'Home', content_category: source })
     try {
         const [pr, me] = await Promise.all([
             axios.get('/api/presets'),
@@ -439,7 +441,10 @@ async function handleSubmit() {
         };
         if (!user.value) payload.device_hash = getDeviceHash();
         const { data } = await axios.post(endpoint, payload);
-        if (window.fbq) fbq('trackCustom', 'TrialCallStarted', { source: user.value ? 'paid' : 'trial' })
+        if (window.fbq) fbq('trackCustom', 'TrialCallStarted', {
+          source: user.value ? 'paid' : 'trial',
+          from_ad: !!new URLSearchParams(window.location.search).get('fbclid'),
+        })
         router.push(data.redirect);
     } catch (err) {
         if (err.response?.status === 429 && err.response?.data?.show_plans) {
