@@ -70,7 +70,8 @@ const purchased = computed(() => route.query.purchased === '1')
 
 onMounted(async () => {
   if (purchased.value && window.fbq) {
-    fbq('track', 'Purchase', { currency: 'MXN', value: 0 })
+    const amount = parseFloat(route.query.amount) || 0
+    fbq('track', 'Purchase', { currency: 'MXN', value: amount })
   }
   try {
     const { data } = await axios.get('/user-api/calls')

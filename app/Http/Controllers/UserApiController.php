@@ -298,7 +298,7 @@ class UserApiController extends Controller
                 'quantity' => 1,
             ]],
             'mode' => 'payment',
-            'success_url' => url('/dashboard?purchased=1'),
+            'success_url' => url('/dashboard?purchased=1&amount=' . round($finalPrice / 100, 2)),
             'cancel_url' => url('/pricing'),
             'customer_email' => $user->email,
             'metadata' => [
@@ -352,7 +352,7 @@ class UserApiController extends Controller
                 'quantity' => 1,
             ]],
             'mode' => 'payment',
-            'success_url' => url('/dashboard?purchased=1'),
+            'success_url' => url('/dashboard?purchased=1&amount=' . $totalMxn),
             'cancel_url' => url('/pricing'),
             'customer_email' => $user->email,
             'metadata' => [
