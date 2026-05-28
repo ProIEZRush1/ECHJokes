@@ -197,15 +197,58 @@
             <p v-if="!user" class="mt-5 text-[10px] md:text-xs text-gray-600 text-center">Prueba gratuita: 1 llamada de hasta 3 minutos. Sin tarjeta.</p>
         </div>
 
-        <!-- Example -->
-        <div class="w-full max-w-md mt-8 md:mt-12">
-            <h3 class="text-sm font-medium text-gray-500 mb-4 text-center">Ejemplo de conversacion</h3>
-            <div class="bg-matrix-800 border border-matrix-600 rounded-xl p-4 md:p-6 font-mono text-xs md:text-sm space-y-2 md:space-y-3">
-                <div class="text-gray-500 text-[10px] md:text-xs italic mb-2">La IA llama como administrador del condominio...</div>
-                <div class="text-neon/80"><span class="text-gray-500">IA:</span> Oye hola, disculpa. Mira, te hablo de la administracion del condominio...</div>
-                <div class="text-white/60"><span class="text-gray-500">Persona:</span> Ah si? Que paso?</div>
-                <div class="text-neon/80"><span class="text-gray-500">IA:</span> Fijate que nos estan reportando un ruido como de helicoptero que sale de tu depa...</div>
-                <div class="text-white/60"><span class="text-gray-500">Persona:</span> Jajaja es la lavadora!</div>
+        <!-- Social Proof -->
+        <div class="w-full max-w-md mt-6 md:mt-8 grid grid-cols-3 gap-3 text-center">
+            <div class="bg-matrix-800 border border-matrix-600 rounded-xl p-3">
+                <div class="text-xl md:text-2xl font-bold font-mono text-neon">400+</div>
+                <div class="text-[10px] md:text-xs text-gray-500 mt-0.5">Llamadas hechas</div>
+            </div>
+            <div class="bg-matrix-800 border border-matrix-600 rounded-xl p-3">
+                <div class="text-xl md:text-2xl font-bold font-mono text-neon">&#x1F602;</div>
+                <div class="text-[10px] md:text-xs text-gray-500 mt-0.5">Risas garantizadas</div>
+            </div>
+            <div class="bg-matrix-800 border border-matrix-600 rounded-xl p-3">
+                <div class="text-xl md:text-2xl font-bold font-mono text-neon">3 min</div>
+                <div class="text-[10px] md:text-xs text-gray-500 mt-0.5">Prueba gratis</div>
+            </div>
+        </div>
+
+        <!-- Audio Demo -->
+        <div class="w-full max-w-md mt-6 md:mt-8">
+            <h3 class="text-sm font-medium text-gray-400 mb-3 text-center">&#x1F50A; Escucha una broma real</h3>
+            <div class="bg-matrix-800 border border-matrix-600 rounded-xl p-4 md:p-5">
+                <div class="text-xs text-gray-500 mb-3 italic">"Le llamaron de una pizzería diciendo que su pedido de 15 pizzas está listo..."</div>
+                <audio ref="demoAudio" :src="demoAudioUrl" preload="none" class="w-full h-10 mb-3" controls controlslist="nodownload" />
+                <div v-if="showTranscript" class="space-y-1.5 max-h-48 overflow-y-auto mt-3 pr-1 font-mono text-xs">
+                    <div v-for="(line, i) in demoTranscript" :key="i" :class="line.role === 'ai' ? 'text-neon/80' : 'text-white/60'">
+                        <span class="text-gray-600">{{ line.role === 'ai' ? 'IA' : 'Persona' }}:</span> {{ line.text }}
+                    </div>
+                </div>
+                <button @click="showTranscript = !showTranscript" class="text-[10px] text-gray-500 hover:text-neon mt-2 transition">
+                    {{ showTranscript ? 'Ocultar' : 'Ver' }} transcripcion
+                </button>
+            </div>
+        </div>
+
+        <!-- How it works -->
+        <div class="w-full max-w-md mt-6 md:mt-8">
+            <h3 class="text-sm font-medium text-gray-400 mb-3 text-center">Como funciona</h3>
+            <div class="grid grid-cols-3 gap-3 text-center">
+                <div class="p-3">
+                    <div class="text-2xl mb-1">&#x270D;&#xFE0F;</div>
+                    <div class="text-xs text-gray-300 font-medium">Describe la broma</div>
+                    <div class="text-[10px] text-gray-600 mt-0.5">O elige una idea</div>
+                </div>
+                <div class="p-3">
+                    <div class="text-2xl mb-1">&#x1F916;</div>
+                    <div class="text-xs text-gray-300 font-medium">La IA llama</div>
+                    <div class="text-[10px] text-gray-600 mt-0.5">Suena 100% humana</div>
+                </div>
+                <div class="p-3">
+                    <div class="text-2xl mb-1">&#x1F923;</div>
+                    <div class="text-xs text-gray-300 font-medium">Escucha y comparte</div>
+                    <div class="text-[10px] text-gray-600 mt-0.5">Grabacion incluida</div>
+                </div>
             </div>
         </div>
 
@@ -237,6 +280,25 @@ const router = useRouter();
 const callMode = ref('prank');
 const phone = ref('');
 const victimName = ref('');
+const demoAudio = ref(null);
+const showTranscript = ref(false);
+const demoAudioUrl = '/brand/demo-call.mp3';
+const demoTranscript = [
+    { role: 'ai', text: 'Bueno, buenas tardes. ¿Se encuentra Edith?' },
+    { role: 'human', text: '¿De parte de quién?' },
+    { role: 'ai', text: 'Soy Luis Ortiz, de la pizzería.' },
+    { role: 'ai', text: 'Mire Edith, le llamo porque su pedido de 15 pizzas ya está listo. El total es de $3,500 pesos.' },
+    { role: 'human', text: '¿¡Qué!?' },
+    { role: 'ai', text: 'Sí, el repartidor ya va en camino. ¿Nos puede confirmar que hizo el pedido?' },
+    { role: 'human', text: '¿Cuál?' },
+    { role: 'ai', text: 'Mmm, ¿usted no pidió las pizzas? Porque el repartidor ya está en camino.' },
+    { role: 'human', text: 'jaja' },
+    { role: 'ai', text: 'Oiga, no es broma eh, son 15 pizzas y cuestan $3,500. ¿Seguro que no pidió?' },
+    { role: 'human', text: 'No.' },
+    { role: 'ai', text: 'Órale, lo mejor será que hablemos con el repartidor pa\' que no venga hasta allá.' },
+    { role: 'human', text: '¡Sí, cancélalo!' },
+    { role: 'ai', text: 'Va, le digo al repartidor que las regrese. ¡Que tenga buena tarde!' },
+];
 
 // Joke mode
 const jokeLangs = [
