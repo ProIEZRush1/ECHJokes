@@ -20,11 +20,47 @@
         </nav>
 
         <div class="flex-1 flex flex-col items-center justify-center px-4 py-4 md:py-8">
+        <!-- Facebook Ad Banner -->
+        <div v-if="fromAd && !user" class="w-full max-w-md mb-4 p-3 md:p-4 rounded-2xl bg-neon/10 border border-neon/30 text-center animate-pulse">
+            <p class="text-sm md:text-base font-bold text-neon">&#x1F381; Tu primera broma es GRATIS</p>
+            <p class="text-xs text-gray-400 mt-1">Solo pon el numero y elige una idea. Sin registro, sin tarjeta.</p>
+        </div>
+
         <!-- Hero -->
-        <div class="text-center mb-8 md:mb-12">
-            <div class="text-5xl md:text-7xl mb-4 md:mb-6 animate-[ring_1s_ease-in-out_infinite]">&#x1F4DE;</div>
-            <h1 class="text-3xl md:text-6xl font-bold font-mono text-neon animate-[glow_1.5s_ease-in-out_infinite_alternate] mb-3 md:mb-4">Vacilada</h1>
-            <p class="text-lg md:text-2xl text-gray-400 max-w-lg mx-auto px-2">Bromas telefonicas con IA. Tu describes la situacion, la IA hace la llamada.</p>
+        <div class="text-center mb-4 md:mb-8">
+            <div class="text-4xl md:text-7xl mb-3 md:mb-6 animate-[ring_1s_ease-in-out_infinite]">&#x1F4DE;</div>
+            <h1 class="text-2xl md:text-6xl font-bold font-mono text-neon animate-[glow_1.5s_ease-in-out_infinite_alternate] mb-2 md:mb-4">Vacilada</h1>
+            <p class="text-base md:text-2xl text-gray-400 max-w-lg mx-auto px-2">Bromas telef&oacute;nicas con IA. T&uacute; describes la situaci&oacute;n, la IA hace la llamada.</p>
+        </div>
+
+        <!-- Social Proof (moved above form) -->
+        <div class="w-full max-w-md mb-4 md:mb-6 grid grid-cols-3 gap-2 md:gap-3 text-center">
+            <div class="bg-matrix-800 border border-matrix-600 rounded-xl p-2 md:p-3">
+                <div class="text-lg md:text-2xl font-bold font-mono text-neon">400+</div>
+                <div class="text-[9px] md:text-xs text-gray-500 mt-0.5">Llamadas hechas</div>
+            </div>
+            <div class="bg-matrix-800 border border-matrix-600 rounded-xl p-2 md:p-3">
+                <div class="text-lg md:text-2xl font-bold font-mono text-neon">&#x1F602;</div>
+                <div class="text-[9px] md:text-xs text-gray-500 mt-0.5">Risas garantizadas</div>
+            </div>
+            <div class="bg-matrix-800 border border-matrix-600 rounded-xl p-2 md:p-3">
+                <div class="text-lg md:text-2xl font-bold font-mono text-neon">3 min</div>
+                <div class="text-[9px] md:text-xs text-gray-500 mt-0.5">Prueba gratis</div>
+            </div>
+        </div>
+
+        <!-- Quick Presets (above form for fast conversion) -->
+        <div class="w-full max-w-md mb-4" v-if="presets.length && callMode === 'prank'">
+            <p class="text-xs text-gray-500 mb-2 text-center">&#x26A1; Elige una broma con un tap:</p>
+            <div class="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                <button v-for="p in presets" :key="'quick-'+p.id" type="button"
+                    @click="quickPreset(p)"
+                    :class="['flex items-center gap-2 p-2.5 md:p-3 rounded-xl border text-left transition-all text-xs',
+                        activePreset === p.id ? 'border-neon bg-neon/10 text-white shadow-[0_0_12px_rgba(57,255,20,0.2)]' : 'border-matrix-600 bg-matrix-800 text-gray-400 hover:border-neon/30 hover:text-gray-300']">
+                    <span class="text-lg flex-shrink-0">{{ p.emoji }}</span>
+                    <span class="truncate">{{ p.label }}</span>
+                </button>
+            </div>
         </div>
 
         <!-- Form -->
@@ -160,18 +196,9 @@
                     </div>
                 </div>
 
-                <!-- Presets -->
-                <div class="mb-5" v-if="presets.length">
-                    <p class="text-xs text-gray-500 mb-2">O elige una idea:</p>
-                    <div class="grid grid-cols-2 sm:grid-cols-3 gap-2">
-                        <button v-for="p in presets" :key="p.id" type="button"
-                            @click="usePreset(p)"
-                            :class="['flex items-center gap-2 p-2 md:p-2.5 rounded-xl border text-left transition-all text-xs',
-                                activePreset === p.id ? 'border-neon bg-neon/10 text-white' : 'border-matrix-600 text-gray-400 hover:border-neon/30 hover:text-gray-300']">
-                            <span class="text-lg flex-shrink-0">{{ p.emoji }}</span>
-                            <span class="truncate">{{ p.label }}</span>
-                        </button>
-                    </div>
+                <!-- Presets (compact, inside form as fallback) -->
+                <div class="mb-5 md:hidden" v-if="presets.length && !activePreset">
+                    <p class="text-xs text-gray-500 mb-2">O elige una idea arriba &#x2191;</p>
                 </div>
 
                 <!-- Submit -->
@@ -195,22 +222,6 @@
             </form>
 
             <p v-if="!user" class="mt-5 text-[10px] md:text-xs text-gray-600 text-center">Prueba gratuita: 1 llamada de hasta 3 minutos. Sin tarjeta.</p>
-        </div>
-
-        <!-- Social Proof -->
-        <div class="w-full max-w-md mt-6 md:mt-8 grid grid-cols-3 gap-3 text-center">
-            <div class="bg-matrix-800 border border-matrix-600 rounded-xl p-3">
-                <div class="text-xl md:text-2xl font-bold font-mono text-neon">400+</div>
-                <div class="text-[10px] md:text-xs text-gray-500 mt-0.5">Llamadas hechas</div>
-            </div>
-            <div class="bg-matrix-800 border border-matrix-600 rounded-xl p-3">
-                <div class="text-xl md:text-2xl font-bold font-mono text-neon">&#x1F602;</div>
-                <div class="text-[10px] md:text-xs text-gray-500 mt-0.5">Risas garantizadas</div>
-            </div>
-            <div class="bg-matrix-800 border border-matrix-600 rounded-xl p-3">
-                <div class="text-xl md:text-2xl font-bold font-mono text-neon">3 min</div>
-                <div class="text-[10px] md:text-xs text-gray-500 mt-0.5">Prueba gratis</div>
-            </div>
         </div>
 
         <!-- Audio Demo -->
@@ -280,6 +291,7 @@ const router = useRouter();
 const callMode = ref('prank');
 const phone = ref('');
 const victimName = ref('');
+const fromAd = ref(false);
 const demoAudio = ref(null);
 const showTranscript = ref(false);
 const demoAudioUrl = '/brand/demo-call.mp3';
@@ -358,7 +370,8 @@ onMounted(async () => {
     const params = new URLSearchParams(window.location.search);
     const urlRef = params.get('ref');
     if (urlRef) localStorage.setItem('vacilada_ref', urlRef.toUpperCase());
-    const source = params.get('fbclid') ? 'facebook_ad' : (urlRef ? 'referral' : 'direct')
+    fromAd.value = !!params.get('fbclid')
+    const source = fromAd.value ? 'facebook_ad' : (urlRef ? 'referral' : 'direct')
     if (window.fbq) fbq('track', 'ViewContent', { content_name: 'Home', content_category: source })
     try {
         const [pr, me] = await Promise.all([
@@ -375,6 +388,21 @@ function usePreset(p) {
     if (p.voice) voice.value = p.voice;
     if (p.style) style.value = p.style;
     activePreset.value = p.id;
+}
+
+function quickPreset(p) {
+    usePreset(p);
+    callMode.value = 'prank';
+    if (!style.value) {
+        generating.value = true;
+        axios.post('/api/generate-style', { scenario: p.scenario }).then(({ data }) => {
+            if (data.style) style.value = data.style;
+            if (data.voice) voice.value = data.voice;
+        }).catch(() => { style.value = 'Casual y natural'; }).finally(() => { generating.value = false; });
+    }
+    setTimeout(() => {
+        if (phoneInput.value) { phoneInput.value.focus(); phoneInput.value.scrollIntoView({ behavior: 'smooth', block: 'center' }); }
+    }, 100);
 }
 
 async function generateStyle() {
