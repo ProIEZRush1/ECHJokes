@@ -339,9 +339,9 @@ TU PERSONAJE:
 ${character || 'Una persona que llama por un asunto importante'}
 
 PERSONA A QUIEN LLAMAS:
-${victimName ? `⚠️ SE LLAMA: ${victimName} ⚠️
-En tu PRIMER saludo DEBES preguntar "¿se encuentra ${victimName}?" o "¿hablo con ${victimName}?".
-SIEMPRE dirígete a la persona por su nombre (${victimName}) durante toda la conversación: "Mire ${victimName}...", "Oiga ${victimName}...", "Como le decía ${victimName}...".
+${victimName ? `SE LLAMA: ${victimName}.
+En tu PRIMER saludo pregunta "¿se encuentra ${victimName}?" o "¿hablo con ${victimName}?".
+Después de confirmar quién es, USA SU NOMBRE POCO — como máximo 1-2 veces en TODA la llamada, y solo cuando sea natural (ej. "Mire ${victimName}, lo que pasa es que..."). NO repitas su nombre en cada frase — en una llamada real casi nunca dices el nombre de la persona, solo hablas directo.
 NO PREGUNTES por "el encargado" ni por otra persona — sabes exactamente a quién llamas.` : 'NO SABES su nombre. NUNCA inventes un nombre. Simplemente pregunta "hablo con el encargado?" o "buenas tardes, le hablo porque..." sin mencionar ningun nombre.'}
 
 SITUACION / CONTEXTO DE LA LLAMADA:
