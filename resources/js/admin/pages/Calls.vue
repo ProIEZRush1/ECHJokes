@@ -70,8 +70,17 @@
             {{ row.custom_joke_prompt || row.joke_text || '—' }}
           </span>
         </template>
-        <template #cell-status="{ value }">
-          <UiBadge :status="value" :pulse="value === 'in_progress' || value === 'calling'" />
+        <template #cell-status="{ row }">
+          <div>
+            <UiBadge :status="row.status" :pulse="row.status === 'in_progress' || row.status === 'calling'" />
+            <div v-if="(row.status === 'failed' || row.status === 'voicemail') && row.failure_reason" class="text-[10px] text-red-400/80 mt-0.5 line-clamp-1 max-w-[150px]">
+              {{ row.failure_reason }}
+            </div>
+          </div>
+        </template>
+        <template #cell-victim_name="{ row }">
+          <span v-if="row.victim_name" class="text-gray-300 text-[13px]">{{ row.victim_name }}</span>
+          <span v-else class="text-gray-700 text-xs">—</span>
         </template>
         <template #cell-source="{ row }">
           <UiBadge
@@ -133,15 +142,16 @@ const statusOptions = [
 ]
 
 const columns = [
-  { key: 'phone_number',          label: 'Phone',     mono: true,  width: '160px' },
-  { key: 'delivery_type',         label: 'Type',      width: '90px' },
+  { key: 'status',                label: 'Status',    width: '160px' },
+  { key: 'victim_name',           label: 'Victim',    width: '120px' },
+  { key: 'phone_number',          label: 'Phone',     mono: true,  width: '140px' },
   { key: 'custom_joke_prompt',    label: 'Scenario' },
-  { key: 'status',                label: 'Status',    width: '140px' },
-  { key: 'source',                label: 'Source',    width: '100px' },
-  { key: 'user',                  label: 'User',      width: '160px' },
-  { key: 'call_duration_seconds', label: 'Dur',       align: 'right', width: '70px' },
-  { key: 'recording',             label: 'Rec',       align: 'center', width: '50px' },
-  { key: 'created_at',            label: 'Date',      width: '130px' },
+  { key: 'delivery_type',         label: 'Type',      width: '80px' },
+  { key: 'source',                label: 'Source',    width: '90px' },
+  { key: 'user',                  label: 'User',      width: '140px' },
+  { key: 'call_duration_seconds', label: 'Dur',       align: 'right', width: '60px' },
+  { key: 'recording',             label: '',          align: 'center', width: '40px' },
+  { key: 'created_at',            label: 'Date',      width: '110px' },
 ]
 
 const debouncedFetch = useDebounceFn(() => { page.value = 1; fetchCalls() }, 300)
