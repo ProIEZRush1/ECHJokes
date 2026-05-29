@@ -20,47 +20,11 @@
         </nav>
 
         <div class="flex-1 flex flex-col items-center justify-center px-4 py-4 md:py-8">
-        <!-- Facebook Ad Banner -->
-        <div v-if="fromAd && !user" class="w-full max-w-md mb-4 p-3 md:p-4 rounded-2xl bg-neon/10 border border-neon/30 text-center animate-pulse">
-            <p class="text-sm md:text-base font-bold text-neon">&#x1F381; Tu primera broma es GRATIS</p>
-            <p class="text-xs text-gray-400 mt-1">Solo pon el numero y elige una idea. Sin registro, sin tarjeta.</p>
-        </div>
-
-        <!-- Hero -->
-        <div class="text-center mb-4 md:mb-8">
-            <div class="text-4xl md:text-7xl mb-3 md:mb-6 animate-[ring_1s_ease-in-out_infinite]">&#x1F4DE;</div>
-            <h1 class="text-2xl md:text-6xl font-bold font-mono text-neon animate-[glow_1.5s_ease-in-out_infinite_alternate] mb-2 md:mb-4">Vacilada</h1>
-            <p class="text-base md:text-2xl text-gray-400 max-w-lg mx-auto px-2">Bromas telef&oacute;nicas con IA. T&uacute; describes la situaci&oacute;n, la IA hace la llamada.</p>
-        </div>
-
-        <!-- Social Proof (moved above form) -->
-        <div class="w-full max-w-md mb-4 md:mb-6 grid grid-cols-3 gap-2 md:gap-3 text-center">
-            <div class="bg-matrix-800 border border-matrix-600 rounded-xl p-2 md:p-3">
-                <div class="text-lg md:text-2xl font-bold font-mono text-neon">400+</div>
-                <div class="text-[9px] md:text-xs text-gray-500 mt-0.5">Llamadas hechas</div>
-            </div>
-            <div class="bg-matrix-800 border border-matrix-600 rounded-xl p-2 md:p-3">
-                <div class="text-lg md:text-2xl font-bold font-mono text-neon">&#x1F602;</div>
-                <div class="text-[9px] md:text-xs text-gray-500 mt-0.5">Risas garantizadas</div>
-            </div>
-            <div class="bg-matrix-800 border border-matrix-600 rounded-xl p-2 md:p-3">
-                <div class="text-lg md:text-2xl font-bold font-mono text-neon">3 min</div>
-                <div class="text-[9px] md:text-xs text-gray-500 mt-0.5">Prueba gratis</div>
-            </div>
-        </div>
-
-        <!-- Quick Presets (above form for fast conversion) -->
-        <div class="w-full max-w-md mb-4" v-if="presets.length && callMode === 'prank'">
-            <p class="text-xs text-gray-500 mb-2 text-center">&#x26A1; Elige una broma con un tap:</p>
-            <div class="grid grid-cols-2 sm:grid-cols-4 gap-2">
-                <button v-for="p in presets" :key="'quick-'+p.id" type="button"
-                    @click="quickPreset(p)"
-                    :class="['flex items-center gap-2 p-2.5 md:p-3 rounded-xl border text-left transition-all text-xs',
-                        activePreset === p.id ? 'border-neon bg-neon/10 text-white shadow-[0_0_12px_rgba(57,255,20,0.2)]' : 'border-matrix-600 bg-matrix-800 text-gray-400 hover:border-neon/30 hover:text-gray-300']">
-                    <span class="text-lg flex-shrink-0">{{ p.emoji }}</span>
-                    <span class="truncate">{{ p.label }}</span>
-                </button>
-            </div>
+        <!-- Hero (compact for mobile) -->
+        <div class="text-center mb-3 md:mb-8">
+            <div class="hidden md:block text-7xl mb-6 animate-[ring_1s_ease-in-out_infinite]">&#x1F4DE;</div>
+            <h1 class="text-2xl md:text-6xl font-bold font-mono text-neon mb-1 md:mb-4">&#x1F4DE; Vacilada</h1>
+            <p class="text-sm md:text-2xl text-gray-400">Bromas telef&oacute;nicas con IA. Prueba gratis.</p>
         </div>
 
         <!-- Form -->
@@ -136,86 +100,82 @@
 
             <!-- PRANK MODE -->
             <form v-else @submit.prevent="handleSubmit">
-                <!-- Phone -->
+                <!-- Step 1: Phone (FIRST — above the fold) -->
                 <div class="mb-4">
-                    <label class="block text-sm font-medium text-gray-400 mb-2">Numero que recibira la llamada</label>
+                    <label class="block text-sm font-medium text-gray-400 mb-2">&#x1F4F1; Numero que recibira la broma</label>
                     <div class="flex items-center bg-matrix-700 border border-matrix-600 rounded-xl overflow-hidden focus-within:border-neon/50 transition-colors">
-                        <span class="px-3 md:px-4 py-3 text-gray-400 font-mono border-r border-matrix-600 flex items-center gap-1.5 text-sm">
-                            <span class="text-base">&#x1F1F2;&#x1F1FD;</span> +52
-                        </span>
+                        <span class="px-3 py-3 text-gray-400 font-mono border-r border-matrix-600 text-sm">+52</span>
                         <input ref="phoneInput" v-model="phone" type="tel" maxlength="10" placeholder="55 1234 5678"
                             inputmode="numeric" autocomplete="tel-national"
-                            class="flex-1 min-w-0 bg-transparent px-3 md:px-4 py-3 text-white font-mono text-base md:text-lg outline-none placeholder:text-gray-600"
+                            class="flex-1 min-w-0 bg-transparent px-3 py-3 text-white font-mono text-base outline-none placeholder:text-gray-600"
                             @input="formatPhone" @paste="onPhonePaste" />
                         <button type="button" @click="pickContact"
-                            title="Seleccionar de tus contactos"
-                            class="shrink-0 px-3 md:px-4 py-3 border-l border-matrix-600 text-gray-400 hover:text-neon active:text-neon transition-colors min-h-[44px] flex items-center justify-center">
+                            class="shrink-0 px-3 py-3 border-l border-matrix-600 text-gray-400 hover:text-neon transition-colors min-h-[44px] flex items-center justify-center">
                             <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                                     d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
                             </svg>
                         </button>
                     </div>
-                    <p v-if="contactPickerHint" class="mt-1.5 text-[11px] text-gray-500">{{ contactPickerHint }}</p>
-                    <p v-if="errors.phone" class="mt-2 text-sm text-red-400">{{ errors.phone }}</p>
+                    <p v-if="errors.phone" class="mt-1 text-sm text-red-400">{{ errors.phone }}</p>
                 </div>
 
-                <!-- Victim name -->
-                <div class="mb-4">
-                    <label class="block text-sm font-medium text-gray-400 mb-2">Nombre de quien recibe la llamada</label>
-                    <input v-model="victimName" placeholder="Ej: Juan, Maria, Sr. Lopez..."
-                        class="w-full bg-matrix-700 border border-matrix-600 rounded-xl px-3 md:px-4 py-2.5 text-white text-sm outline-none focus:border-neon/50 transition-colors placeholder:text-gray-600" />
-                    <p class="text-[10px] text-gray-500 mt-1">Opcional - la broma sera mucho mas realista con el nombre</p>
-                </div>
-
-                <!-- Scenario -->
-                <div class="mb-4">
-                    <label class="block text-sm font-medium text-gray-400 mb-2">&#x1F3AD; Describe la broma</label>
-                    <textarea v-model="scenario" maxlength="500" rows="3"
-                        placeholder="Ej: 'Que llamen de la administracion del condominio diciendo que la lavadora hace mucho ruido...'"
-                        class="w-full bg-matrix-700 border border-matrix-600 rounded-xl px-3 md:px-4 py-3 text-white text-sm outline-none focus:border-neon/50 transition-colors resize-none placeholder:text-gray-600 leading-relaxed"
-                    ></textarea>
-                    <div class="flex justify-between mt-1">
-                        <p class="text-xs text-gray-600">La IA creara el personaje</p>
-                        <p class="text-xs" :class="scenario.length > 450 ? 'text-yellow-500' : 'text-gray-600'">{{ scenario.length }}/500</p>
-                    </div>
-                    <p v-if="errors.scenario" class="mt-1 text-sm text-red-400">{{ errors.scenario }}</p>
-                </div>
-
-                <!-- Style -->
-                <div class="mb-4">
-                    <label class="block text-sm font-medium text-gray-400 mb-2">Estilo de voz <span class="text-red-400">*</span></label>
-                    <div class="flex gap-2">
-                        <input v-model="style" placeholder="Ej: Formal y serio, Chistoso, Nervioso..."
-                            class="flex-1 bg-matrix-700 border border-matrix-600 rounded-xl px-3 md:px-4 py-2.5 text-white text-sm outline-none focus:border-neon/50 transition-colors placeholder:text-gray-600" />
-                        <button type="button" @click="generateStyle" :disabled="generating || !scenario.trim()"
-                            class="px-3 py-2.5 rounded-xl bg-matrix-700 border border-matrix-600 text-xs text-gray-400 hover:text-neon hover:border-neon/30 transition whitespace-nowrap disabled:opacity-30"
-                            title="Generar estilo con IA">
-                            {{ generating ? '...' : 'Auto IA' }}
+                <!-- Step 2: Pick a prank (presets INSIDE form) -->
+                <div class="mb-4" v-if="presets.length">
+                    <label class="block text-sm font-medium text-gray-400 mb-2">&#x1F3AD; Elige la broma</label>
+                    <div class="grid grid-cols-2 gap-2">
+                        <button v-for="p in presets" :key="p.id" type="button"
+                            @click="usePreset(p); if(!style) { style = p.style || 'Natural y casual'; }"
+                            :class="['flex items-center gap-2 p-2.5 rounded-xl border text-left transition-all text-xs',
+                                activePreset === p.id ? 'border-neon bg-neon/10 text-white shadow-[0_0_12px_rgba(57,255,20,0.2)]' : 'border-matrix-600 text-gray-400 hover:border-neon/30 hover:text-gray-300']">
+                            <span class="text-lg flex-shrink-0">{{ p.emoji }}</span>
+                            <span class="truncate">{{ p.label }}</span>
                         </button>
                     </div>
                 </div>
 
-                <!-- Presets (compact, inside form as fallback) -->
-                <div class="mb-5 md:hidden" v-if="presets.length && !activePreset">
-                    <p class="text-xs text-gray-500 mb-2">O elige una idea arriba &#x2191;</p>
+                <!-- Custom scenario (collapsible — hidden by default on mobile if presets available) -->
+                <div class="mb-4">
+                    <button v-if="presets.length && !showCustom && !scenario" type="button" @click="showCustom = true"
+                        class="text-xs text-gray-500 hover:text-neon transition">
+                        O escribe tu propia broma &#x2193;
+                    </button>
+                    <div v-if="showCustom || scenario || !presets.length">
+                        <label class="block text-sm font-medium text-gray-400 mb-2">Describe la broma</label>
+                        <textarea v-model="scenario" maxlength="500" rows="2"
+                            placeholder="Ej: Que llamen del banco diciendo que hay un cargo sospechoso..."
+                            class="w-full bg-matrix-700 border border-matrix-600 rounded-xl px-3 py-2.5 text-white text-sm outline-none focus:border-neon/50 transition-colors resize-none placeholder:text-gray-600"
+                        ></textarea>
+                    </div>
+                    <p v-if="errors.scenario" class="mt-1 text-sm text-red-400">{{ errors.scenario }}</p>
                 </div>
 
+                <!-- Victim name (optional, compact) -->
+                <div class="mb-4">
+                    <input v-model="victimName" placeholder="Nombre de la persona (opcional)"
+                        class="w-full bg-matrix-700 border border-matrix-600 rounded-xl px-3 py-2.5 text-white text-sm outline-none focus:border-neon/50 transition-colors placeholder:text-gray-600" />
+                </div>
+
+                <!-- Style (hidden — auto-filled) -->
+                <input type="hidden" v-model="style" />
+
                 <!-- Submit -->
-                <button type="submit" :disabled="loading || phone.length < 10 || !scenario.trim() || !style.trim()"
+                <button type="submit" :disabled="loading || phone.length < 10 || !scenario.trim()"
                     class="w-full py-3.5 md:py-4 rounded-xl bg-neon text-matrix-900 font-bold text-base md:text-lg shadow-[var(--shadow-neon)] hover:shadow-[var(--shadow-neon-lg)] transition-all disabled:opacity-50 disabled:cursor-not-allowed">
                     <span v-if="loading" class="flex items-center justify-center gap-2">
                         <svg class="animate-spin h-5 w-5" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" fill="none" /><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" /></svg>
                         Iniciando llamada...
                     </span>
-                    <span v-else-if="user && user.credits > 0">Hacer llamada ({{ user.credits }} cr)</span>
+                    <span v-else-if="user && user.credits > 0">&#x1F4DE; Llamar ({{ user.credits }} cr)</span>
                     <span v-else-if="user">Sin creditos</span>
-                    <span v-else>Hacer llamada de prueba gratis</span>
+                    <span v-else>&#x1F4DE; Hacer llamada GRATIS</span>
                 </button>
 
-                <p v-if="errors.general" class="mt-4 text-sm text-red-400 text-center">{{ errors.general }}</p>
+                <p v-if="!scenario.trim() && phone.length >= 10" class="mt-2 text-xs text-yellow-400 text-center">&#x2191; Elige una broma arriba para continuar</p>
 
-                <div v-if="trialUsed" class="mt-4 p-3 md:p-4 rounded-xl bg-matrix-700 border border-neon/20 text-center">
+                <p v-if="errors.general" class="mt-3 text-sm text-red-400 text-center">{{ errors.general }}</p>
+
+                <div v-if="trialUsed" class="mt-4 p-3 rounded-xl bg-matrix-700 border border-neon/20 text-center">
                     <p class="text-sm text-gray-300 mb-2">Ya usaste tu prueba gratuita</p>
                     <router-link to="/pricing" class="text-neon font-bold text-sm hover:underline">Ver planes desde $29 MXN &rarr;</router-link>
                 </div>
@@ -351,6 +311,7 @@ const trialUsed = ref(false);
 const activePreset = ref(null);
 const presets = ref([]);
 const user = ref(null);
+const showCustom = ref(false);
 const errors = reactive({ phone: '', scenario: '', general: '' });
 
 function getDeviceHash() {
@@ -510,7 +471,8 @@ async function handleSubmit() {
 
     const digits = phone.value.replace(/\D/g, '');
     if (digits.length !== 10) { errors.phone = 'El numero debe tener 10 digitos.'; return; }
-    if (!scenario.value.trim() || scenario.value.trim().length < 10) { errors.scenario = 'Describe la situacion (minimo 10 caracteres).'; return; }
+    if (!scenario.value.trim() || scenario.value.trim().length < 10) { errors.scenario = 'Elige una broma arriba o describe una.'; return; }
+    if (!style.value.trim()) style.value = 'Natural y casual';
 
     // If user has no credits, redirect to pricing
     if (user.value && user.value.credits <= 0) {
