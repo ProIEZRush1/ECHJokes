@@ -29,6 +29,19 @@
       </UiButton>
     </header>
 
+    <!-- POST-CALL SUMMARY — what happened / outcome -->
+    <div v-if="!isLive && call.assistant_summary"
+      class="rounded-2xl border border-neon/30 bg-neon/5 p-5">
+      <div class="flex items-center gap-2 text-neon font-bold text-sm uppercase tracking-wide mb-2">
+        <FileText class="w-4 h-4" /> Resumen de la llamada
+      </div>
+      <p class="text-[15px] text-gray-100 whitespace-pre-wrap leading-relaxed">{{ call.assistant_summary }}</p>
+    </div>
+    <div v-else-if="summaryPending"
+      class="rounded-2xl border border-white/10 bg-white/5 px-4 py-3 flex items-center gap-2 text-sm text-gray-400">
+      <UiSpinner :size="14" /> Generando resumen de la llamada…
+    </div>
+
     <!-- LIVE AUDIO — hear the call as it happens -->
     <div
       v-if="isLive && call.twilio_call_sid"
@@ -150,7 +163,7 @@
 import { ref, computed, onMounted, onUnmounted, nextTick } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import axios from 'axios'
-import { ArrowLeft, PhoneOff, HelpCircle, Send, Headphones, VolumeX, MessageSquare, RotateCw } from 'lucide-vue-next'
+import { ArrowLeft, PhoneOff, HelpCircle, Send, Headphones, VolumeX, MessageSquare, RotateCw, FileText } from 'lucide-vue-next'
 
 import UiCard from '../components/UiCard.vue'
 import UiButton from '../components/UiButton.vue'
@@ -196,6 +209,11 @@ for (let i = 0; i < 256; i++) {
 }
 
 const isLive = computed(() => ['calling', 'in_progress'].includes(call.value?.status))
+// Show "generando resumen…" for a completed call until the summary arrives,
+// bounded (~40s of polling) so a failed generation doesn't spin forever.
+const summaryWaited = ref(0)
+const summaryPending = computed(() =>
+  call.value?.status === 'completed' && !call.value?.assistant_summary && summaryWaited.value <= 13)
 
 function roleLabel(role) {
   return { ai: 'IA', human: 'Empresa', question: '❓ Pregunta a ti', answer: '✅ Tu respuesta', dtmf: 'Tecla', system: 'Sistema' }[role] || ''
@@ -236,6 +254,7 @@ async function fetchCall() {
       pendingQuestion.value = null
     }
     if (isLive.value) { ensureSocket(); maybeAutoListen() }
+    if (data.status === 'completed' && !data.assistant_summary) summaryWaited.value++
   } catch { /* keep last */ }
 }
 

@@ -158,6 +158,20 @@ class TwilioWebhookController extends Controller
             ]);
             broadcast(new JokeCallStatusUpdated($jokeCall));
             app(\App\Services\CostTrackingService::class)->updateCost($jokeCall);
+
+            // Generate a post-call recap from the transcript so the operator can
+            // see what happened / the outcome without re-reading the whole thing.
+            if ($connected) {
+                try {
+                    $summary = app(\App\Services\AssistantSummaryService::class)->generate($jokeCall);
+                    if ($summary) {
+                        $jokeCall->update(['assistant_summary' => $summary]);
+                        broadcast(new JokeCallStatusUpdated($jokeCall));
+                    }
+                } catch (\Throwable $e) {
+                    Log::warning('Assistant summary failed', ['call_id' => $jokeCall->id, 'error' => $e->getMessage()]);
+                }
+            }
             return;
         }
 

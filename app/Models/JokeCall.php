@@ -24,6 +24,7 @@ class JokeCall extends Model
         'assistant_identity',
         'assistant_company',
         'pending_question',
+        'assistant_summary',
         'joke_source',
         'custom_joke_prompt',
         'victim_name',

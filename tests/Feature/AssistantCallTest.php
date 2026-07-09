@@ -6,6 +6,7 @@ use App\Enums\JokeCallStatus;
 use App\Models\JokeCall;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Http;
 use Tests\TestCase;
 
 class AssistantCallTest extends TestCase
@@ -114,6 +115,8 @@ class AssistantCallTest extends TestCase
 
     public function test_status_completed_marks_assistant_completed_with_transcript(): void
     {
+        Http::fake(['api.anthropic.com/*' => Http::response(['content' => [['text' => 'Objetivo cumplido.']]], 200)]);
+
         $call = JokeCall::create([
             'session_id' => 'c1',
             'phone_number' => '+528001234567',
@@ -132,6 +135,38 @@ class AssistantCallTest extends TestCase
 
         $this->assertSame(JokeCallStatus::Completed, $call->fresh()->status);
         $this->assertSame(120, $call->fresh()->call_duration_seconds);
+    }
+
+    public function test_completed_assistant_call_gets_a_summary(): void
+    {
+        Http::fake([
+            'api.anthropic.com/*' => Http::response([
+                'content' => [['text' => 'La IA marcó la opción 2, confirmó la reserva ABC123 y la empresa la canceló. Pendiente: revisar el reembolso.']],
+            ], 200),
+        ]);
+
+        $call = JokeCall::create([
+            'session_id' => 'sum1',
+            'phone_number' => '+528001234567',
+            'joke_category' => 'assistant',
+            'call_type' => 'assistant',
+            'delivery_type' => 'call',
+            'twilio_call_sid' => 'CA_sum_1',
+            'assistant_objective' => 'Cancelar y reembolsar la reserva',
+            'status' => JokeCallStatus::InProgress,
+            'live_transcript' => json_encode([
+                ['role' => 'ai', 'text' => 'Hola, llamo para cancelar una reserva', 'at' => '10:00:00'],
+                ['role' => 'human', 'text' => 'Con gusto, deme el número', 'at' => '10:00:05'],
+                ['role' => 'dtmf', 'text' => '⌨️ ABC123', 'at' => '10:00:08'],
+            ]),
+            'ip_address' => '127.0.0.1',
+        ]);
+
+        $this->post('/webhooks/twilio/status', [
+            'CallSid' => 'CA_sum_1', 'CallStatus' => 'completed', 'CallDuration' => '90',
+        ])->assertStatus(200);
+
+        $this->assertStringContainsString('reembolso', $call->fresh()->assistant_summary);
     }
 
     public function test_status_completed_marks_assistant_failed_when_never_connected(): void
