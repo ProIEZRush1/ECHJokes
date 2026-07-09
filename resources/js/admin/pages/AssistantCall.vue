@@ -195,7 +195,25 @@ async function launch() {
   } finally { loading.value = false }
 }
 
+function applyPrefill() {
+  const raw = sessionStorage.getItem('assistant_prefill')
+  if (!raw) return
+  sessionStorage.removeItem('assistant_prefill')
+  try {
+    const p = JSON.parse(raw)
+    // Stored phone is full (+52…); the input shows the part after the +52 prefix.
+    form.phone_number = String(p.phone_number || '').replace(/^\+?52/, '').replace(/[^0-9]/g, '')
+    form.objective = p.objective || ''
+    form.context = p.context || ''
+    form.identity = p.identity || ''
+    form.company = p.company || ''
+    form.voice = p.voice || 'ash'
+    toast.info('Datos precargados — modifica y lanza la llamada')
+  } catch {}
+}
+
 onMounted(async () => {
+  applyPrefill()
   try { const { data } = await axios.get('/admin-api/me'); me.value = data.user } catch {}
   fetchRecent()
   pollInterval = setInterval(fetchRecent, 5000)

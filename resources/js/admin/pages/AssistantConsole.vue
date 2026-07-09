@@ -21,6 +21,9 @@
       </span>
       <UiBadge v-else :status="call.status" />
 
+      <UiButton v-if="!isLive" variant="secondary" @click="editAndRelaunch">
+        <Pencil class="w-4 h-4" /> Editar y llamar
+      </UiButton>
       <UiButton v-if="!isLive" variant="primary" :loading="retrying" @click="retry">
         <RotateCw class="w-4 h-4" /> Reintentar
       </UiButton>
@@ -28,6 +31,15 @@
         <PhoneOff class="w-4 h-4" /> Colgar
       </UiButton>
     </header>
+
+    <!-- WHY IT FAILED -->
+    <div v-if="!isLive && call.failure_reason"
+      class="rounded-2xl border border-red-500/40 bg-red-500/10 p-4">
+      <div class="flex items-center gap-2 text-red-300 font-bold text-sm uppercase tracking-wide mb-1">
+        <AlertTriangle class="w-4 h-4" /> Por qué falló
+      </div>
+      <p class="text-[15px] text-red-100">{{ call.failure_reason }}</p>
+    </div>
 
     <!-- POST-CALL SUMMARY — what happened / outcome -->
     <div v-if="!isLive && call.assistant_summary"
@@ -144,6 +156,7 @@
         <!-- Info -->
         <UiCard title="Datos de la llamada">
           <dl class="space-y-2 text-sm">
+            <div><dt class="text-[10.5px] text-gray-500 uppercase tracking-wide">Objetivo</dt><dd class="text-white whitespace-pre-wrap">{{ call.assistant_objective || call.custom_joke_prompt || '—' }}</dd></div>
             <div><dt class="text-[10.5px] text-gray-500 uppercase tracking-wide">Identidad IA</dt><dd class="text-white">{{ call.assistant_identity || '—' }}</dd></div>
             <div><dt class="text-[10.5px] text-gray-500 uppercase tracking-wide">Empresa</dt><dd class="text-white">{{ call.assistant_company || '—' }}</dd></div>
             <div v-if="call.assistant_context"><dt class="text-[10.5px] text-gray-500 uppercase tracking-wide">Datos</dt><dd class="text-gray-300 whitespace-pre-wrap text-[13px]">{{ call.assistant_context }}</dd></div>
@@ -163,7 +176,7 @@
 import { ref, computed, onMounted, onUnmounted, nextTick } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import axios from 'axios'
-import { ArrowLeft, PhoneOff, HelpCircle, Send, Headphones, VolumeX, MessageSquare, RotateCw, FileText } from 'lucide-vue-next'
+import { ArrowLeft, PhoneOff, HelpCircle, Send, Headphones, VolumeX, MessageSquare, RotateCw, FileText, AlertTriangle, Pencil } from 'lucide-vue-next'
 
 import UiCard from '../components/UiCard.vue'
 import UiButton from '../components/UiButton.vue'
@@ -410,6 +423,22 @@ async function retry() {
   } catch (e) {
     toast.error(e.response?.data?.error || 'No se pudo reiniciar la llamada')
   } finally { retrying.value = false }
+}
+
+// Prefill the launch form with this call's data (WITHOUT calling) so the
+// operator can tweak it and launch. Passed via sessionStorage to avoid long
+// URLs; AssistantCall.vue reads and clears it on mount.
+function editAndRelaunch() {
+  if (!call.value) return
+  sessionStorage.setItem('assistant_prefill', JSON.stringify({
+    phone_number: call.value.phone_number || '',
+    objective:    call.value.assistant_objective || call.value.custom_joke_prompt || '',
+    context:      call.value.assistant_context || '',
+    identity:     call.value.assistant_identity || '',
+    company:      call.value.assistant_company || '',
+    voice:        call.value.voice || 'ash',
+  }))
+  router.push('/admin/assistant')
 }
 
 onMounted(async () => {

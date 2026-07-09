@@ -264,6 +264,25 @@ class TwilioWebhookController extends Controller
 
     private function handleFailed(JokeCall $jokeCall, string $reason): void
     {
+        // Assistant calls aren't billed — give a clear cause without any credit
+        // language, and skip the refund/outcome (prank/billing) paths.
+        if ($jokeCall->call_type === 'assistant') {
+            $isTollFree = preg_match('/^\+?52\s*8(00|88|66|77|55)/', (string) $jokeCall->phone_number);
+            $msg = match ($reason) {
+                'no-answer'     => 'No contestaron.',
+                'busy'          => 'La línea estaba ocupada.',
+                'canceled'      => 'La llamada se canceló.',
+                'too_short', 'no_connection'
+                                => 'La llamada no llegó a conectarse.',
+                'failed'        => 'La operadora no pudo completar la llamada'
+                                    . ($isTollFree ? ' (los números 800 de México a veces no se pueden marcar desde este sistema; prueba un número directo).' : ' (error de red o número). Intenta de nuevo.'),
+                default         => "La llamada falló ({$reason}).",
+            };
+            $jokeCall->update(['status' => JokeCallStatus::Failed, 'failure_reason' => $msg]);
+            broadcast(new JokeCallStatusUpdated($jokeCall));
+            return;
+        }
+
         // User-facing reason text. Specific causes get a friendlier message;
         // anything else falls back to the raw status code so admin can debug.
         $userMessage = match ($reason) {

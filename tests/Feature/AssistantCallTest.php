@@ -189,6 +189,29 @@ class AssistantCallTest extends TestCase
         $this->assertSame(JokeCallStatus::Failed, $call->fresh()->status);
     }
 
+    public function test_assistant_failed_call_gets_clear_reason_without_credit_language(): void
+    {
+        $call = JokeCall::create([
+            'session_id' => 'f1',
+            'phone_number' => '+528005071200', // Mexican 800 toll-free
+            'joke_category' => 'assistant',
+            'call_type' => 'assistant',
+            'delivery_type' => 'call',
+            'twilio_call_sid' => 'CA_f_1',
+            'status' => JokeCallStatus::Calling,
+            'ip_address' => '127.0.0.1',
+        ]);
+
+        $this->post('/webhooks/twilio/status', [
+            'CallSid' => 'CA_f_1', 'CallStatus' => 'failed',
+        ])->assertStatus(200);
+
+        $reason = $call->fresh()->failure_reason;
+        $this->assertSame(JokeCallStatus::Failed, $call->fresh()->status);
+        $this->assertStringContainsString('800', $reason);          // toll-free hint
+        $this->assertStringNotContainsString('Crédito', $reason);   // no billing language
+    }
+
     public function test_launch_assistant_call_requires_admin(): void
     {
         $this->actingAs($this->makeUser(false))
