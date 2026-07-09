@@ -27,6 +27,14 @@ services:
       - OPENAI_VOICE=${OPENAI_VOICE:-ash}
       - ELEVENLABS_API_KEY=${ELEVENLABS_API_KEY}
       - ELEVENLABS_VOICE_ID=${ELEVENLABS_VOICE_ID:-iP95p4xoKVk53GoZ742B}
+      - APP_INTERNAL_URL=${APP_INTERNAL_URL:-https://vacilada.com}
+      # Assistant calls: shared secret for operator control (empty = unrestricted).
+      - WS_CONTROL_SECRET=${WS_CONTROL_SECRET:-}
+      - SUPERVISOR_TIMEOUT_MS=${SUPERVISOR_TIMEOUT_MS:-90000}
+      # Prank-call interruption sensitivity (less sensitive by default).
+      - PRANK_VAD_MODE=${PRANK_VAD_MODE:-server_vad}
+      - PRANK_VAD_THRESHOLD=${PRANK_VAD_THRESHOLD:-0.8}
+      - PRANK_VAD_SILENCE_MS=${PRANK_VAD_SILENCE_MS:-900}
     labels:
       - "traefik.enable=true"
       - "traefik.docker.network=coolify"
