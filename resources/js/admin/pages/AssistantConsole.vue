@@ -21,6 +21,9 @@
       </span>
       <UiBadge v-else :status="call.status" />
 
+      <UiButton v-if="!isLive" variant="primary" :loading="retrying" @click="retry">
+        <RotateCw class="w-4 h-4" /> Reintentar
+      </UiButton>
       <UiButton v-if="isLive" variant="danger" :loading="hangingUp" @click="hangup">
         <PhoneOff class="w-4 h-4" /> Colgar
       </UiButton>
@@ -139,9 +142,9 @@
 
 <script setup>
 import { ref, computed, onMounted, onUnmounted, nextTick } from 'vue'
-import { useRoute } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 import axios from 'axios'
-import { ArrowLeft, PhoneOff, HelpCircle, Send, Headphones, MessageSquare } from 'lucide-vue-next'
+import { ArrowLeft, PhoneOff, HelpCircle, Send, Headphones, MessageSquare, RotateCw } from 'lucide-vue-next'
 
 import UiCard from '../components/UiCard.vue'
 import UiButton from '../components/UiButton.vue'
@@ -152,6 +155,7 @@ import { useToast } from '../composables/useToast.js'
 import { useConfirm } from '../composables/useConfirm.js'
 
 const route = useRoute()
+const router = useRouter()
 const toast = useToast()
 const confirm = useConfirm()
 
@@ -166,6 +170,7 @@ const listening = ref(false)
 const audioBlocked = ref(false)
 const socketReady = ref(false)
 const hangingUp = ref(false)
+const retrying = ref(false)
 let autoListenTried = false
 
 const keypad = ['1', '2', '3', '4', '5', '6', '7', '8', '9', '*', '0', '#']
@@ -369,6 +374,27 @@ async function hangup() {
   hangingUp.value = true
   try { await axios.post(`/admin-api/calls/${route.params.id}/hangup`); await fetchCall(); toast.success('Llamada colgada') }
   catch (e) { toast.error(e) } finally { hangingUp.value = false }
+}
+
+// Relaunch the same assistant call (same phone, objective, context, identity,
+// company, voice) and open the new call's console.
+async function retry() {
+  if (!call.value) return
+  retrying.value = true
+  try {
+    const { data } = await axios.post('/admin-api/launch-assistant-call', {
+      phone_number: call.value.phone_number,
+      objective:    call.value.assistant_objective || call.value.custom_joke_prompt || '',
+      context:      call.value.assistant_context || '',
+      identity:     call.value.assistant_identity || '',
+      company:      call.value.assistant_company || '',
+      voice:        call.value.voice || 'ash',
+    }, { timeout: 45000 })
+    toast.success('Llamada reiniciada')
+    router.push('/admin/assistant/' + data.call_id)
+  } catch (e) {
+    toast.error(e.response?.data?.error || 'No se pudo reiniciar la llamada')
+  } finally { retrying.value = false }
 }
 
 onMounted(async () => {
