@@ -46,10 +46,11 @@ const PRANK_VAD_SILENCE_MS= parseInt(process.env.PRANK_VAD_SILENCE_MS || '900', 
 const PRANK_VAD_PREFIX_MS = parseInt(process.env.PRANK_VAD_PREFIX_MS || '300', 10);
 const PRANK_VAD_EAGERNESS = process.env.PRANK_VAD_EAGERNESS || 'low'; // used only when PRANK_VAD_MODE=semantic_vad
 
-// ASSISTANT calls: needs to hear whole IVR menus, so keep it responsive but not
-// jumpy — a moderate threshold with a slightly longer silence window.
+// ASSISTANT calls: companies answer with recorded menus/IVRs that pause between
+// options. A LONGER silence window keeps the AI from jumping in during those
+// pauses (talking over the recording); it waits for a real end-of-turn.
 const ASSIST_VAD_THRESHOLD = parseFloat(process.env.ASSIST_VAD_THRESHOLD || '0.5');
-const ASSIST_VAD_SILENCE_MS= parseInt(process.env.ASSIST_VAD_SILENCE_MS || '700', 10);
+const ASSIST_VAD_SILENCE_MS= parseInt(process.env.ASSIST_VAD_SILENCE_MS || '1500', 10);
 const ASSIST_VAD_PREFIX_MS = parseInt(process.env.ASSIST_VAD_PREFIX_MS || '300', 10);
 
 function buildTurnDetection(mode) {
@@ -538,9 +539,14 @@ ${objective || 'Resolver el asunto indicado.'}
 INFORMACIÓN Y DATOS QUE TIENES (úsalos cuando te los pidan; NO inventes datos que no estén aquí):
 ${context || '(sin datos adicionales — si te piden algo que no tienes, pregúntale a tu supervisor)'}
 
-CÓMO ACTUAR — MUY IMPORTANTE:
-- Al inicio, ESCUCHA primero. Muchas empresas contestan con un menú automático (IVR) o un saludo grabado. No hables encima de la grabación; espera a que termine.
-- Si escuchas un MENÚ automático ("para X marque 1, para Y marque 2..."), identifica la opción que corresponde a tu objetivo y usa la herramienta press_keypad_digits para marcar ese número. Luego ESPERA en silencio y escucha la siguiente instrucción.
+REGLA #1 — ESCUCHA ANTES DE HABLAR (LO MÁS IMPORTANTE):
+- Casi siempre, al conectar la llamada primero suena una GRABACIÓN o un MENÚ automático ("Gracias por llamar a...", "para español marque 1...", música de espera). NO es una persona hablándote.
+- Mientras oigas una grabación, un menú, música de espera, o no estés 100% seguro de que te habla una PERSONA REAL, quédate CALLADO: responde con SILENCIO (no digas ninguna palabra). Es mejor esperar de más que hablar encima de la grabación.
+- NUNCA des tu saludo/presentación mientras suena una grabación o menú. Solo preséntate cuando una PERSONA REAL claramente conteste y te hable a ti (ej. "Volaris, buenas tardes, ¿en qué le ayudo?"). Si dudas si es persona o grabación, ESPERA en silencio.
+- Escucha el menú completo lo suficiente para identificar la opción que te sirve. En cuanto oigas la opción de tu objetivo (ej. "para cambios en su reservación, marque 2"), márcala con press_keypad_digits — NO hables, solo marca.
+
+CÓMO ACTUAR:
+- Si escuchas un MENÚ automático ("para X marque 1, para Y marque 2..."), identifica la opción que corresponde a tu objetivo y usa la herramienta press_keypad_digits para marcar ese número. NO hables. Luego ESPERA en silencio y escucha la siguiente instrucción.
 - Si el sistema te pide capturar un número (de cliente, reservación, teléfono, etc.) y lo tienes en tu información, márcalo con press_keypad_digits.
 - Cuando conteste una PERSONA real, salúdala con naturalidad, di quién eres (${identity || 'el titular'}) y explica de forma breve y clara lo que necesitas.
 - Sé educado, paciente y natural. Frases cortas. Usa expresiones normales ("claro", "perfecto", "una pregunta rápida", "de acuerdo").
@@ -804,10 +810,18 @@ COMO ACTUAR:
   function maybeStartGreeting() {
     if (!sessionReady || !streamReady) return;
     // Assistant calls LISTEN first: companies almost always answer with an IVR
-    // menu or recorded greeting. Speaking over it would break the flow — the AI
-    // reacts once it hears the menu/human (via VAD + create_response).
+    // menu or recorded greeting. We do NOT speak first. Prime the model with a
+    // context note (no response.create — so it stays silent) reinforcing that it
+    // should listen and only act on a menu (press digits) or a real human.
     if (isAssistant) {
       console.log('Assistant call ready — listening for IVR/greeting first');
+      try {
+        openAiWs.send(JSON.stringify({
+          type: 'conversation.item.create',
+          item: { type: 'message', role: 'user', content: [{ type: 'input_text',
+            text: '[La llamada se acaba de conectar. Probablemente escucharás una grabación o un menú automático primero. NO hables. Escucha. Si es un menú, marca la opción de tu objetivo con press_keypad_digits. Solo habla cuando una persona real te salude directamente.]' }] },
+        }));
+      } catch {}
       return;
     }
     console.log('Both ready — AI says Hola first');

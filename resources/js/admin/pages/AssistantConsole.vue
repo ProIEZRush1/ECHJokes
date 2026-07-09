@@ -35,8 +35,10 @@
       :class="['flex items-center gap-3 flex-wrap rounded-xl border px-4 py-3',
         listening && !audioBlocked ? 'border-neon/40 bg-neon/10' : 'border-white/10 bg-white/5']"
     >
-      <UiButton :variant="listening && !audioBlocked ? 'secondary' : 'primary'" @click="onListenClick">
-        <Headphones class="w-4 h-4" /> {{ listenLabel }}
+      <!-- Primary button always toggles listening ON/OFF. -->
+      <UiButton :variant="listening ? 'secondary' : 'primary'" @click="listening ? stopAudio() : startAudio()">
+        <component :is="listening ? VolumeX : Headphones" class="w-4 h-4" />
+        {{ listening ? 'Silenciar audio' : 'Escuchar en vivo' }}
       </UiButton>
       <span v-if="listening && !audioBlocked" class="inline-flex items-center gap-2 text-neon text-sm font-semibold">
         <span class="relative flex h-2 w-2">
@@ -45,8 +47,12 @@
         </span>
         Escuchando en vivo
       </span>
-      <span v-else-if="audioBlocked" class="text-amber-300 text-sm font-medium">Toca el botón para activar el audio 🔊</span>
-      <span v-else class="text-gray-400 text-sm">Audio de la llamada en vivo</span>
+      <!-- Auto-enabled but the browser suspended audio until a tap. -->
+      <button v-else-if="listening && audioBlocked" @click="resumeAudio"
+        class="inline-flex items-center gap-1.5 text-amber-300 text-sm font-semibold underline decoration-dotted">
+        Toca para activar el sonido 🔊
+      </button>
+      <span v-else class="text-gray-400 text-sm">Audio de la llamada disponible</span>
       <span class="ml-auto text-[11px]" :class="socketReady ? 'text-neon/70' : 'text-gray-500'">
         {{ socketReady ? 'Control conectado' : 'Conectando…' }}
       </span>
@@ -144,7 +150,7 @@
 import { ref, computed, onMounted, onUnmounted, nextTick } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import axios from 'axios'
-import { ArrowLeft, PhoneOff, HelpCircle, Send, Headphones, MessageSquare, RotateCw } from 'lucide-vue-next'
+import { ArrowLeft, PhoneOff, HelpCircle, Send, Headphones, VolumeX, MessageSquare, RotateCw } from 'lucide-vue-next'
 
 import UiCard from '../components/UiCard.vue'
 import UiButton from '../components/UiButton.vue'
@@ -318,25 +324,15 @@ function resumeAudio() {
     audioBlocked.value = audioCtx?.state === 'suspended'
   })
 }
-// Prominent listen button: start / unblock / stop depending on state.
-function onListenClick() {
-  if (!listening.value) startAudio()
-  else if (audioBlocked.value) resumeAudio()
-  else stopAudio()
-}
 // Auto-start the moment the call is live. Works out of the box when the operator
 // arrived from the launch button (that click grants audio autoplay for this
 // document); on a cold direct load the browser may require one tap to unblock.
+// The "Silenciar audio" button always turns it back off.
 function maybeAutoListen() {
   if (autoListenTried || !isLive.value || listening.value) return
   autoListenTried = true
   startAudio()
 }
-const listenLabel = computed(() => {
-  if (!listening.value) return 'Escuchar en vivo'
-  if (audioBlocked.value) return 'Toca para activar el audio'
-  return 'Silenciar audio'
-})
 function playAudio(b64) {
   if (!listening.value || !audioCtx) return
   const bin = atob(b64)
