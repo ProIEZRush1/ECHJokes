@@ -143,7 +143,7 @@ import axios from 'axios'
 
 import {
   LayoutDashboard, Phone, Rocket, Users, CreditCard,
-  Theater, BarChart3, Gift, Palette,
+  Theater, BarChart3, Gift, Palette, PhoneCall,
   Menu, X, ChevronDown, LogOut,
   PanelLeftOpen, PanelLeftClose,
 } from 'lucide-vue-next'
@@ -165,6 +165,7 @@ const navGroups = [
       { to: '/admin',           icon: LayoutDashboard, label: 'Dashboard',  shortcut: '⌘1' },
       { to: '/admin/calls',     icon: Phone,           label: 'Llamadas',   shortcut: '⌘2' },
       { to: '/admin/launch',    icon: Rocket,          label: 'Launch Call' },
+      { to: '/admin/assistant', icon: PhoneCall,       label: 'Asistente IA' },
     ],
   },
   {

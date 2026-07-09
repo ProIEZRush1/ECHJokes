@@ -26,6 +26,8 @@ import AdminDashboard from './admin/pages/Dashboard.vue';
 import AdminCalls from './admin/pages/Calls.vue';
 import AdminCallView from './admin/pages/CallView.vue';
 import AdminLaunchCall from './admin/pages/LaunchCall.vue';
+import AdminAssistantCall from './admin/pages/AssistantCall.vue';
+import AdminAssistantConsole from './admin/pages/AssistantConsole.vue';
 import AdminUsers from './admin/pages/Users.vue';
 import AdminPlans from './admin/pages/Plans.vue';
 import AdminBilling from './admin/pages/Billing.vue';
@@ -75,6 +77,8 @@ const router = createRouter({
                 { path: 'calls', name: 'admin.calls', component: AdminCalls },
                 { path: 'calls/:id', name: 'admin.call', component: AdminCallView },
                 { path: 'launch', name: 'admin.launch', component: AdminLaunchCall },
+                { path: 'assistant', name: 'admin.assistant', component: AdminAssistantCall },
+                { path: 'assistant/:id', name: 'admin.assistant.console', component: AdminAssistantConsole },
                 { path: 'users', name: 'admin.users', component: AdminUsers },
                 { path: 'users/:id', name: 'admin.user', component: AdminUserDetail },
                 { path: 'plans', name: 'admin.plans', component: AdminPlans },

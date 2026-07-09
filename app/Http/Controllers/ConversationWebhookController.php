@@ -14,6 +14,29 @@ class ConversationWebhookController extends Controller
         $answeredBy = $request->input('AnsweredBy', 'human');
         $callSid = $request->input('CallSid', '');
 
+        // Assistant mode: the AI calls a company on the user's behalf and runs a
+        // process (navigating IVR menus, pressing keypad digits, asking the
+        // operator live when it needs help). We intentionally do NOT hang up on
+        // machine detection here — reaching an automated menu is the whole point.
+        // The objective/context/identity are read from the DB (by CallSid) rather
+        // than the webhook query string, so long free text can't blow the URL
+        // length limit; query params are only a fallback.
+        $jokeCall = $callSid ? \App\Models\JokeCall::where('twilio_call_sid', $callSid)->first() : null;
+        if ($request->input('mode') === 'assistant' || ($jokeCall && $jokeCall->call_type === 'assistant')) {
+            $streamUrl = 'wss://ws.vacilada.com/stream/' . $this->encodeStreamPayload([
+                'm'  => 'assistant',
+                'o'  => $jokeCall->assistant_objective ?? $request->input('objective', ''),
+                'x'  => $jokeCall->assistant_context ?? $request->input('context', ''),
+                'i'  => $jokeCall->assistant_identity ?? $request->input('identity', ''),
+                'co' => $jokeCall->assistant_company ?? $request->input('company', ''),
+                'v'  => $jokeCall->voice ?? $request->input('voice', 'ash'),
+            ]);
+
+            return $this->twiml(
+                '<Connect><Stream url="' . e($streamUrl) . '" /></Connect>'
+            );
+        }
+
         // Detect voicemail / answering machine — hang up immediately
         if (in_array($answeredBy, ['machine_end_beep', 'fax'])) {
             Log::info('Voicemail detected, hanging up', ['call_sid' => $callSid, 'answered_by' => $answeredBy]);
@@ -32,18 +55,29 @@ class ConversationWebhookController extends Controller
         $voice = $request->input('voice', 'ash');
         $victimName = $request->input('victim_name', '');
 
-        // Encode params as base64 JSON in the path (Twilio strips query params from Stream URLs)
-        $payload = base64_encode(json_encode([
+        // Encode params as URL-safe base64 JSON in the path (Twilio strips query
+        // params from Stream URLs). URL-safe is required: a plain-base64 '/' would
+        // truncate the last path segment and corrupt the payload.
+        $streamUrl = 'wss://ws.vacilada.com/stream/' . $this->encodeStreamPayload([
             's' => $scenario,
             'c' => $character,
             'v' => $voice,
             'n' => $victimName,
-        ]));
-        $streamUrl = 'wss://ws.vacilada.com/stream/' . $payload;
+        ]);
 
         return $this->twiml(
             '<Connect><Stream url="' . e($streamUrl) . '" /></Connect>'
         );
+    }
+
+    /**
+     * URL-safe base64-encode the media-stream params. Node's Buffer.from(str,
+     * 'base64') decodes the URL-safe alphabet natively, so server.js needs no
+     * change. Plain base64 can contain '/', which truncates the URL path segment.
+     */
+    private function encodeStreamPayload(array $params): string
+    {
+        return rtrim(strtr(base64_encode(json_encode($params)), '+/', '-_'), '=');
     }
 
     public function gather(Request $request): Response

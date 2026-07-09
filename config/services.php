@@ -71,4 +71,9 @@ return [
         'price_id' => env('STRIPE_PRICE_ID'),
     ],
 
+    // Shared secret authorizing operator control messages (answers/DTMF/"say")
+    // to the websocket server for assistant calls. Set the SAME value as the ws
+    // server's WS_CONTROL_SECRET. Leave empty to disable the check.
+    'ws_control_secret' => env('WS_CONTROL_SECRET'),
+
 ];

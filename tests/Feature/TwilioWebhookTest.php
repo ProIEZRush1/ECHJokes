@@ -42,6 +42,9 @@ class TwilioWebhookTest extends TestCase
             'status' => JokeCallStatus::InProgress,
             'twilio_call_sid' => 'CA_test_123',
             'ip_address' => '127.0.0.1',
+            // A real completed call has a conversation; without a transcript the
+            // controller correctly treats it as "never connected" (Failed).
+            'live_transcript' => json_encode([['role' => 'human', 'text' => 'Bueno', 'at' => '10:00:00']]),
         ]);
 
         $response = $this->post('/webhooks/twilio/status', [

@@ -20,10 +20,109 @@ const ELEVENLABS_VOICES_FEMALE = parseVoicePool(
 console.log(`Voice pools: male=${ELEVENLABS_VOICES_MALE.length} female=${ELEVENLABS_VOICES_FEMALE.length}`);
 const DEFAULT_VOICE = process.env.OPENAI_VOICE || 'ash';
 const APP_INTERNAL_URL = process.env.APP_INTERNAL_URL || 'https://vacilada.com';
+// If the AI asks the operator a question and nobody answers within this window,
+// the AI apologizes and hangs up instead of freezing the call forever.
+const SUPERVISOR_TIMEOUT_MS = parseInt(process.env.SUPERVISOR_TIMEOUT_MS || '90000', 10);
+// Optional shared secret to authorize operator control messages (answers, DTMF,
+// "say") over the /listen socket. When set, control messages must carry a
+// matching token (the panel fetches it from an admin-only endpoint). When empty,
+// control is unrestricted (backward-compatible with the existing setup).
+const WS_CONTROL_SECRET = process.env.WS_CONTROL_SECRET || '';
 
 // Toggle: set to true to use ElevenLabs TTS, false for OpenAI native audio
 const USE_ELEVENLABS = !!ELEVENLABS_API_KEY;
 console.log(`TTS mode: ${USE_ELEVENLABS ? 'ElevenLabs' : 'OpenAI native'}`);
+
+// ============================================
+// Turn-detection (VAD) tuning
+// ============================================
+// PRANK calls: the AI should keep talking and NOT stop to "listen" every time
+// there's a bit of background noise or a brief pause. server_vad with a HIGH
+// threshold + a LONG silence window makes it far less twitchy: it only yields
+// the turn on clear, sustained speech. All env-tunable in production.
+const PRANK_VAD_MODE      = process.env.PRANK_VAD_MODE || 'server_vad'; // server_vad | semantic_vad
+const PRANK_VAD_THRESHOLD = parseFloat(process.env.PRANK_VAD_THRESHOLD || '0.8');   // 0..1, higher = less sensitive
+const PRANK_VAD_SILENCE_MS= parseInt(process.env.PRANK_VAD_SILENCE_MS || '900', 10); // wait this long after speech before ending the turn
+const PRANK_VAD_PREFIX_MS = parseInt(process.env.PRANK_VAD_PREFIX_MS || '300', 10);
+const PRANK_VAD_EAGERNESS = process.env.PRANK_VAD_EAGERNESS || 'low'; // used only when PRANK_VAD_MODE=semantic_vad
+
+// ASSISTANT calls: needs to hear whole IVR menus, so keep it responsive but not
+// jumpy — a moderate threshold with a slightly longer silence window.
+const ASSIST_VAD_THRESHOLD = parseFloat(process.env.ASSIST_VAD_THRESHOLD || '0.5');
+const ASSIST_VAD_SILENCE_MS= parseInt(process.env.ASSIST_VAD_SILENCE_MS || '700', 10);
+const ASSIST_VAD_PREFIX_MS = parseInt(process.env.ASSIST_VAD_PREFIX_MS || '300', 10);
+
+function buildTurnDetection(mode) {
+  if (mode === 'assistant') {
+    return {
+      type: 'server_vad',
+      threshold: ASSIST_VAD_THRESHOLD,
+      prefix_padding_ms: ASSIST_VAD_PREFIX_MS,
+      silence_duration_ms: ASSIST_VAD_SILENCE_MS,
+      create_response: true,
+      interrupt_response: false,
+    };
+  }
+  // prank
+  if (PRANK_VAD_MODE === 'semantic_vad') {
+    return { type: 'semantic_vad', eagerness: PRANK_VAD_EAGERNESS, create_response: true, interrupt_response: false };
+  }
+  return {
+    type: 'server_vad',
+    threshold: PRANK_VAD_THRESHOLD,
+    prefix_padding_ms: PRANK_VAD_PREFIX_MS,
+    silence_duration_ms: PRANK_VAD_SILENCE_MS,
+    create_response: true,
+    interrupt_response: false,
+  };
+}
+console.log(`VAD prank: ${PRANK_VAD_MODE} threshold=${PRANK_VAD_THRESHOLD} silence=${PRANK_VAD_SILENCE_MS}ms`);
+
+// ============================================
+// Assistant-mode tools (OpenAI Realtime function calling)
+// ============================================
+// Only attached for assistant calls. They let the AI press keypad digits to
+// navigate phone menus, pause to ask the human operator a question it can't
+// answer, and hang up when the task is done.
+const ASSISTANT_TOOLS = [
+  {
+    type: 'function',
+    name: 'press_keypad_digits',
+    description: 'Marca teclas del teléfono (tonos DTMF) para navegar un menú telefónico automático (IVR) o para capturar un número (de cliente, reservación, etc.). Úsalo cuando un sistema automático te pida marcar una opción o un dato.',
+    parameters: {
+      type: 'object',
+      properties: {
+        digits: { type: 'string', description: 'Los dígitos a marcar, por ejemplo "2" o "1023#". Solo se permiten 0-9, * y #.' },
+        reason: { type: 'string', description: 'Motivo breve, ej. "opción para modificar reservaciones".' },
+      },
+      required: ['digits'],
+    },
+  },
+  {
+    type: 'function',
+    name: 'ask_supervisor',
+    description: 'Pregunta a tu supervisor humano (que está observando la llamada en vivo) cuando necesites un dato que no tienes, o una decisión que no puedes tomar por tu cuenta. IMPORTANTE: antes de llamar esta función, dile a la persona en el teléfono algo como "permítame un segundito por favor".',
+    parameters: {
+      type: 'object',
+      properties: {
+        question: { type: 'string', description: 'La pregunta clara y específica para tu supervisor.' },
+      },
+      required: ['question'],
+    },
+  },
+  {
+    type: 'function',
+    name: 'hang_up',
+    description: 'Cuelga la llamada cuando ya lograste el objetivo, o cuando definitivamente no es posible continuar.',
+    parameters: {
+      type: 'object',
+      properties: {
+        reason: { type: 'string', description: 'Motivo, ej. "objetivo cumplido" o el problema encontrado.' },
+      },
+      required: ['reason'],
+    },
+  },
+];
 
 // Track active calls and their browser listeners
 const activeCalls = new Map();
@@ -176,6 +275,28 @@ function postTranscript(callSid, role, text) {
   req.end();
 }
 
+// Push a live "supervisor question" (or clear it) to Laravel so the operator
+// panel can surface it even if it isn't connected to the live socket yet.
+function postCallQuestion(callSid, { question = null, cleared = false } = {}) {
+  if (!callSid) return;
+  const data = JSON.stringify({ call_sid: callSid, question: question || '', cleared });
+  const url = new URL(`${APP_INTERNAL_URL}/api/call-question`);
+  const isHttps = url.protocol === 'https:';
+  const opts = {
+    hostname: url.hostname,
+    port: url.port || (isHttps ? 443 : 80),
+    path: url.pathname,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'Content-Length': Buffer.byteLength(data) },
+  };
+  const req = (isHttps ? https : http).request(opts, (res) => {
+    console.log(`[question] POST cleared=${cleared} → ${res.statusCode}`);
+  });
+  req.on('error', (e) => console.error('[question] error:', e.message));
+  req.write(data);
+  req.end();
+}
+
 function mixAmbience(mulawFrame) {
   return Buffer.from(mulawFrame).toString('base64');
 }
@@ -200,6 +321,53 @@ function pcmToMulaw(pcmBuffer) {
     mulaw[i] = ~(sign | (exponent << 4) | mantissa) & 0xFF;
   }
   return mulaw;
+}
+
+// ============================================
+// DTMF: turn phone-keypad digits into G.711 mulaw audio frames
+// ============================================
+// Twilio bidirectional Media Streams have no "send DTMF" message — the reliable
+// way to "press a key" is to play the actual dual-tone (DTMF) audio in-band, the
+// same tones a real phone emits. We synthesize the two sine tones per digit,
+// encode to 8kHz mulaw, and chunk into 160-byte (20ms) frames Twilio can play.
+const DTMF_FREQS = {
+  '1': [697, 1209], '2': [697, 1336], '3': [697, 1477],
+  '4': [770, 1209], '5': [770, 1336], '6': [770, 1477],
+  '7': [852, 1209], '8': [852, 1336], '9': [852, 1477],
+  '*': [941, 1209], '0': [941, 1336], '#': [941, 1477],
+};
+const MULAW_SILENCE = 0xFF; // G.711 mulaw encoding of a zero sample
+
+function dtmfToMulawFrames(digits, { toneMs = 200, gapMs = 100, amplitude = 11000 } = {}) {
+  const SR = 8000;
+  const toneSamples = Math.floor(SR * toneMs / 1000);
+  const gapSamples = Math.floor(SR * gapMs / 1000);
+  const pcmChunks = [];
+  for (const ch of String(digits)) {
+    const f = DTMF_FREQS[ch];
+    if (!f) { pcmChunks.push(Buffer.alloc(gapSamples * 2)); continue; } // unknown → short pause
+    const pcm = Buffer.alloc(toneSamples * 2);
+    for (let i = 0; i < toneSamples; i++) {
+      const t = i / SR;
+      const s = amplitude * Math.sin(2 * Math.PI * f[0] * t)
+              + amplitude * Math.sin(2 * Math.PI * f[1] * t);
+      pcm.writeInt16LE(Math.max(-32768, Math.min(32767, Math.round(s))), i * 2);
+    }
+    pcmChunks.push(pcm);
+    pcmChunks.push(Buffer.alloc(gapSamples * 2)); // inter-digit gap (silence)
+  }
+  const mulaw = pcmToMulaw(Buffer.concat(pcmChunks));
+  const frames = [];
+  for (let off = 0; off < mulaw.length; off += 160) {
+    let frame = mulaw.subarray(off, off + 160);
+    if (frame.length < 160) {
+      const padded = Buffer.alloc(160, MULAW_SILENCE);
+      frame.copy(padded);
+      frame = padded;
+    }
+    frames.push(frame.toString('base64'));
+  }
+  return frames;
 }
 
 // ============================================
@@ -263,14 +431,34 @@ function elevenLabsTTS(text, voiceId, callback) {
 wss.on('connection', (ws, req) => {
   const url = req.url || '';
 
-  // Browser listener
+  // Browser listener (operator panel). Receive-only for prank calls; for
+  // assistant calls it's ALSO the control channel: the operator sends live
+  // answers to the AI's questions, presses keypad digits manually, or tells the
+  // AI to say something. Control actions are dispatched to the call's `control`
+  // handle, which is registered by handleTwilioStream once the call is live.
   if (url.startsWith('/listen/')) {
     const callSid = url.split('/listen/')[1];
     console.log(`Browser listener connected for call: ${callSid}`);
     let call = activeCalls.get(callSid);
     if (!call) { call = { listeners: new Set() }; activeCalls.set(callSid, call); }
     call.listeners.add(ws);
-    ws.send(JSON.stringify({ type: 'event', event: 'connected', callSid }));
+    ws.send(JSON.stringify({
+      type: 'event', event: 'connected', callSid,
+      mode: call.control?.mode || null,
+      pendingQuestion: call.pendingQuestion || null,
+    }));
+    ws.on('message', (data) => {
+      let m;
+      try { m = JSON.parse(data); } catch { return; }
+      if (WS_CONTROL_SECRET && m.token !== WS_CONTROL_SECRET) return; // unauthorized control
+      const c = activeCalls.get(callSid);
+      if (!c || !c.control) return;
+      try {
+        if (m.type === 'supervisor_answer' && m.text) c.control.answerSupervisor(String(m.text));
+        else if (m.type === 'dtmf' && m.digits)      c.control.sendDtmf(String(m.digits));
+        else if (m.type === 'say' && m.text)         c.control.say(String(m.text));
+      } catch (e) { console.error('[control] error:', e.message); }
+    });
     ws.on('close', () => { call.listeners.delete(ws); });
     return;
   }
@@ -282,16 +470,23 @@ function handleTwilioStream(twilioWs, req) {
   const pathParts = (req.url || '').split('/');
   const encoded = pathParts[pathParts.length - 1] || '';
   let scenario = '', character = '', voice = DEFAULT_VOICE, victimName = '';
+  let mode = 'prank', objective = '', context = '', identity = '', company = '';
   try {
     const params = JSON.parse(Buffer.from(encoded, 'base64').toString('utf8'));
+    mode = params.m === 'assistant' ? 'assistant' : 'prank';
     scenario = params.s || '';
     character = params.c || '';
     voice = params.v || DEFAULT_VOICE;
     victimName = params.n || '';
+    objective = params.o || '';
+    context = params.x || '';
+    identity = params.i || '';
+    company = params.co || '';
   } catch (e) {
     console.log('Could not decode params, using defaults');
   }
-  console.log(`Call connected: scenario="${scenario}" character="${character}" voice=${voice} victim="${victimName || '(none)'}" tts=${USE_ELEVENLABS ? 'ElevenLabs' : 'OpenAI'}`);
+  const isAssistant = mode === 'assistant';
+  console.log(`Call connected: mode=${mode} scenario="${scenario}" objective="${objective.slice(0,60)}" company="${company}" voice=${voice} victim="${victimName || '(none)'}" tts=${USE_ELEVENLABS ? 'ElevenLabs' : 'OpenAI'}`);
 
   let streamSid = null;
   let callSid = null;
@@ -331,7 +526,30 @@ function handleTwilioStream(twilioWs, req) {
   const callerName = `${firstName} ${lastName}`;
   console.log(`AI caller name: ${callerName} (voice=${voice} gender=${isFemaleVoice ? 'F' : 'M'} elevenLabs=${elevenLabsVoiceId})`);
 
-  const instructions = `Estas en una llamada telefonica. TU eres quien LLAMO. La persona que contesta es a quien llamaste.
+  const assistantInstructions = `Eres un asistente telefónico que hace una llamada EN NOMBRE de tu jefe/cliente. Hablas español mexicano, con voz natural, clara y educada. Tu trabajo es completar un trámite por teléfono como lo haría un buen asistente humano.
+
+TU IDENTIDAD: Cuando te pregunten tu nombre o de parte de quién, di que eres ${identity || 'el titular'}. Estás llamando para gestionar un asunto de ${identity || 'el titular'}. Habla en primera persona como si fueras ${identity || 'el titular'}.
+
+A QUIÉN LLAMAS: ${company || 'una empresa / línea de atención'}.
+
+TU OBJETIVO (lo que debes lograr en esta llamada):
+${objective || 'Resolver el asunto indicado.'}
+
+INFORMACIÓN Y DATOS QUE TIENES (úsalos cuando te los pidan; NO inventes datos que no estén aquí):
+${context || '(sin datos adicionales — si te piden algo que no tienes, pregúntale a tu supervisor)'}
+
+CÓMO ACTUAR — MUY IMPORTANTE:
+- Al inicio, ESCUCHA primero. Muchas empresas contestan con un menú automático (IVR) o un saludo grabado. No hables encima de la grabación; espera a que termine.
+- Si escuchas un MENÚ automático ("para X marque 1, para Y marque 2..."), identifica la opción que corresponde a tu objetivo y usa la herramienta press_keypad_digits para marcar ese número. Luego ESPERA en silencio y escucha la siguiente instrucción.
+- Si el sistema te pide capturar un número (de cliente, reservación, teléfono, etc.) y lo tienes en tu información, márcalo con press_keypad_digits.
+- Cuando conteste una PERSONA real, salúdala con naturalidad, di quién eres (${identity || 'el titular'}) y explica de forma breve y clara lo que necesitas.
+- Sé educado, paciente y natural. Frases cortas. Usa expresiones normales ("claro", "perfecto", "una pregunta rápida", "de acuerdo").
+- Si te piden un dato que NO tienes, o hay que TOMAR UNA DECISIÓN que no puedes tomar solo (confirmar un cambio, elegir entre opciones, autorizar un cargo, dar un dato personal que no está en tu información): PRIMERO dile a la persona algo como "permítame un segundito por favor" y de inmediato usa la herramienta ask_supervisor para preguntarle a tu supervisor humano. Espera su respuesta y continúa la llamada con esa información.
+- NUNCA inventes datos (números de confirmación, fechas, precios, códigos). Si no lo sabes, usa ask_supervisor.
+- Cuando logres el objetivo, o si definitivamente ya no se puede avanzar, agradece, despídete brevemente y usa la herramienta hang_up.
+- Solo di PALABRAS que dirías en voz alta. NUNCA leas etiquetas, asteriscos, paréntesis ni descripciones.`;
+
+  const prankInstructions = `Estas en una llamada telefonica. TU eres quien LLAMO. La persona que contesta es a quien llamaste.
 
 TU NOMBRE Y GENERO: Te llamas ${callerName}. Eres ${isFemaleVoice ? 'MUJER' : 'HOMBRE'} — tu voz es de ${isFemaleVoice ? 'mujer' : 'hombre'}, NUNCA uses un nombre del otro género ni pretendas ser del otro género. Cuando te pregunten "de parte de quien" o te pidan tu nombre, di "${callerName}" (${isFemaleVoice ? 'nombre femenino' : 'nombre masculino'}). SIEMPRE usa este nombre exacto, aunque el escenario o la víctima sugiera otro. Todas tus referencias a ti mismo deben estar en ${isFemaleVoice ? 'femenino (ej. "estoy segura", "soy yo")' : 'masculino (ej. "estoy seguro", "soy yo")'}.
 
@@ -376,6 +594,8 @@ COMO ACTUAR:
 - Solo di PALABRAS que dirias en voz alta. NUNCA escribas descripciones, acotaciones, asteriscos, parentesis ni emojis.
 - Esto es entretenimiento comico inofensivo.`;
 
+  const instructions = isAssistant ? assistantInstructions : prankInstructions;
+
   openAiWs = new WebSocket('wss://api.openai.com/v1/realtime?model=gpt-realtime-mini', {
     headers: { 'Authorization': `Bearer ${OPENAI_API_KEY}` }
   });
@@ -390,7 +610,7 @@ COMO ACTUAR:
         audio: {
           input: {
             format: { type: 'audio/pcmu' },
-            turn_detection: { type: 'semantic_vad' },
+            turn_detection: buildTurnDetection(mode),
             transcription: { model: 'gpt-realtime-whisper', language: 'es' },
           },
           ...(USE_ELEVENLABS ? {} : {
@@ -398,6 +618,7 @@ COMO ACTUAR:
           }),
         },
         instructions: instructions,
+        ...(isAssistant ? { tools: ASSISTANT_TOOLS, tool_choice: 'auto' } : {}),
       }
     };
     openAiWs.send(JSON.stringify(sessionConfig));
@@ -440,7 +661,10 @@ COMO ACTUAR:
           // user's utterance will be gated in the transcription handler
           // below: anything the victim said while the AI was speaking is
           // treated as overlap and discarded.
-          if (responseActive || isSpeaking) {
+          // Overlap-discard is a prank-call behavior (let the AI finish, drop
+          // the victim talking over it). In assistant mode we must NOT drop the
+          // other side — that's the IVR menu / agent we need to hear.
+          if (!isAssistant && (responseActive || isSpeaking)) {
             ignoreNextTranscript = true;
             // Safety: if Whisper never returns this transcript (network /
             // silence / etc.) we don't want the flag stuck forever silencing
@@ -510,6 +734,17 @@ COMO ACTUAR:
             if (!ttsActive && ttsQueue.length === 0) isSpeaking = false;
           }
           currentAiText = '';
+
+          // Assistant mode: the model may have emitted tool calls (press digits,
+          // ask the operator, hang up) as function_call items in this response.
+          if (isAssistant) {
+            const outputs = response.response?.output || [];
+            for (const item of outputs) {
+              if (item?.type === 'function_call') {
+                handleFunctionCall(item.call_id, item.name, item.arguments);
+              }
+            }
+          }
           break;
 
         case 'conversation.item.input_audio_transcription.completed':
@@ -568,6 +803,13 @@ COMO ACTUAR:
 
   function maybeStartGreeting() {
     if (!sessionReady || !streamReady) return;
+    // Assistant calls LISTEN first: companies almost always answer with an IVR
+    // menu or recorded greeting. Speaking over it would break the flow — the AI
+    // reacts once it hears the menu/human (via VAD + create_response).
+    if (isAssistant) {
+      console.log('Assistant call ready — listening for IVR/greeting first');
+      return;
+    }
     console.log('Both ready — AI says Hola first');
     openAiWs.send(JSON.stringify({
       type: 'conversation.item.create',
@@ -575,6 +817,158 @@ COMO ACTUAR:
         content: [{ type: 'input_text', text: `[La persona contesto el telefono y dijo "bueno"]. Responde con "Bueno, buenas tardes"${victimName ? `. DEBES preguntar textualmente "¿se encuentra ${victimName}?" — NUNCA preguntes por "el encargado" ni por otra persona` : ' y presentate segun tu personaje'}. Sigue el protocolo mexicano de llamada telefonica.` }] }
     }));
     openAiWs.send(JSON.stringify({ type: 'response.create' }));
+  }
+
+  // ============================================
+  // Assistant-mode control: DTMF, tool calls, live operator Q&A
+  // ============================================
+  let pendingSupervisor = null; // { callId } while awaiting the operator's answer
+  let supervisorTimer = null;   // fires if the operator never answers
+  let hangUpPending = false;    // hang up once the farewell finishes playing
+  let hangUpTimer = null;       // hard fallback so a stuck TTS can't block teardown
+
+  function teardown() {
+    clearTimeout(supervisorTimer);
+    clearTimeout(hangUpTimer);
+    try { if (openAiWs?.readyState === WebSocket.OPEN) openAiWs.close(); } catch {}
+    try { if (twilioWs?.readyState === WebSocket.OPEN) twilioWs.close(); } catch {}
+  }
+
+  // Play keypad tones into the live call (and let the operator hear them).
+  function sendDtmf(digits) {
+    const clean = String(digits || '').replace(/[^0-9*#]/g, '');
+    if (!clean || !streamSid || twilioWs.readyState !== WebSocket.OPEN) return;
+    const frames = dtmfToMulawFrames(clean);
+    for (const f of frames) {
+      twilioWs.send(JSON.stringify({ event: 'media', streamSid, media: { payload: f } }));
+      if (callSid) broadcastAudio(callSid, f, 'ai');
+    }
+    const markId = `dtmf_${Date.now()}`;
+    markQueue.push(markId);
+    twilioWs.send(JSON.stringify({ event: 'mark', streamSid, mark: { name: markId } }));
+    console.log(`[dtmf] sent digits: ${clean}`);
+    if (callSid) broadcastEvent(callSid, 'dtmf_sent', { digits: clean });
+    postTranscript(callSid, 'dtmf', `⌨️ ${clean}`);
+  }
+
+  // Return a function result to the model and (optionally) let it continue.
+  function submitFunctionOutput(callId, output, createResponse = true) {
+    if (!openAiWs || openAiWs.readyState !== WebSocket.OPEN) return;
+    openAiWs.send(JSON.stringify({
+      type: 'conversation.item.create',
+      item: { type: 'function_call_output', call_id: callId, output: String(output) },
+    }));
+    if (createResponse) openAiWs.send(JSON.stringify({ type: 'response.create' }));
+  }
+
+  // Inject an out-of-band instruction (from the operator) as a user turn.
+  function injectUserGuidance(text, createResponse = true) {
+    if (!openAiWs || openAiWs.readyState !== WebSocket.OPEN) return;
+    openAiWs.send(JSON.stringify({
+      type: 'conversation.item.create',
+      item: { type: 'message', role: 'user', content: [{ type: 'input_text', text: String(text) }] },
+    }));
+    if (createResponse) openAiWs.send(JSON.stringify({ type: 'response.create' }));
+  }
+
+  function setPendingQuestion(question) {
+    const entry = callSid ? activeCalls.get(callSid) : null;
+    if (entry) entry.pendingQuestion = question; // so late-joining panels see it
+  }
+
+  function askSupervisor(callId, question) {
+    // Only one question can be outstanding at a time — don't clobber the first.
+    if (pendingSupervisor) {
+      submitFunctionOutput(callId, 'Ya tienes una pregunta pendiente con tu supervisor. Espera esa respuesta antes de preguntar otra cosa.', false);
+      return;
+    }
+    pendingSupervisor = { callId };
+    console.log(`[supervisor] question: ${question}`);
+    setPendingQuestion(question);
+    postTranscript(callSid, 'question', question);
+    postCallQuestion(callSid, { question });
+    if (callSid) broadcastEvent(callSid, 'supervisor_question', { question });
+    // Safety net: if the operator never answers, don't leave the call frozen
+    // (mic muted + dangling tool call). Apologize and let the AI hang up.
+    clearTimeout(supervisorTimer);
+    supervisorTimer = setTimeout(() => {
+      if (!pendingSupervisor) return;
+      const { callId: cid } = pendingSupervisor;
+      pendingSupervisor = null;
+      setPendingQuestion(null);
+      postCallQuestion(callSid, { cleared: true });
+      if (callSid) broadcastEvent(callSid, 'supervisor_answered', { answer: '(sin respuesta)' });
+      submitFunctionOutput(cid, 'Tu supervisor no está disponible en este momento. Discúlpate con la persona, dile amablemente que le llamarás de vuelta, y usa la función hang_up.');
+    }, SUPERVISOR_TIMEOUT_MS);
+    // Note: we do NOT submit the function output yet — we wait for the operator's
+    // answer (resolveSupervisor), which resumes the model with the answer.
+  }
+
+  function resolveSupervisor(answer) {
+    const text = String(answer || '').trim();
+    if (!text) return;
+    clearTimeout(supervisorTimer);
+    postTranscript(callSid, 'answer', text);
+    setPendingQuestion(null);
+    postCallQuestion(callSid, { cleared: true });
+    if (callSid) broadcastEvent(callSid, 'supervisor_answered', { answer: text });
+    if (pendingSupervisor) {
+      const { callId } = pendingSupervisor;
+      pendingSupervisor = null;
+      submitFunctionOutput(callId, `Tu supervisor responde: ${text}. Usa esta información para continuar la llamada de forma natural.`);
+    } else {
+      // No question was pending — treat it as a live nudge from the operator.
+      injectUserGuidance(`[Indicación de tu supervisor: ${text}]`);
+    }
+  }
+
+  function handleFunctionCall(callId, name, argsJson) {
+    let args = {};
+    try { args = JSON.parse(argsJson || '{}'); } catch {}
+    console.log(`[fn] ${name}(${(argsJson || '').slice(0, 120)})`);
+    if (name === 'press_keypad_digits') {
+      const digits = String(args.digits || '').replace(/[^0-9*#]/g, '');
+      if (digits) sendDtmf(digits);
+      // createResponse=false: after pressing, the AI should stay SILENT and let
+      // the phone system's next menu/prompt drive the following turn (otherwise
+      // it blurts an acknowledgment and its own overlap-guard drops the menu).
+      submitFunctionOutput(callId, digits
+        ? `Se marcaron los dígitos "${digits}". Espera en silencio y escucha la respuesta del sistema telefónico.`
+        : 'No se recibieron dígitos válidos (solo se permiten 0-9, * y #).', false);
+    } else if (name === 'ask_supervisor') {
+      askSupervisor(callId, String(args.question || ''));
+    } else if (name === 'hang_up') {
+      const reason = String(args.reason || '');
+      console.log(`[fn] hang_up: ${reason}`);
+      postTranscript(callSid, 'system', `📞 IA finaliza la llamada: ${reason}`);
+      if (callSid) broadcastEvent(callSid, 'assistant_hangup', { reason });
+      // Let the AI speak a short farewell; tear down once that finishes playing
+      // (see drainTtsQueue), with a hard fallback so a stuck TTS can't hang on.
+      hangUpPending = true;
+      submitFunctionOutput(callId, 'Entendido. Despídete brevemente y con cortesía; la llamada terminará enseguida.');
+      clearTimeout(hangUpTimer);
+      hangUpTimer = setTimeout(teardown, 12000);
+    } else {
+      submitFunctionOutput(callId, 'Función no reconocida.');
+    }
+  }
+
+  // Expose control actions so the operator's /listen socket can drive the call.
+  function registerControl() {
+    if (!callSid) return;
+    const entry = activeCalls.get(callSid) || { listeners: new Set() };
+    entry.control = {
+      mode,
+      answerSupervisor: (text) => resolveSupervisor(text),
+      sendDtmf: (d) => {
+        const clean = String(d || '').replace(/[^0-9*#]/g, '');
+        if (!clean) return;
+        sendDtmf(clean);
+        if (isAssistant) injectUserGuidance(`[El supervisor marcó manualmente los dígitos ${clean}]`, false);
+      },
+      say: (text) => injectUserGuidance(`Di exactamente esto a la persona, con naturalidad: "${String(text)}"`, true),
+    };
+    activeCalls.set(callSid, entry);
   }
 
   // Look for sentence terminators past streamedOffset and enqueue finished
@@ -610,7 +1004,15 @@ COMO ACTUAR:
     const mySessionId = ttsSessionId;
     elevenLabsTTS(text, elevenLabsVoiceId, (audioBase64, done) => {
       if (mySessionId !== ttsSessionId) {
-        if (done) { ttsActive = false; }
+        if (done) {
+          // This TTS belonged to a superseded response. Free the flag AND resume
+          // the current session's queue — otherwise ttsActive/isSpeaking stick
+          // and the call goes permanently deaf+mute (inbound audio is dropped
+          // while isSpeaking). See the media handler's isSpeaking gate.
+          ttsActive = false;
+          if (ttsQueue.length > 0) drainTtsQueue(ttsSessionId);
+          else if (!responseActive) { isSpeaking = false; speechEndedAt = Date.now(); }
+        }
         return;
       }
       if (audioBase64 && streamSid && twilioWs.readyState === WebSocket.OPEN) {
@@ -635,6 +1037,8 @@ COMO ACTUAR:
           isSpeaking = false;
           speechEndedAt = Date.now();
           responseStartTimestamp = null;
+          // If the AI just spoke its farewell (hang_up), end the call now.
+          if (hangUpPending) { clearTimeout(hangUpTimer); setTimeout(teardown, 1000); }
         }
         // else: more text still streaming from OpenAI — wait for next delta/flushSentences
       }
@@ -679,6 +1083,7 @@ COMO ACTUAR:
           callSid = msg.start?.callSid || null;
           console.log(`Twilio stream: ${streamSid} call: ${callSid}`);
           if (callSid && !activeCalls.has(callSid)) activeCalls.set(callSid, { listeners: new Set() });
+          registerControl(); // expose operator control actions for this call
           streamReady = true;
           maybeStartGreeting();
           break;
@@ -693,7 +1098,10 @@ COMO ACTUAR:
           {
             const inEchoTail = USE_ELEVENLABS && speechEndedAt > 0 &&
               (Date.now() - speechEndedAt) < ECHO_TAIL_MS;
-            if (openAiWs?.readyState === WebSocket.OPEN && !(USE_ELEVENLABS && isSpeaking) && !inEchoTail) {
+            // While waiting on the operator's answer to a supervisor question,
+            // mute the mic so a talking IVR/human doesn't trigger a confused
+            // response before the answer arrives.
+            if (openAiWs?.readyState === WebSocket.OPEN && !(USE_ELEVENLABS && isSpeaking) && !inEchoTail && !pendingSupervisor) {
               openAiWs.send(JSON.stringify({ type: 'input_audio_buffer.append', audio: msg.media.payload }));
             }
           }
@@ -714,6 +1122,8 @@ COMO ACTUAR:
 
   twilioWs.on('close', () => {
     console.log('Twilio disconnected');
+    clearTimeout(supervisorTimer);
+    clearTimeout(hangUpTimer);
     if (openAiWs?.readyState === WebSocket.OPEN) openAiWs.close();
   });
 }

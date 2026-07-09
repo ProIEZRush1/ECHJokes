@@ -94,8 +94,12 @@ class TwilioWebhookController extends Controller
             }
 
             $answeredBy = $request->input('AnsweredBy');
-            // Any machine/voicemail indication → hang up + refund
-            if ($answeredBy && in_array($answeredBy, ['machine_start', 'machine_end_beep', 'machine_end_silence', 'machine_end_other', 'fax'])) {
+            // Any machine/voicemail indication → hang up + refund.
+            // Assistant calls are EXEMPT: they deliberately dial companies whose
+            // IVR menus look like "machines" — killing them would defeat the
+            // purpose. AMD isn't even enabled for those, but guard anyway.
+            if ($jokeCall->call_type !== 'assistant'
+                && $answeredBy && in_array($answeredBy, ['machine_start', 'machine_end_beep', 'machine_end_silence', 'machine_end_other', 'fax'])) {
                 Log::info('Voicemail detected', ['call_sid' => $callSid, 'answered_by' => $answeredBy]);
                 $jokeCall->update(['status' => JokeCallStatus::Voicemail, 'failure_reason' => 'Buzón de voz ('.$answeredBy.')']);
                 $this->refundCredit($jokeCall);
@@ -139,6 +143,23 @@ class TwilioWebhookController extends Controller
     private function handleCompleted(JokeCall $jokeCall, Request $request): void
     {
         $duration = (int) $request->input('CallDuration', 0);
+
+        // Assistant calls: no credit/billing and no voicemail heuristics (an IVR
+        // with no "human" turns is normal and expected). An empty transcript
+        // still means the stream never connected, so mark that as Failed; any
+        // real conversation counts as Completed.
+        if ($jokeCall->call_type === 'assistant') {
+            $connected = $this->diagnoseTranscript($jokeCall) !== 'empty';
+            $jokeCall->update([
+                'status'                => $connected ? JokeCallStatus::Completed : JokeCallStatus::Failed,
+                'failure_reason'        => $connected ? null : 'La IA no se conectó a la llamada.',
+                'call_duration_seconds' => $duration,
+                'pending_question'      => null,
+            ]);
+            broadcast(new JokeCallStatusUpdated($jokeCall));
+            app(\App\Services\CostTrackingService::class)->updateCost($jokeCall);
+            return;
+        }
 
         // Sub-10-second prank calls don't charge the user. The conversation
         // didn't have time to actually happen — could be voicemail Twilio

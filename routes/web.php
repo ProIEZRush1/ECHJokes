@@ -187,6 +187,8 @@ Route::prefix('admin-api')->group(function () {
         Route::get('/calls/{jokeCall}', [\App\Http\Controllers\AdminApiController::class, 'call']);
         Route::post('/calls/{jokeCall}/hangup', [\App\Http\Controllers\AdminApiController::class, 'hangupCall']);
         Route::post('/launch-call', [\App\Http\Controllers\AdminApiController::class, 'launchCall']);
+        Route::post('/launch-assistant-call', [\App\Http\Controllers\AdminApiController::class, 'launchAssistantCall']);
+        Route::get('/ws-control-token', [\App\Http\Controllers\AdminApiController::class, 'wsControlToken']);
         Route::get('/users', [\App\Http\Controllers\AdminApiController::class, 'users']);
         Route::get('/users/{user}', [\App\Http\Controllers\AdminApiController::class, 'userDetail']);
         Route::put('/users/{user}', [\App\Http\Controllers\AdminApiController::class, 'updateUser']);
@@ -281,3 +283,23 @@ Route::post('/api/call-transcript', function (\Illuminate\Http\Request $request)
 
     return response('OK');
 })->name('call.transcript');
+
+// Live "supervisor question" API (called by the websocket server for assistant
+// calls). The AI raises a question it can't answer on its own; we store it so
+// the operator panel can surface it prominently and answer live. Sending
+// cleared=true (with the answer) resets it once the operator responds.
+Route::post('/api/call-question', function (\Illuminate\Http\Request $request) {
+    $callSid = $request->input('call_sid');
+    if (!$callSid) return response('OK');
+
+    $jokeCall = \App\Models\JokeCall::where('twilio_call_sid', $callSid)->first();
+    if (!$jokeCall) return response('OK');
+
+    if ($request->boolean('cleared')) {
+        $jokeCall->update(['pending_question' => null]);
+    } else {
+        $jokeCall->update(['pending_question' => (string) $request->input('question')]);
+    }
+
+    return response('OK');
+})->name('call.question');

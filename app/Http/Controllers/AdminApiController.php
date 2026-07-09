@@ -78,6 +78,10 @@ class AdminApiController extends Controller
             $query->where('status', $status);
         }
 
+        if ($callType = $request->input('call_type')) {
+            $query->where('call_type', $callType);
+        }
+
         if ($search = $request->input('search')) {
             $query->where(function ($q) use ($search) {
                 $q->where('phone_number', 'like', "%{$search}%")
@@ -172,6 +176,111 @@ class AdminApiController extends Controller
 
             return response()->json(['error' => $e->getMessage()], 500);
         }
+    }
+
+    /**
+     * Launch an "assistant" call: the AI phones a company on the operator's
+     * behalf, navigates any phone menu (pressing keypad digits), and runs the
+     * requested process. When it hits something it can't answer, it asks the
+     * operator live from the panel. Unlike prank calls, machine/IVR detection
+     * is intentionally NOT used — reaching an automated menu is expected.
+     */
+    public function launchAssistantCall(Request $request): JsonResponse
+    {
+        if (!Auth::user()?->is_admin) {
+            return response()->json(['error' => 'No autorizado'], 403);
+        }
+
+        $request->validate([
+            'phone_number' => 'required|string',
+            // Kept modest so objective+context stay well under the media-stream
+            // URL length limit (they are carried in the wss Stream URL path).
+            'objective'    => 'required|string|max:1500',
+            'context'      => 'nullable|string|max:2500',
+            'identity'     => 'nullable|string|max:120',
+            'company'      => 'nullable|string|max:120',
+            'voice'        => 'nullable|in:ash,ballad,verse,echo,coral,sage,shimmer',
+        ]);
+
+        $phone = $request->input('phone_number');
+        if (!str_starts_with($phone, '+')) {
+            $phone = '+52' . $phone;
+        }
+
+        $identity = trim((string) $request->input('identity')) ?: (Auth::user()->name ?? 'el titular');
+        $company  = trim((string) $request->input('company', ''));
+        $voice    = $request->input('voice', 'ash');
+
+        $jokeCall = JokeCall::create([
+            'session_id'          => Str::ulid()->toBase32(),
+            'phone_number'        => $phone,
+            'call_type'           => 'assistant',
+            'joke_category'       => 'assistant',
+            'joke_source'         => 'admin',
+            'delivery_type'       => 'call',
+            'assistant_objective' => $request->input('objective'),
+            'assistant_context'   => $request->input('context'),
+            'assistant_identity'  => $identity,
+            'assistant_company'   => $company,
+            // Surface the objective in the generic detail view too.
+            'custom_joke_prompt'  => $request->input('objective'),
+            'voice'               => $voice,
+            'status'              => JokeCallStatus::Calling,
+            'ip_address'          => $request->ip(),
+            'user_id'             => Auth::id(),
+        ]);
+
+        try {
+            $twilio = new \Twilio\Rest\Client(
+                config('services.twilio.sid'),
+                config('services.twilio.auth_token')
+            );
+
+            // Only the mode flag rides in the webhook URL — the objective/context
+            // are read from the DB in ConversationWebhookController::start (by
+            // CallSid), so long free text can never overflow the URL.
+            $call = $twilio->calls->create($phone, config('services.twilio.phone_number'), [
+                'url'                  => url('/conversation/start') . '?mode=assistant',
+                'method'               => 'POST',
+                'statusCallback'       => route('twilio.status'),
+                'statusCallbackEvent'  => ['initiated', 'ringing', 'answered', 'completed'],
+                'statusCallbackMethod' => 'POST',
+                // No machineDetection: assistant calls are meant to reach IVR menus.
+                'timeout'              => 60,
+                'timeLimit'            => 1800,
+                'record'               => true,
+                'recordingStatusCallback'      => route('twilio.recording'),
+                'recordingStatusCallbackEvent' => ['completed'],
+            ]);
+
+            $jokeCall->update(['twilio_call_sid' => $call->sid]);
+
+            return response()->json([
+                'success'  => true,
+                'call_id'  => $jokeCall->id,
+                'call_sid' => $call->sid,
+            ]);
+        } catch (\Throwable $e) {
+            $jokeCall->update([
+                'status'         => JokeCallStatus::Failed,
+                'failure_reason' => $e->getMessage(),
+            ]);
+
+            return response()->json(['error' => $e->getMessage()], 500);
+        }
+    }
+
+    /**
+     * Short shared secret the operator panel includes with live control messages
+     * (answers / DTMF / "say") sent to the websocket server. Admin-only so the
+     * secret never ships in the public SPA bundle.
+     */
+    public function wsControlToken(): JsonResponse
+    {
+        if (!Auth::user()?->is_admin) {
+            return response()->json(['error' => 'No autorizado'], 403);
+        }
+        return response()->json(['token' => config('services.ws_control_secret')]);
     }
 
     public function users(Request $request): JsonResponse
