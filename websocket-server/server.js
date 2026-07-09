@@ -255,10 +255,13 @@ function postCallAiFailed(callSid, reason) {
   req.end();
 }
 
-function postTranscript(callSid, role, text) {
+function postTranscript(callSid, role, text, ts) {
   if (!callSid) { console.log(`[transcript] skip: no callSid (role=${role} text="${text?.slice(0,30)}")`); return; }
   if (!text) return;
-  const data = JSON.stringify({ call_sid: callSid, role, text });
+  // `ts` is the in-call event time (Twilio media timestamp, ms). It orders the
+  // transcript correctly: a keypress is logged instantly but the company's
+  // speech is only transcribed seconds later, so append order is unreliable.
+  const data = JSON.stringify({ call_sid: callSid, role, text, ts: (typeof ts === 'number' ? ts : undefined) });
   const url = new URL(`${APP_INTERNAL_URL}/api/call-transcript`);
   const isHttps = url.protocol === 'https:';
   const opts = {
@@ -494,6 +497,7 @@ function handleTwilioStream(twilioWs, req) {
   let openAiWs = null;
 
   let lastAssistantItem = null;
+  let lastHumanSpeechTs = 0; // media-time when the other side started talking (for transcript ordering)
   let markQueue = [];
   let responseStartTimestamp = null;
   let latestMediaTimestamp = 0;
@@ -563,6 +567,19 @@ La ÚNICA forma de meter un número, código, opción o dato al sistema telefón
 Ejemplo: el sistema dice "por favor ingrese su número de reservación" o "please enter your reservation number". Yo no digo nada; busco el número en mis datos y de inmediato lo marco con press_keypad_digits.
 
 Ejemplo: el sistema dice "marque su teléfono a diez dígitos" y el teléfono está en mis datos. NO le pregunto al supervisor cuál usar: ya lo tengo. Lo marco al instante con press_keypad_digits, sin hablar.
+
+NUNCA INVENTES NI ARMES NÚMEROS
+
+Un dato es SOLO lo que está escrito, tal cual, en TUS DATOS. Nada más.
+   - PROHIBIDO juntar, combinar, mezclar o inventar un número a partir de varios datos. Ejemplo PROHIBIDO y GRAVE: me piden un "número de cuenta de 15 dígitos" y yo solo tengo "últimos 5 dígitos de tarjeta" y un "PIN"; JAMÁS los pego para armar un número. Eso es inventar.
+   - Cada dato tiene su etiqueta (ej. "PIN de 6 dígitos", "últimos 5 dígitos de tarjeta"). Lo uso SOLO cuando me piden exactamente eso. El PIN NO es el número de cuenta; los últimos 5 dígitos NO son el número completo.
+   - Si el sistema me pide un número (de cuenta, tarjeta, cliente, etc.) de cierta cantidad de dígitos y NO tengo ese número COMPLETO, exactamente, en mis datos: NO marco nada inventado. Digo "permítame un segundito por favor" y uso ask_supervisor para preguntar qué debo marcar.
+
+MARCAR ES SILENCIOSO — NUNCA LO NARRO
+
+Marcar teclas es una acción, no una conversación. Cuando marco, mi respuesta es SOLO la herramienta press_keypad_digits, con CERO palabras habladas.
+   - PROHIBIDÍSIMO decir "voy a marcar", "voy a ingresar", "un momento", "vamos a marcar el numeral", "estoy listo", "voy a hacerlo ahora", "entendido" o cualquier narración. No anuncio lo que voy a hacer: lo hago y ya.
+   - A una grabación, menú o sistema automático NO le hablo NUNCA, ni para decir "entendido" ni "un momento". Solo marco teclas o espero en silencio.
 
 TU IDENTIDAD
 
@@ -702,6 +719,9 @@ COMO ACTUAR:
 
         case 'input_audio_buffer.speech_started':
           console.log('Speech started — will let AI finish current phrase');
+          // Anchor the upcoming transcription to when the other side STARTED
+          // talking, so it orders before any keypress the AI makes in response.
+          lastHumanSpeechTs = latestMediaTimestamp;
           if (callSid) broadcastEvent(callSid, 'speech_started');
           // NO barge-in. If the AI is mid-sentence we let it finish. The
           // user's utterance will be gated in the transcription handler
@@ -759,39 +779,47 @@ COMO ACTUAR:
           }
           break;
 
-        case 'response.done':
+        case 'response.done': {
           console.log('');
           responseActive = false;
-          if (currentAiText.trim()) {
-            const text = currentAiText.trim();
+          const doneOutputs = response.response?.output || [];
+          // If the assistant is pressing keys this turn, any accompanying speech
+          // is narration ("voy a marcar…") — never play it. A keypress is silent.
+          const pressingKeys = isAssistant && doneOutputs.some(
+            it => it?.type === 'function_call' && it?.name === 'press_keypad_digits');
+          const text = currentAiText.trim();
+          currentAiText = '';
+
+          if (text && !pressingKeys) {
             console.log(`[AI]: ${text}`);
             lastAiSentence = text;
-            postTranscript(callSid, 'ai', text);
+            postTranscript(callSid, 'ai', text, latestMediaTimestamp);
             if (callSid) broadcastEvent(callSid, 'ai_text', { text });
 
             if (USE_ELEVENLABS && streamSid) {
               // Flush any trailing fragment that didn't end with a sentence terminator.
-              const tail = currentAiText.slice(streamedOffset).trim();
-              if (tail) { ttsQueue.push(tail); streamedOffset = currentAiText.length; }
+              const tail = text.slice(streamedOffset).trim();
+              if (tail) { ttsQueue.push(tail); streamedOffset = text.length; }
               drainTtsQueue(ttsSessionId);
             }
           } else {
-            // No text produced — make sure we don't leave isSpeaking stuck.
-            if (!ttsActive && ttsQueue.length === 0) isSpeaking = false;
+            if (text && pressingKeys) console.log(`[assistant] suppressed narration alongside keypress: "${text}"`);
+            // Nothing to speak — don't leave isSpeaking / TTS state stuck.
+            if (streamSid && isSpeaking) { try { twilioWs.send(JSON.stringify({ event: 'clear', streamSid })); } catch {} }
+            ttsQueue = [];
+            if (!ttsActive) { isSpeaking = false; }
           }
-          currentAiText = '';
 
-          // Assistant mode: the model may have emitted tool calls (press digits,
-          // ask the operator, hang up) as function_call items in this response.
+          // Assistant mode: execute tool calls (press digits, ask operator, hang up).
           if (isAssistant) {
-            const outputs = response.response?.output || [];
-            for (const item of outputs) {
+            for (const item of doneOutputs) {
               if (item?.type === 'function_call') {
                 handleFunctionCall(item.call_id, item.name, item.arguments);
               }
             }
           }
           break;
+        }
 
         case 'conversation.item.input_audio_transcription.completed':
           if (response.transcript) {
@@ -816,7 +844,7 @@ COMO ACTUAR:
               break;
             }
             console.log(`[Human]: ${t}`);
-            postTranscript(callSid, 'human', t);
+            postTranscript(callSid, 'human', t, lastHumanSpeechTs || latestMediaTimestamp);
             if (callSid) broadcastEvent(callSid, 'human_text', { text: t });
             // NOTE: response.create is now auto-fired by server_vad (create_response:true)
             // when speech_stopped, in parallel with transcription. We do NOT fire it
@@ -902,7 +930,7 @@ COMO ACTUAR:
     twilioWs.send(JSON.stringify({ event: 'mark', streamSid, mark: { name: markId } }));
     console.log(`[dtmf] sent digits: ${clean}`);
     if (callSid) broadcastEvent(callSid, 'dtmf_sent', { digits: clean });
-    postTranscript(callSid, 'dtmf', `⌨️ ${clean}`);
+    postTranscript(callSid, 'dtmf', clean, latestMediaTimestamp);
   }
 
   // Return a function result to the model and (optionally) let it continue.
@@ -939,7 +967,7 @@ COMO ACTUAR:
     pendingSupervisor = { callId };
     console.log(`[supervisor] question: ${question}`);
     setPendingQuestion(question);
-    postTranscript(callSid, 'question', question);
+    postTranscript(callSid, 'question', question, latestMediaTimestamp);
     postCallQuestion(callSid, { question });
     if (callSid) broadcastEvent(callSid, 'supervisor_question', { question });
     // Safety net: if the operator never answers, don't leave the call frozen
@@ -962,7 +990,7 @@ COMO ACTUAR:
     const text = String(answer || '').trim();
     if (!text) return;
     clearTimeout(supervisorTimer);
-    postTranscript(callSid, 'answer', text);
+    postTranscript(callSid, 'answer', text, latestMediaTimestamp);
     setPendingQuestion(null);
     postCallQuestion(callSid, { cleared: true });
     if (callSid) broadcastEvent(callSid, 'supervisor_answered', { answer: text });
@@ -994,7 +1022,7 @@ COMO ACTUAR:
     } else if (name === 'hang_up') {
       const reason = String(args.reason || '');
       console.log(`[fn] hang_up: ${reason}`);
-      postTranscript(callSid, 'system', `📞 IA finaliza la llamada: ${reason}`);
+      postTranscript(callSid, 'system', `📞 IA finaliza la llamada: ${reason}`, latestMediaTimestamp);
       if (callSid) broadcastEvent(callSid, 'assistant_hangup', { reason });
       // Let the AI speak a short farewell; tear down once that finishes playing
       // (see drainTtsQueue), with a hard fallback so a stuck TTS can't hang on.

@@ -229,7 +229,7 @@ const summaryPending = computed(() =>
   call.value?.status === 'completed' && !call.value?.assistant_summary && summaryWaited.value <= 13)
 
 function roleLabel(role) {
-  return { ai: 'IA', human: 'Empresa', question: '❓ Pregunta a ti', answer: '✅ Tu respuesta', dtmf: 'Tecla', system: 'Sistema' }[role] || ''
+  return { ai: 'IA', human: 'Empresa', question: '❓ Pregunta a ti', answer: '✅ Tu respuesta', dtmf: '⌨️ Marcó', system: 'Sistema' }[role] || ''
 }
 function lineWrapClass(role) {
   return ['flex', role === 'ai' || role === 'dtmf' ? '' : 'flex-row-reverse', role === 'question' || role === 'answer' || role === 'system' ? 'justify-center' : '']
@@ -253,7 +253,12 @@ async function fetchCall() {
       // yank them away while they're re-reading an earlier line.
       const el = transcriptEl.value
       const wasNearBottom = !el || (el.scrollHeight - el.scrollTop - el.clientHeight < 80)
-      transcript.value = JSON.parse(data.live_transcript)
+      const parsed = JSON.parse(data.live_transcript)
+      // Order by in-call event time when available (a keypress is logged
+      // instantly, but the company's speech is transcribed a few seconds later).
+      transcript.value = parsed.every(t => typeof t.ts === 'number')
+        ? [...parsed].sort((a, b) => a.ts - b.ts)
+        : parsed
       await nextTick()
       if (wasNearBottom && transcriptEl.value) transcriptEl.value.scrollTop = transcriptEl.value.scrollHeight
     }

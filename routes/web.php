@@ -274,11 +274,17 @@ Route::post('/api/call-transcript', function (\Illuminate\Http\Request $request)
     if (!$jokeCall) return response('OK');
 
     $transcript = $jokeCall->live_transcript ? json_decode($jokeCall->live_transcript, true) : [];
-    $transcript[] = [
+    $entry = [
         'role' => $role,
         'text' => $text,
         'at' => now()->format('H:i:s'),
     ];
+    // In-call event time (ms) from the websocket server — used to order the
+    // transcript correctly (keypresses vs. delayed speech transcription).
+    if ($request->has('ts') && is_numeric($request->input('ts'))) {
+        $entry['ts'] = (int) $request->input('ts');
+    }
+    $transcript[] = $entry;
     $jokeCall->update(['live_transcript' => json_encode($transcript)]);
 
     return response('OK');
