@@ -9,6 +9,26 @@
       </p>
     </header>
 
+    <!-- Live call(s) in progress — jump straight to the console to listen -->
+    <button
+      v-for="c in liveCalls"
+      :key="c.id"
+      @click="$router.push('/admin/assistant/' + c.id)"
+      class="w-full flex items-center gap-3 rounded-xl border border-red-500/40 bg-red-500/10 px-4 py-3 text-left hover:bg-red-500/15 transition"
+    >
+      <span class="relative flex h-2.5 w-2.5 shrink-0">
+        <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75" />
+        <span class="relative inline-flex rounded-full h-2.5 w-2.5 bg-red-500" />
+      </span>
+      <div class="min-w-0 flex-1">
+        <div class="text-sm font-semibold text-white">Llamada en vivo · {{ c.assistant_company || c.phone_number }}</div>
+        <div class="text-[11px] text-red-200/80 truncate">{{ c.assistant_objective || 'Toca para abrir la consola y escuchar' }}</div>
+      </div>
+      <span class="inline-flex items-center gap-1.5 text-red-200 text-sm font-semibold shrink-0">
+        <Headphones class="w-4 h-4" /> Escuchar
+      </span>
+    </button>
+
     <div class="grid grid-cols-1 lg:grid-cols-5 gap-6">
       <!-- Launch form -->
       <UiCard class="lg:col-span-3" title="Nueva llamada de asistente">
@@ -120,10 +140,10 @@
 </template>
 
 <script setup>
-import { ref, reactive, onMounted, onUnmounted } from 'vue'
+import { ref, reactive, computed, onMounted, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
 import axios from 'axios'
-import { PhoneCall } from 'lucide-vue-next'
+import { PhoneCall, Headphones } from 'lucide-vue-next'
 
 import UiCard from '../components/UiCard.vue'
 import UiButton from '../components/UiButton.vue'
@@ -151,6 +171,7 @@ const recent = ref([])
 let pollInterval
 
 function isLive(c) { return ['calling', 'in_progress'].includes(c.status) }
+const liveCalls = computed(() => recent.value.filter(isLive))
 
 async function fetchRecent() {
   try {

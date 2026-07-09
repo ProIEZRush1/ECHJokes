@@ -26,6 +26,29 @@
       </UiButton>
     </header>
 
+    <!-- LIVE AUDIO — hear the call as it happens -->
+    <div
+      v-if="isLive && call.twilio_call_sid"
+      :class="['flex items-center gap-3 flex-wrap rounded-xl border px-4 py-3',
+        listening && !audioBlocked ? 'border-neon/40 bg-neon/10' : 'border-white/10 bg-white/5']"
+    >
+      <UiButton :variant="listening && !audioBlocked ? 'secondary' : 'primary'" @click="onListenClick">
+        <Headphones class="w-4 h-4" /> {{ listenLabel }}
+      </UiButton>
+      <span v-if="listening && !audioBlocked" class="inline-flex items-center gap-2 text-neon text-sm font-semibold">
+        <span class="relative flex h-2 w-2">
+          <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-neon opacity-75" />
+          <span class="relative inline-flex rounded-full h-2 w-2 bg-neon" />
+        </span>
+        Escuchando en vivo
+      </span>
+      <span v-else-if="audioBlocked" class="text-amber-300 text-sm font-medium">Toca el botón para activar el audio 🔊</span>
+      <span v-else class="text-gray-400 text-sm">Audio de la llamada en vivo</span>
+      <span class="ml-auto text-[11px]" :class="socketReady ? 'text-neon/70' : 'text-gray-500'">
+        {{ socketReady ? 'Control conectado' : 'Conectando…' }}
+      </span>
+    </div>
+
     <!-- LIVE QUESTION — the AI is waiting on you -->
     <div
       v-if="pendingQuestion"
@@ -68,17 +91,6 @@
 
       <!-- Right: controls -->
       <div class="space-y-4">
-        <!-- Live listen -->
-        <UiCard v-if="isLive && call.twilio_call_sid">
-          <UiButton :variant="listening ? 'secondary' : 'primary'" class="w-full" @click="toggleAudio">
-            <Headphones class="w-4 h-4" />
-            {{ listening ? 'Silenciar audio' : 'Escuchar en vivo' }}
-          </UiButton>
-          <p class="text-[11px] text-center mt-2" :class="socketReady ? 'text-neon' : 'text-gray-500'">
-            {{ socketReady ? 'Conectado al control en vivo' : 'Conectando…' }}
-          </p>
-        </UiCard>
-
         <!-- Keypad — press numbers like on a phone -->
         <UiCard v-if="isLive" title="Marcar teclas (tú)">
           <div class="grid grid-cols-3 gap-2">
@@ -151,8 +163,10 @@ const answer = ref('')
 const answerInput = ref(null)
 const sayText = ref('')
 const listening = ref(false)
+const audioBlocked = ref(false)
 const socketReady = ref(false)
 const hangingUp = ref(false)
+let autoListenTried = false
 
 const keypad = ['1', '2', '3', '4', '5', '6', '7', '8', '9', '*', '0', '#']
 
@@ -210,7 +224,7 @@ async function fetchCall() {
     } else if (++nullPollStreak >= 2 && pendingQuestion.value) {
       pendingQuestion.value = null
     }
-    if (isLive.value) ensureSocket()
+    if (isLive.value) { ensureSocket(); maybeAutoListen() }
   } catch { /* keep last */ }
 }
 
@@ -270,22 +284,54 @@ function sendSay() {
 }
 
 // ---- Audio playback ----
-function toggleAudio() {
-  if (listening.value) {
-    listening.value = false
-    try { audioCtx?.close() } catch {}
-    audioCtx = null
-    return
-  }
-  audioCtx = new (window.AudioContext || window.webkitAudioContext)({ sampleRate: 8000 })
-  audioCtx.resume?.()
-  gainNode = audioCtx.createGain()
-  gainNode.gain.value = 5.0
-  gainNode.connect(audioCtx.destination)
-  schedTime = 0
-  listening.value = true
-  ensureSocket()
+function startAudio() {
+  if (listening.value) return
+  try {
+    audioCtx = new (window.AudioContext || window.webkitAudioContext)({ sampleRate: 8000 })
+    gainNode = audioCtx.createGain()
+    gainNode.gain.value = 5.0
+    gainNode.connect(audioCtx.destination)
+    schedTime = 0
+    listening.value = true
+    ensureSocket()
+    // Resume; if the browser blocks autoplay (no user gesture in this document)
+    // the context stays 'suspended' and we prompt for a tap.
+    Promise.resolve(audioCtx.resume?.()).then(() => {
+      audioBlocked.value = audioCtx?.state === 'suspended'
+    }).catch(() => { audioBlocked.value = true })
+    audioBlocked.value = audioCtx.state === 'suspended'
+  } catch { listening.value = false }
 }
+function stopAudio() {
+  listening.value = false
+  audioBlocked.value = false
+  try { audioCtx?.close() } catch {}
+  audioCtx = null
+}
+function resumeAudio() {
+  Promise.resolve(audioCtx?.resume?.()).then(() => {
+    audioBlocked.value = audioCtx?.state === 'suspended'
+  })
+}
+// Prominent listen button: start / unblock / stop depending on state.
+function onListenClick() {
+  if (!listening.value) startAudio()
+  else if (audioBlocked.value) resumeAudio()
+  else stopAudio()
+}
+// Auto-start the moment the call is live. Works out of the box when the operator
+// arrived from the launch button (that click grants audio autoplay for this
+// document); on a cold direct load the browser may require one tap to unblock.
+function maybeAutoListen() {
+  if (autoListenTried || !isLive.value || listening.value) return
+  autoListenTried = true
+  startAudio()
+}
+const listenLabel = computed(() => {
+  if (!listening.value) return 'Escuchar en vivo'
+  if (audioBlocked.value) return 'Toca para activar el audio'
+  return 'Silenciar audio'
+})
 function playAudio(b64) {
   if (!listening.value || !audioCtx) return
   const bin = atob(b64)
