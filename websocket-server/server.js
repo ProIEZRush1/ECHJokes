@@ -36,13 +36,16 @@ console.log(`TTS mode: ${USE_ELEVENLABS ? 'ElevenLabs' : 'OpenAI native'}`);
 // ============================================
 // Turn-detection (VAD) tuning
 // ============================================
-// PRANK calls: the AI should keep talking and NOT stop to "listen" every time
-// there's a bit of background noise or a brief pause. server_vad with a HIGH
-// threshold + a LONG silence window makes it far less twitchy: it only yields
-// the turn on clear, sustained speech. All env-tunable in production.
+// PRANK calls: the AI should keep talking and NOT jump in on brief pauses/noise
+// — but it MUST still hear the victim. That "less twitchy" feel comes from a
+// LONG silence window (waits before ending the turn), NOT from a high threshold:
+// too high a threshold makes the AI deaf to normal phone speech. So the
+// threshold is clamped to a hearing-safe range (a prior 0.8 setting made it miss
+// the victim entirely and calls looked like voicemail).
 const PRANK_VAD_MODE      = process.env.PRANK_VAD_MODE || 'server_vad'; // server_vad | semantic_vad
-const PRANK_VAD_THRESHOLD = parseFloat(process.env.PRANK_VAD_THRESHOLD || '0.8');   // 0..1, higher = less sensitive
-const PRANK_VAD_SILENCE_MS= parseInt(process.env.PRANK_VAD_SILENCE_MS || '900', 10); // wait this long after speech before ending the turn
+const clampThreshold = (v, def) => { const n = parseFloat(v); return (n >= 0.2 && n <= 0.6) ? n : def; };
+const PRANK_VAD_THRESHOLD = clampThreshold(process.env.PRANK_VAD_THRESHOLD, 0.5); // 0.2–0.6; anything higher would go deaf
+const PRANK_VAD_SILENCE_MS= parseInt(process.env.PRANK_VAD_SILENCE_MS || '800', 10); // wait this long after speech before ending the turn
 const PRANK_VAD_PREFIX_MS = parseInt(process.env.PRANK_VAD_PREFIX_MS || '300', 10);
 const PRANK_VAD_EAGERNESS = process.env.PRANK_VAD_EAGERNESS || 'low'; // used only when PRANK_VAD_MODE=semantic_vad
 

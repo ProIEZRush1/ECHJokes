@@ -33,8 +33,8 @@ services:
       - SUPERVISOR_TIMEOUT_MS=${SUPERVISOR_TIMEOUT_MS:-90000}
       # Prank-call interruption sensitivity (less sensitive by default).
       - PRANK_VAD_MODE=${PRANK_VAD_MODE:-server_vad}
-      - PRANK_VAD_THRESHOLD=${PRANK_VAD_THRESHOLD:-0.8}
-      - PRANK_VAD_SILENCE_MS=${PRANK_VAD_SILENCE_MS:-900}
+      - PRANK_VAD_THRESHOLD=${PRANK_VAD_THRESHOLD:-0.5}
+      - PRANK_VAD_SILENCE_MS=${PRANK_VAD_SILENCE_MS:-800}
     labels:
       - "traefik.enable=true"
       - "traefik.docker.network=coolify"
