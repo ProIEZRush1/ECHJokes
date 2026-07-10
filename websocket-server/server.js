@@ -60,7 +60,11 @@ function buildTurnDetection(mode) {
       threshold: ASSIST_VAD_THRESHOLD,
       prefix_padding_ms: ASSIST_VAD_PREFIX_MS,
       silence_duration_ms: ASSIST_VAD_SILENCE_MS,
-      create_response: true,
+      // create_response:false — we fire responses MANUALLY, only when the other
+      // party REALLY said something new (see transcription handler). Otherwise
+      // the AI's own voice echoing back would re-trigger it and it would talk to
+      // itself, role-playing both the customer and the agent.
+      create_response: false,
       interrupt_response: false,
     };
   }
@@ -859,9 +863,11 @@ COMO ACTUAR:
             console.log(`[Human]: ${t}`);
             postTranscript(callSid, 'human', t, lastHumanSpeechTs || latestMediaTimestamp);
             if (callSid) broadcastEvent(callSid, 'human_text', { text: t });
-            // NOTE: response.create is now auto-fired by server_vad (create_response:true)
-            // when speech_stopped, in parallel with transcription. We do NOT fire it
-            // here to avoid "active response in progress" errors.
+            // Prank: server_vad auto-fires the response (create_response:true).
+            // Assistant: create_response is OFF, so we fire it MANUALLY here —
+            // only for REAL other-party speech that passed the echo/non-speech
+            // filters above. This is what stops the AI from talking to itself.
+            if (isAssistant && !responseActive) createResponseNow();
           }
           break;
 
@@ -946,6 +952,24 @@ COMO ACTUAR:
     postTranscript(callSid, 'dtmf', clean, latestMediaTimestamp);
   }
 
+  // Short role reminder injected right before each assistant response, so the
+  // model re-reads WHO IT IS every single turn (the system prompt alone doesn't
+  // stop it from drifting into "agent" mode over a long call).
+  const ASSISTANT_TURN_REMINDER = '[Recordatorio antes de responder: eres el CLIENTE que llama a pedir ayuda, NO el agente. No preguntes qué desea el otro, no ofrezcas "procesar/revisar/consultar" nada por ellos, no digas "con gusto le ayudo". Explica TU caso y pide. Si lo que oyes es una grabación, menú o sistema automático, NO hables: marca teclas con press_keypad_digits o espera en silencio. No inventes ni combines datos; si te falta un dato exacto, usa ask_supervisor.]';
+
+  // Fire a response manually (create_response is off for assistant calls). For
+  // assistant calls we prepend the role reminder so it can't drift.
+  function createResponseNow() {
+    if (!openAiWs || openAiWs.readyState !== WebSocket.OPEN) return;
+    if (isAssistant) {
+      openAiWs.send(JSON.stringify({
+        type: 'conversation.item.create',
+        item: { type: 'message', role: 'user', content: [{ type: 'input_text', text: ASSISTANT_TURN_REMINDER }] },
+      }));
+    }
+    openAiWs.send(JSON.stringify({ type: 'response.create' }));
+  }
+
   // Return a function result to the model and (optionally) let it continue.
   function submitFunctionOutput(callId, output, createResponse = true) {
     if (!openAiWs || openAiWs.readyState !== WebSocket.OPEN) return;
@@ -953,7 +977,7 @@ COMO ACTUAR:
       type: 'conversation.item.create',
       item: { type: 'function_call_output', call_id: callId, output: String(output) },
     }));
-    if (createResponse) openAiWs.send(JSON.stringify({ type: 'response.create' }));
+    if (createResponse) createResponseNow();
   }
 
   // Inject an out-of-band instruction (from the operator) as a user turn.
